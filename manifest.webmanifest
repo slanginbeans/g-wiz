@@ -1,0 +1,30 @@
+{
+  "name": "G-WIZ Graphics Wizard",
+  "short_name": "G-WIZ",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#c0c0c0",
+  "theme_color": "#000080",
+  "description": "Erase backgrounds, edit animated GIFs, draw and work with layers. Works offline.",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

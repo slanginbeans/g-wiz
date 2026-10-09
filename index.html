@@ -122,6 +122,9 @@ output,.val{font:11px var(--mono);color:var(--text)}
 .inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .inline .spacer,.spacer{flex:1}
 .inline2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.twgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.twgrid .num:nth-child(-n+2){grid-column:span 3}
+.twgrid .num:nth-child(n+3){grid-column:span 2}
 .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .num{display:grid;gap:2px;min-width:0}
 .sub{font-weight:bold}
@@ -351,6 +354,32 @@ html.touch .coexit .ic{width:24px;height:24px;background-size:24px 24px}
 .phinfo + .phbtn{margin-left:6px}
 html.touch .phbtn{width:34px;height:28px;font-size:16px}
 html.layersmin .layerdock > :not(.panehead){display:none!important}
+
+/* ---------- fitting small and landscape screens ---------- */
+@supports (height:100dvh){ .app{height:100dvh} }
+.leftdock{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;min-height:0}
+.rightdock{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;grid-template-rows:auto auto minmax(240px,1fr)}
+.pages{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pages.more,.leftdock.more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),rgba(0,0,0,.25));mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),rgba(0,0,0,.25))}
+.palettebar{overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;flex-wrap:nowrap}
+.palettebar > *{flex-shrink:0}
+.palgrid{flex-shrink:0}
+.toast{pointer-events:none}
+html.touch #palRecent .sw:nth-child(n+9){display:none}
+@media (orientation:landscape) and (max-height:900px){
+  html.touch .lyr-list{height:132px}
+  html.touch .lyr{height:44px}
+  html.touch .lyr-tools .tb{width:34px;height:34px}
+  html.touch .strip{height:64px}
+  html.touch .thumb canvas{height:44px}
+}
+/* ---------- animation mode ---------- */
+.framedock{grid-template-columns:auto auto minmax(0,1fr) auto}
+html:not(.animmode) .framedock{grid-template-columns:auto minmax(0,1fr) auto}
+html:not(.animmode) .fd-anim{display:none}
+.fd-anim{display:flex;align-items:center;gap:1px}
+.fd-anim .tsep{height:22px}
+html.touch .fd-anim .tsep{height:34px}
 </style>
 
 <div class="app" id="app">
@@ -407,6 +436,7 @@ html.layersmin .layerdock > :not(.panehead){display:none!important}
     <button class="tb" id="tbFlipV" data-tip="Flip vertical" data-help="Mirrors the image top to bottom."><i class="ic" data-ic="flipv"></i></button>
     <button class="tb" data-page-btn="rotate" data-tip="Rotate by angle…" data-help="Rotates by any angle with a live preview and straightening grid."><i class="ic" data-ic="options"></i></button>
     <span class="tsep"></span>
+    <button class="tb" data-page-btn="animate" data-tip="Animation" data-help="Animation mode: add and remove frames, onion skins and motion tweens."><i class="ic" data-ic="animate"></i></button>
     <button class="tb anim-only" data-page-btn="anim" data-tip="Animation frames" data-help="Plays, steps through and copies masks between animation frames."><i class="ic" data-ic="anim"></i></button>
     <button class="tb anim-only" data-page-btn="motion" data-tip="Motion finder" data-help="Finds the still and moving parts of an animation, then erases or restores them."><i class="ic" data-ic="motion"></i></button>
     <button class="tb anim-only" data-page-btn="stab" data-tip="Stabilize" data-help="Detects camera shake between frames and steadies the animation."><i class="ic" data-ic="stab"></i></button>
@@ -913,6 +943,72 @@ html.layersmin .layerdock > :not(.panehead){display:none!important}
           <p class="hint" id="animNone">Open an animated GIF, WebP or PNG to use the animation features.</p>
         </div>
 
+
+        <!-- ---------- animation mode: frames, onion skin, motion tween ---------- -->
+        <div class="page" data-page="animate" hidden>
+          <fieldset><legend>Animation mode</legend>
+            <label class="check" data-help="Shows the frame strip with every frame of the picture, onion skins and the frame tools."><input type="checkbox" id="amOn"> Animation mode</label>
+            <p class="hint dim">Each layer with frames plays along the timeline. A layer with a single frame stays still behind or in front, like a background.</p>
+          </fieldset>
+          <fieldset><legend>Frames</legend>
+            <div class="row-h"><span class="val" id="amInfo">Frame 1 of 1</span></div>
+            <div class="inline">
+              <button class="btn" id="amAdd" data-help="Adds an empty frame after this one on the selected layer. Other animated layers hold their picture."><i class="ic" data-ic="framenew"></i>New frame</button>
+              <button class="btn" id="amDup" data-help="Copies this frame and puts the copy right after it."><i class="ic" data-ic="layerdup"></i>Duplicate</button>
+            </div>
+            <div class="inline">
+              <button class="btn" id="amDel" data-help="Removes this frame from every animated layer."><i class="ic" data-ic="layerdel"></i>Delete</button>
+              <button class="btn icon" id="amLeft" data-tip="Move this frame earlier" aria-label="Move frame earlier"><i class="ic" data-ic="prev"></i></button>
+              <button class="btn icon" id="amRight" data-tip="Move this frame later" aria-label="Move frame later"><i class="ic" data-ic="next"></i></button>
+            </div>
+            <label class="check" data-help="New frames start as a copy of the current frame instead of empty."><input type="checkbox" id="amCopy"> New frames copy the current frame</label>
+            <div class="row"><div class="row-h"><label for="amDur">This frame lasts</label><output id="amDurOut">100 ms</output></div><input type="range" id="amDur" min="20" max="2000" step="10" value="100"></div>
+            <div class="row"><div class="row-h"><label for="amFps">Speed for all frames</label><output id="amFpsOut">12 fps</output></div><input type="range" id="amFps" min="1" max="30" value="12"></div>
+            <div class="inline"><span class="spacer"></span><button class="btn" id="amFpsApply">Apply to all frames</button></div>
+          </fieldset>
+          <fieldset><legend>Onion skin</legend>
+            <label class="check" data-help="Shows faint copies of the frames before and after this one, so you can draw the next step in the right place."><input type="checkbox" id="onOn" checked> Show neighboring frames</label>
+            <div class="row"><div class="row-h"><label for="onBefore">Frames before</label><output id="onBeforeOut">2</output></div><input type="range" id="onBefore" min="0" max="8" value="2"></div>
+            <div class="row"><div class="row-h"><label for="onAfter">Frames after</label><output id="onAfterOut">1</output></div><input type="range" id="onAfter" min="0" max="8" value="1"></div>
+            <div class="row"><div class="row-h"><label for="onOp">Strength</label><output id="onOpOut">35%</output></div><input type="range" id="onOp" min="5" max="90" value="35"></div>
+            <label class="check" data-help="Frames before are tinted red and frames after green."><input type="checkbox" id="onTint" checked> Color frames before red, after green</label>
+            <div class="seg full" role="group" aria-label="Onion skin shows" id="onSrc">
+              <button data-v="layer" aria-pressed="true" data-help="Only the selected layer's frames.">Selected layer</button>
+              <button data-v="doc" aria-pressed="false" data-help="The whole picture of the neighboring frames.">Whole picture</button>
+            </div>
+          </fieldset>
+          <fieldset><legend>Motion tween</legend>
+            <p class="hint">Moves, scales, turns or fades the selected layer smoothly from one frame to another. Frames are added when needed.</p>
+            <div class="inline2">
+              <div class="num"><label for="twFrom">From frame</label><input type="number" id="twFrom" min="1" value="1"></div>
+              <div class="num"><label for="twTo">To frame</label><input type="number" id="twTo" min="2" value="12"></div>
+            </div>
+            <div class="sub">Start</div>
+            <div class="twgrid">
+              <div class="num"><label for="twX0">X</label><input type="number" id="twX0" value="0"></div>
+              <div class="num"><label for="twY0">Y</label><input type="number" id="twY0" value="0"></div>
+              <div class="num"><label for="twS0">Size %</label><input type="number" id="twS0" value="100" min="1"></div>
+              <div class="num"><label for="twR0">Turn °</label><input type="number" id="twR0" value="0"></div>
+              <div class="num"><label for="twO0">Opacity %</label><input type="number" id="twO0" value="100" min="0" max="100"></div>
+            </div>
+            <button class="btn wide" id="twSet0" data-help="Copies the selected layer's current position into the start.">Use the layer's current position</button>
+            <div class="sub">End</div>
+            <div class="twgrid">
+              <div class="num"><label for="twX1">X</label><input type="number" id="twX1" value="0"></div>
+              <div class="num"><label for="twY1">Y</label><input type="number" id="twY1" value="0"></div>
+              <div class="num"><label for="twS1">Size %</label><input type="number" id="twS1" value="100" min="1"></div>
+              <div class="num"><label for="twR1">Turn °</label><input type="number" id="twR1" value="0"></div>
+              <div class="num"><label for="twO1">Opacity %</label><input type="number" id="twO1" value="100" min="0" max="100"></div>
+            </div>
+            <button class="btn wide" id="twSet1" data-help="Copies the selected layer's current position into the end.">Use the layer's current position</button>
+            <div class="row"><label for="twEase">Easing</label>
+              <select id="twEase"><option value="linear">Steady speed</option><option value="in">Ease in (start slow)</option><option value="out">Ease out (end slow)</option><option value="inout" selected>Ease in and out</option></select></div>
+            <label class="check"><input type="checkbox" id="twPath" checked> Show the path on the canvas</label>
+            <p class="hint dim">Tip: drag the layer to where it starts with the Move tool and press the first button, then drag it to where it ends and press the second.</p>
+            <div class="winbtns"><button class="btn default" id="twApply">Create tween</button></div>
+          </fieldset>
+        </div>
+
         <!-- ---------- motion finder ---------- -->
         <div class="page" data-page="motion" hidden>
           <section id="motionSec" class="page" hidden>
@@ -1167,7 +1263,7 @@ html.layersmin .layerdock > :not(.panehead){display:none!important}
       <div class="about">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABbklEQVR4nO2YaRKDIAxGodN76dF6NU+W/nAbZYcEUL430yluKTWPCCoFABgZ3boDFsixX6SvH4mgT+LbugPKyPhdgLTEE60BtI67cHgDWtYAunwZaKPhDUb2QCETYECD32TNvBEcNSCNmgYEMr9TZkAqwxtQYx5gzTzRmmCtQ0bIMrwBkuPMm3mjI4cJqAFVqW7AcTBYA+rMB2CAQMzI532IOrVgeAM6vgG0fc6GBB3fgDpwzgSLxn6rmeHwBnBW2CwDwjPDY4/R4AAGMMRgWe1JzwxdwACGGBcD4sd0LrwmwICCawtXe7nAAFaKDaBGr/T02fMiE2BAxjVNM3+n1AQY4DnWSY6LwTtBH7a7s2X+V7Mfgvz2htUEGGDZ95axfwcG2HC+E6TtQb8si1JKqWmaHrU9z/P+V/AU8OE0oJdM5m7HAgNcB3rJZO52LDDAdaCXTKIGCIMakHT2C0ENSDr7hYywGsRaAAAAALDzBxmcLHXqqIIcAAAAAElFTkSuQmCC" alt="">
         <div>
-          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.2.1</p>
+          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.3.0</p>
           <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
           <p class="hint" id="aboutMode"></p>
         </div>
@@ -1566,7 +1662,7 @@ let dpr = 1, cw = 0, ch = 0;
 
 // ---------- UI helpers ----------
 let toastT = 0;
-function toast(msg, ms = 2600){ try { sbFlash(msg, Math.max(ms, 4000)); } catch (e) {} const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
+function toast(msg, ms = 2600){ try { sbFlash(msg, Math.max(ms, 4000)); } catch (e) {} const t = $('#toast'); try { const pb = $('#palettebar'), st = $('#stage').getBoundingClientRect(); t.style.bottom = Math.max(8, innerHeight - st.bottom + 10) + 'px'; } catch (e) {} t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
 function busy(on){ $('#busy').hidden = !on; }
 const fmtHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
 
@@ -1714,8 +1810,8 @@ function endOp(){
 }
 function cancelOp(){ if (!op) return; op.fs.forEach((f, i) => masks[f].set(op.snap[i])); const o = op; op = null; if (o.x1 > o.x0) renderRect(o.x0, o.y0, o.x1, o.y1); }
 function entryBytes(e){ if (e.kind === 'layers') return 4096; if (e.paint) return e.data.reduce((s, d) => s + d.length, 0) + e.mdata.reduce((s, d) => s + d.length, 0); return e.geom ? e.frames.reduce((s, d) => s + d.length, 0) + e.masks.reduce((s, d) => s + d.length, 0) : e.data.reduce((s, d) => s + d.length, 0); }
-function pushUndo(e){ if (e.lid === undefined) e.lid = AL ? AL.id : null; undoStack.push(e); undoBytes += entryBytes(e); while (undoStack.length > 80 || (undoBytes > (IS_IOS ? 120e6 : 300e6) && undoStack.length > 1)) undoBytes -= entryBytes(undoStack.shift()); }
-function swapEntry(e){ invalidateRefine();
+function pushUndo(e){ onionClear(); if (e.lid === undefined) e.lid = AL ? AL.id : null; undoStack.push(e); undoBytes += entryBytes(e); while (undoStack.length > 80 || (undoBytes > (IS_IOS ? 120e6 : 300e6) && undoStack.length > 1)) undoBytes -= entryBytes(undoStack.shift()); }
+function swapEntry(e){ invalidateRefine(); onionClear();
   if (e.kind === 'layers') return swapLayersEntry(e);
   ensureActive(e.lid);
   if (e.paint) return swapPaintEntry(e);
@@ -1920,10 +2016,11 @@ function copyMask(to){
 let thumbs = [], thumbQ = new Set(), thumbT = 0;
 function buildStrip(){
   const strip = $('#strip'); strip.textContent = ''; thumbs = [];
-  strip.hidden = frames.length < 2;
-  if (frames.length < 2) return;
-  const th = 52, tw = Math.max(16, Math.min(120, Math.round(W * th / H)));
-  frames.forEach((_, i) => {
+  const nTh = ANIM.on ? docFrames() : frames.length, tW = ANIM.on ? DocW : W, tH = ANIM.on ? DocH : H;
+  strip.hidden = nTh < 2 && !ANIM.on;
+  if (nTh < 2 && !ANIM.on) return;
+  const th = 52, tw = Math.max(16, Math.min(120, Math.round(tW * th / tH)));
+  for (let i0 = 0; i0 < nTh; i0++) (i => {
     const b = document.createElement('button'); b.className = 'thumb'; b.type = 'button';
     b.setAttribute('aria-label', 'Frame ' + (i + 1)); b.title = 'Frame ' + (i + 1);
     const c = document.createElement('canvas'); c.width = tw; c.height = th;
@@ -1931,10 +2028,10 @@ function buildStrip(){
     const dot = document.createElement('span'); dot.className = 'tdot'; dot.hidden = true; dot.title = 'Edited';
     b.append(c, n, dot); b.addEventListener('click', () => { stopPlay(); setFrame(i); });
     strip.appendChild(b); thumbs.push({ b, c, dot });
-  });
-  thumbsDirty(frames.map((_, i) => i)); markThumb();
+  })(i0);
+  thumbsDirty(thumbs.map((_, i) => i)); markThumb();
 }
-function thumbsDirty(fs){ scheduleLayerThumb(); if (!thumbs.length) return; fs.forEach(f => thumbQ.add(f)); clearTimeout(thumbT); thumbT = setTimeout(flushThumbs, 120); }
+function thumbsDirty(fs){ scheduleLayerThumb(); if (!thumbs.length) return; (ANIM.on && frames.length !== thumbs.length ? thumbs.map((_, i) => i) : fs).forEach(f => thumbQ.add(f)); clearTimeout(thumbT); thumbT = setTimeout(flushThumbs, 120); }
 function flushThumbs(){
   const t0 = performance.now();
   for (const f of thumbQ){
@@ -1943,6 +2040,7 @@ function flushThumbs(){
   }
 }
 function drawThumb(f){
+  if (ANIM.on) return drawDocThumb(f);
   const t = thumbs[f]; if (!t) return;
   const tw = t.c.width, th = t.c.height, g = t.c.getContext('2d'), id = g.createImageData(tw, th), d = id.data;
   const src = frames[f], m = masks[f];
@@ -1953,8 +2051,9 @@ function drawThumb(f){
   t.dot.hidden = !edited;
 }
 function markThumb(){
-  thumbs.forEach((t, i) => t.b.setAttribute('aria-current', String(i === S.cur)));
-  const t = thumbs[S.cur]; if (t) t.b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const cf = ANIM.on ? S.dcur : S.cur;
+  thumbs.forEach((t, i) => t.b.setAttribute('aria-current', String(i === cf)));
+  const t = thumbs[cf]; if (t) t.b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 // ---------- view ----------
@@ -2242,8 +2341,8 @@ $('#bgColor').addEventListener('input', e => { S.bgColor = e.target.value; S.bg 
 // ---------- animation ----------
 let playT = 0;
 function setupAnim(){
-  const multi = docFrames() > 1;
-  $('#animSec').hidden = !multi;
+  const multi = docFrames() > 1 || ANIM.on;
+  $('#animSec').hidden = frames.length < 2;
   $('#frameSl').max = Math.max(0, docFrames() - 1); $('#frameSl').value = S.dcur;
   $('#timeline').hidden = !multi; stage.classList.toggle('has-tl', multi); $('#motionSec').hidden = frames.length < 2;
   $('#stabSec').hidden = frames.length < 2; $$('.anim-none, #animNone').forEach(el => el.hidden = frames.length > 1); $$('.anim-only').forEach(b => b.disabled = frames.length < 2);
@@ -2257,7 +2356,7 @@ function updateFrameInfo(){
   const d = docDelay(S.dcur); const ms = (d >= 2 ? d : 10) * 10;
   $('#frameInfo').textContent = 'Frame ' + (S.dcur + 1) + ' of ' + docFrames() + ' · ' + ms + ' ms';
 }
-function setFrame(i){ S.dcur = i; S.cur = i % frames.length; refreshOtherAnimated(); invalidateRefine(); if (!S.rotAll) updateRotScopeHint(); $('#frameSl').value = i; renderRect(0, 0, W, H); updateFrameInfo(); updateHud(); markThumb(); syncTl(); if (stab) drawStabGraph(); if (motionReady && S.mMode === 'plate' && !S.playing) scheduleMotion(false); }
+function setFrame(i){ S.dcur = i; S.cur = i % frames.length; refreshOtherAnimated(); invalidateRefine(); if (!S.rotAll) updateRotScopeHint(); $('#frameSl').value = i; renderRect(0, 0, W, H); updateFrameInfo(); updateHud(); markThumb(); syncTl(); if (stab) drawStabGraph(); if (motionReady && S.mMode === 'plate' && !S.playing) scheduleMotion(false); updateAnimPage(); }
 function play(){ if (S.playing) return; S.playing = true; $('#playBtn').innerHTML = '<i class="ic" data-ic="pause"></i>'; $('#playBtn').setAttribute('aria-label', 'Pause'); syncTl(); tick(); }
 function tick(){ if (!S.playing) return; const d = docDelay(S.dcur); playT = setTimeout(() => { if (!S.playing) return; setFrame((S.dcur + 1) % docFrames()); tick(); }, (d >= 2 ? d : 10) * 10); }
 function stopPlay(){ if (!S.playing) return; S.playing = false; clearTimeout(playT); $('#playBtn').innerHTML = '<i class="ic" data-ic="play"></i>'; $('#playBtn').setAttribute('aria-label', 'Play'); syncTl(); }
@@ -2399,7 +2498,7 @@ function syncTl(){
 }
 // small ticks under the scrubber mark frames that have edits
 function drawTlMarks(){
-  const c = $('#tlMarks'); if (!c || frames.length < 2) return;
+  const c = $('#tlMarks'); if (c && ANIM.on){ c.getContext('2d').clearRect(0, 0, c.width, c.height); return; } if (!c || frames.length < 2) return;
   const r = c.getBoundingClientRect(), w = Math.max(1, Math.round(r.width * dpr)), h = Math.round(14 * dpr);
   c.width = w; c.height = h; const g = c.getContext('2d'); g.clearRect(0, 0, w, h);
   g.fillStyle = themeCols ? themeCols.accent : '#d23a26';
@@ -3078,7 +3177,7 @@ function makeSample(){
 }
 
 const ICON_PAL = {".": null, "k": "#000000", "w": "#ffffff", "g": "#808080", "s": "#c0c0c0", "n": "#000080", "b": "#0000ff", "t": "#008080", "c": "#00ffff", "d": "#008000", "l": "#00ff00", "m": "#800000", "r": "#ff0000", "o": "#808000", "y": "#ffff00", "p": "#800080", "f": "#ff00ff", "e": "#e0a060"};
-const ICONS = {"open": "................\n................\n.kkkk...........\nkyyyyk...kkk....\nkywyyykkk...k.k.\nkywyyyyyyk...kk.\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................\n................", "save": "................\n.kkkkkkkkkkkkkk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knnkkkkkkkknnk.\n.knnnnnnnnnnnnk.\n.knnkkkkkkkknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.kkkkkkkkkkkkkk.\n................\n................", "undo": "................\n................\n................\n....k...........\n...kk...........\n..kbkkkkkkk.....\n.kbbbbbbbbbkk...\n..kbkkkkkkkbbk..\n...kk......kbk..\n....k.......kbk.\n............kbk.\n............kbk.\n...........kbk..\n.........kkbk...\n.........kkk....\n................", "redo": "................\n................\n................\n...........k....\n...........kk...\n.....kkkkkkkbk..\n...kkbbbbbbbbbk.\n..kbbkkkkkkkbk..\n..kbk......kk...\n.kbk.......k....\n.kbk............\n.kbk............\n..kbk...........\n...kbkk.........\n....kkk.........\n................", "zoomin": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "zoomout": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "fit": "................\n.kkkk......kkkk.\n.kk..........kk.\n.k.k........k.k.\n.k..k......k..k.\n.....kkkkkk.....\n.....kwwwwk.....\n.....kwbbwk.....\n.....kwbbwk.....\n.....kwwwwk.....\n.....kkkkkk.....\n.k..k......k..k.\n.k.k........k.k.\n.kk..........kk.\n.kkkk......kkkk.\n................", "actual": "................\n................\n................\n..kk.......kk...\n.kkk......kkk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n..kk.......kk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n.kkkk.....kkkk..\n................\n................\n................", "vresult": "................\n.kkkkkkkkkkkkkk.\n.kwswswswswswsk.\n.kswswrrswswswk.\n.kwswrrrrswswsk.\n.kswswrrswswswk.\n.kwswswswswswsk.\n.kswswsddswswsk.\n.kwswsddddswswk.\n.ksswddddddswsk.\n.kwsddddddddswk.\n.ksddddddddddsk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vmask": "................\n.kkkkkkkkkkkkkk.\n.krrrrrrcccccck.\n.krrrrrryyyyyck.\n.krrrrrryyyyyck.\n.krrrrrrcccccck.\n.krrrrrrcccccck.\n.krrrrrrdccccck.\n.krrrrrrddcccck.\n.krrrrrrdddccck.\n.krrrrrrddddcck.\n.krrrrrrdddddck.\n.krrrrrrddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vorig": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccyycccck.\n.kcccccyyyyccck.\n.kccccccyycccck.\n.kcccccccccccck.\n.kccccccddcccck.\n.kcccccddddccck.\n.kccccddddddcck.\n.kcccddddddddck.\n.kccddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "eraser": "................\n................\n................\n.........kkkkkk.\n........kffffkk.\n.......kffffkfk.\n......kffffkffk.\n.....kffffkffk..\n....kwwwwkffk...\n...kwwwwkffk....\n..kwwwwkffk.....\n.kwwwwkffk......\n.kkkkkkfk.......\n.kkkkkkk........\n................\n................", "restore": "..........kkk...\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kmmmk.....\n.....kmmmk......\n....kssk........\n...kssk...dd....\n..kggk....dd....\n.kbbbk..dddddd..\n.kbbbk..dddddd..\nkbbbk.....dd....\nkbbk......dd....\nkkk.............\n................\n................", "wand": "..........y.....\n......y...y...y.\n.......y..y..y..\n................\n.....yy.....yy..\n................\n........kkk.y...\n.......kwwk..y..\n......kwwk....y.\n.....kkkk.......\n....kkkk........\n...kkkk.........\n..kkkk..........\n.kkkk...........\n.kkk............\n................", "crop": "...kk...........\n...kk...........\n...kk...........\nkkkkkkkkkkkkk...\nkkkkkkkkkkkkk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kkkkkkkkkkkkk\n...kkkkkkkkkkkkk\n...........kk...\n...........kk...\n...........kk...", "hand": ".......kk.......\n...kk.kwwkkk....\n..kwwkkwwkwwk...\n..kwwkkwwkwwk.k.\n...kwwkkwwkwwkwk\n...kwwkkwwkwwkwk\n.kk.kwwwwwwwwkwk\nkwwkkwwwwwwwwwwk\nkwwwkwwwwwwwwwk.\n.kwwwwwwwwwwwwk.\n..kwwwwwwwwwwwk.\n...kwwwwwwwwwk..\n....kwwwwwwwwk..\n.....kwwwwwwk...\n.....kwwwwwwk...\n................", "zoomtool": "................\n.....kkkk.......\n...kkccccww.....\n..kccccccccw....\n..kccccccccw....\n.kccccccccccw...\n.kccccccccccw...\n..kccccccccw....\n..kccccccccw....\n...kkcccckkg....\n.....kkkk.kgk...\n...........kmk..\n............kmk.\n.............mm.\n................\n................", "auto": "................\n.kwgwgwgwgwgwgk.\n.kgwgwgwgwgwgwk.\n.kwgwgyyyyyywgk.\n.kgwgyy.y.yyywk.\n.kwgyyyyyyyyygk.\n.kgwgyyyyyyywwk.\n.kwgwgyyyyywgwk.\n.kgwgwddddgwgwk.\n.kwgwgddddwgwgk.\n.kgwgwddddgwgwk.\n.kwgwddddddwgwk.\n.kgwgwgwgwgwgwk.\n.kkkkkkkkkkkkkk.\n................\n................", "specks": "................\n.k..........k...\n................\n....k...........\n..........k.....\n.k..............\n.......kkkk.....\n......kddddk..k.\n.....kddddddk...\n.....kddddddk...\n.k...kddddddk...\n......kddddk....\n.......kkkk.....\n..k.........k...\n................\n................", "finish": "................\n............kk..\n...........kwk..\n..........kwwk..\n.........kwwwk..\n........kwwwgk..\n.......kwwwgk...\n......kwwwgk....\n.....kwwwgk.....\n....kwwwgk......\n...kwwwgk.......\n...kwwgk........\n..kgggk.........\n..kkk...........\n.kk.............\nk...............", "opacity": "................\n.....kkkkkk.....\n...kknnnwgwkk...\n..knnnnngwgwgk..\n..knnnnnwgwgwk..\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n..knnnnnwgwgwk..\n..knnnnngwgwgk..\n...kknnnwgwkk...\n.....kkkkkk.....\n................\n................", "rotl": "................\n.....kkkkk......\n..k.kbbbbbkk....\n..kkbk....kbk...\n..kbbk.....kbk..\n..kbbbk.....kk..\n..kkkkkk....kbk.\n............kbk.\n............kbk.\n...kkkkkk...kbk.\n...kwwwwk..kbk..\n...kwwwwk.kbk...\n...kwwwwkkbk....\n...kwwwwkkk.....\n...kkkkkk.......\n................", "rotr": "................\n......kkkkk.....\n....kkbbbbbk.k..\n...kbk....kbkk..\n..kbk.....kbbk..\n..kk.....kbbbk..\n.kbk....kkkkkk..\n.kbk............\n.kbk............\n.kbk...kkkkkk...\n..kbk..kwwwwk...\n...kbk.kwwwwk...\n....kbkkwwwwk...\n.....kkkwwwwk...\n.......kkkkkk...\n................", "fliph": ".......kk.......\n.......kk.......\n..kk...kk...kk..\n.kbk...kk...kgk.\nkbbk...kk...kgsk\nkbbbk..kk..kgssk\nkbbbbk.kk.kgsssk\nkbbbbbkkkkgssssk\nkbbbbk.kk.kgsssk\nkbbbk..kk..kgssk\nkbbk...kk...kgsk\n.kbk...kk...kgk.\n..kk...kk...kk..\n.......kk.......\n.......kk.......\n................", "flipv": "................\n.....kkkkkk.....\n....kbbbbbbk....\n...kbbbbbbbbk...\n..kbbbbbbbbbbk..\n.kkkkkkkkkkkkkk.\n................\nkkkkkkkkkkkkkkkk\nkkkkkkkkkkkkkkkk\n................\n.kkkkkkkkkkkkkk.\n..kgsssssssssk..\n...kgssssssssk..\n....kgssssssk...\n.....kkkkkkk....\n................", "motion": "................\n................\n.........kkkk...\n........krrrrk..\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n..kkkkkkrrrrrrk.\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n........krrrrk..\n.........kkkk...\n................\n................\n................", "stab": ".......kk.......\n.......kk.......\n....kkkkkkkk....\n...kk..kk..kk...\n..kk...kk...kk..\n..k....kk....k..\n..k....rr....k..\nkkkkkkrrrrkkkkkk\nkkkkkkrrrrkkkkkk\n..k....rr....k..\n..k....kk....k..\n..kk...kk...kk..\n...kk..kk..kk...\n....kkkkkkkk....\n.......kk.......\n.......kk.......", "anim": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkk.cccck.cccck.k\nkk.cccck.ccrck.k\nkk.crcck.crrck.k\nkk.rrrck.rrrck.k\nkk.cdddk.cdddk.k\nkk.cccck.cccck.k\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................\n................", "play": "................\n................\n....kk..........\n....kdk.........\n....kddk........\n....kdddk.......\n....kddddk......\n....kdddddk.....\n....kddddddk....\n....kdddddk.....\n....kddddk......\n....kdddk.......\n....kddk........\n....kdk.........\n....kk..........\n................", "pause": "................\n................\n...kkkk..kkkk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...kkkk..kkkk...\n................\n................", "prev": "................\n................\n................\n...kk......kk...\n...kk.....kkk...\n...kk....kkkk...\n...kk...kkkkk...\n...kk..kkkkkk...\n...kk..kkkkkk...\n...kk...kkkkk...\n...kk....kkkk...\n...kk.....kkk...\n...kk......kk...\n................\n................\n................", "next": "................\n................\n................\n...kk......kk...\n...kkk.....kk...\n...kkkk....kk...\n...kkkkk...kk...\n...kkkkkk..kk...\n...kkkkkk..kk...\n...kkkkk...kk...\n...kkkk....kk...\n...kkk.....kk...\n...kk......kk...\n................\n................\n................", "help": "................\n.....kkkkkk.....\n...kkyyyyyykk...\n..kyyyykkyyyyk..\n..kyyykyykyyyk..\n.kyyyyyyykyyyyk.\n.kyyyyyykyyyyyk.\n.kyyyyykyyyyyyk.\n.kyyyyykyyyyyyk.\n..kyyyyyyyyyyk..\n..kyyyykyyyyyk..\n...kkyyyyyykk...\n.....kkyyykk....\n.......kyyk.....\n........kkk.....\n................", "track": "................\n.kkk.kkk.kkk.kk.\n.k............k.\n.k............k.\n......kk........\n.k....kk......k.\n.k..kkrrkk....k.\n....kkrrkk......\n.k....kk......k.\n.k....kk......k.\n................\n.k............k.\n.k............k.\n.kk.kkk.kkk.kkk.\n................\n................", "copy": "................\n.kkkkkkkk.......\n.kwwwwwwk.......\n.kwrrrwwk.......\n.kwrrrwwk.......\n.kwwwwkkkkkkkk..\n.kwwwwkwwwwwwk..\n.kwwwwkwrrrwwk..\n.kkkkkkwrrrwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kkkkkkkk..\n................\n................\n................", "options": "................\n.......kk.......\n...kk.kssk.kk...\n..ksskssssksk...\n..kssssggsssk...\n...kssk..kssk...\n.kkssk....kskk..\nkssssk....kssssk\nkssssk....kssssk\n.kkssk....kskk..\n...kssk..kssk...\n..kssssggsssk...\n..ksskssssksk...\n...kk.kssk.kk...\n.......kk.......\n................", "reset": "................\n.....kkkkkk.....\n...kkddddddkk...\n..kddkkkkkkddk..\n.kdkk......kddk.\n.kdk........kdk.\nkddk............\nkdk.............\nkdk.......kkkkk.\nkddk.......kddk.\n.kdk......kdddk.\n.kddkk..kkddkdk.\n..kdddddddk..kk.\n...kkkkkkkk.....\n................\n................", "exit": "................\n.kkkkkkkkk......\n.kssssssskk.....\n.ksssssssk.k....\n.ksssssssk..k...\n.kssssssskk.k.r.\n.ksssssssskkkrr.\n.ksssskssskrrrrr\n.ksssssssskkkrr.\n.kssssssskk.k.r.\n.ksssssssk..k...\n.ksssssssk.k....\n.kssssssskk.....\n.kkkkkkkkk......\n................\n................", "move": ".......kk.......\n......kwwk......\n.....kwwwwk.....\n.......kk.......\n.......kk.......\n..k....kk....k..\n.kk....kk....kk.\nkwkkkkkkkkkkkkwk\nkwkkkkkkkkkkkkwk\n.kk....kk....kk.\n..k....kk....k..\n.......kk.......\n.......kk.......\n.....kwwwwk.....\n......kwwk......\n.......kk.......", "pencil": "...........kk...\n..........kffk..\n.........kfffk..\n........kyykk...\n.......kyyyk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kyyyk........\n..keyyk.........\n..keek..........\n.kkek...........\n.kkk............\n.k..............\n................\n................", "pen": "............kk..\n...........kssk.\n..........ksssk.\n.........knsskk.\n........knnnkk..\n.......knnnk....\n......knnnk.....\n.....knnnk......\n....knnnk.......\n...ksssk........\n..kgssk.........\n..kggk..........\n.kgkk...........\n.kk.............\nk...............\n................", "brush": "............kk..\n...........kmmk.\n..........kmmmk.\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kssk......\n.....kssk.......\n....kssk........\n...kbbbk........\n..kbbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\n.kkk............\n................", "marker": "................\n...........kkk..\n..........kgggk.\n.........kgggk..\n........kgggk...\n.......kkkkk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kkyyk........\n..kkkkk.........\n..kyyk..........\n.kyk............\n.kk.............\nyyyyyyyy........\nyyyyyyyy........", "airbrush": "................\n.k.k............\n..k.k.kkkk......\n.k.k.kssssk.....\n..k.kgggggk.....\n.k.k.kssssk.....\n......kssk......\n.....kssssk.....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n.....kkkkkk.....\n................", "fill": "................\n.....kk.........\n....kssk........\n...kswssk.......\n..kswwwssk......\n.kswwwwwssk.....\nksswwwwwwsskb...\n.ksswwwwwssbbb..\n..ksswwwssk.bb..\n...kssswsk..bb..\n....kssssk..bb..\n.....ksskk..b...\n......kk........\n................\n................\n................", "picker": "................\n............kk..\n...........kkkk.\n..........kkkkk.\n.........kkkkk..\n........kwwkk...\n.......kwwwk....\n......kwwwk.....\n.....kwwwk......\n....kwwwk.......\n...kbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\nkk..............\n................", "text": "................\n................\n......kkk.......\n......kkk.......\n.....kk.kk......\n.....kk.kk......\n....kk...kk.....\n....kk...kk.....\n...kkkkkkkkk....\n...kk.....kk....\n..kk.......kk...\n..kk.......kk...\nkkkkk.....kkkkk.\n................\n................\n................", "line": "................\n..............k.\n.............kk.\n............kk..\n...........kk...\n..........kk....\n.........kk.....\n........kk......\n.......kk.......\n......kk........\n.....kk.........\n....kk..........\n...kk...........\n..kk............\n.k..............\n................", "rect": "................\n................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "ellipse": "................\n................\n.....kkkkkk.....\n...kk......kk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kk......kk...\n.....kkkkkk.....\n................\n................\n................", "rrect": "................\n................\n...kkkkkkkkkk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kkkkkkkkkk...\n................\n................\n................", "layers": "................\n.......kk.......\n.....kkcckk.....\n...kkcccccckk...\n.kkccccccccccck.\n..kkccccccccck..\n...gkkcccccckg..\n.kkgggkkcckkggk.\n..kkggggkkggggk.\n...gkkggggggkk..\n.kkgggkkggkkggk.\n..kkggggkkggggk.\n....kkggggggkk..\n......kkggkk....\n........kk......\n................", "layernew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwkk....\n.kwwwwwwwwkwk...\n.kwwwwwwwwkkkk..\n.kwwwwwwwwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwddddwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwwwwwwk..\n.kwwwwwwwwwwwk..\n.kkkkkkkkkkkkk..\n................\n................", "layerdup": "................\n.kkkkkkkk.......\n.kccccccck......\n.kccccccck......\n.kcccckkkkkkkk..\n.kcccckcccccck..\n.kcccckcccccck..\n.kcccckcccccck..\n.kkkkkkcccccck..\n......kcccccck..\n......kcccccck..\n......kcccccck..\n......kkkkkkkk..\n................\n................\n................", "layerdel": "................\n...kkkkkkkkkk...\n...kssssssssk...\n.kkkkkkkkkkkkkk.\n..kwwwwwwwwwwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwwwwwwwwwwk..\n..kkkkkkkkkkkk..\n................\n................", "layerup": "................\n.......kk.......\n......kddk......\n.....kddddk.....\n....kddddddk....\n...kddddddddk...\n..kkkkddddkkkk..\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kkkkkk.....\n................\n..kkkkkkkkkkkk..\n................\n................", "layerdown": "................\n................\n..kkkkkkkkkkkk..\n................\n.....kkkkkk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n..kkkkddddkkkk..\n...kddddddddk...\n....kddddddk....\n.....kddddk.....\n......kddk......\n.......kk.......\n................", "merge": "................\n..kkkkkkkkkkk...\n..kcccccccccck..\n..kkkkkkkkkkkk..\n.......kk.......\n.......kk.......\n.....kkkkkk.....\n......kkkk......\n.......kk.......\n..kkkkkkkkkkk...\n..kgggggggggk...\n..kgggggggggk...\n..kkkkkkkkkkk...\n................\n................\n................", "eye": "................\n................\n................\n.....kkkkkk.....\n...kkwwwwwwkk...\n..kwwwwkkwwwwk..\n.kwwwwkkkkwwwwk.\nkwwwwkkwkkkwwwwk\n.kwwwwkkkkwwwwk.\n..kwwwwkkwwwwk..\n...kkwwwwwwkk...\n.....kkkkkk.....\n................\n................\n................\n................", "lock": "................\n.....kkkkk......\n....kk...kk.....\n....k.....k.....\n....k.....k.....\n...kkkkkkkkk....\n...koooooook....\n...koookoook....\n...kookkkook....\n...koookoook....\n...koookoook....\n...koooooook....\n...kkkkkkkkk....\n................\n................\n................", "import": "................\n..........kk....\n.........kddk...\n........kdddk...\n.kkkk..kddddk...\nkyyyykkkddkk....\nkywyyyyykdk.....\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................", "newdoc": "................\n..kkkkkkkk......\n..kwwwwwwkk.....\n..kwwwwwwkwk....\n..kwwwwwwkkkk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kkkkkkkkkkk...\n................\n................", "adjust": "................\n.......k........\n...k...k...k....\n....k..k..k.....\n.....kkkkk......\n....kyyykwk.....\n.kkkkyyykwwkkkk.\n....kyyykwk.....\n.....kkkkk......\n....k..k..k.....\n...k...k...k....\n.......k........\n................\n................\n................\n................", "effects": "................\n..........y.....\n....f.....y.....\n...........y....\n.yy.....yyyyyy..\n...........y....\n....kk....y.....\n...kkkk...y.....\n..kkkkk.........\n.kkkkk...c......\nkkkkk..ccccc....\nkkkk.....c......\n.kk.............\n................\n................\n................", "shape": "................\n.......kk.......\n.......kk.......\n......kyyk......\n......kyyk......\nkkkkkkyyyykkkkk.\n.kyyyyyyyyyyyk..\n..kyyyyyyyyyk...\n...kyyyyyyyk....\n...kyyyyyyyk....\n..kyyyykyyyyk...\n..kyyk...kyyk...\n.kyk.......kyk..\n.kk.........kk..\n................\n................", "canvas": "................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k.kkkkkkkkkk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kkkkkkkkkk.k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "resize": "................\n.kkkkkkk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk..kkkk..\n.kkkkkkk...kkk..\n..........k.kk..\n.........k...k..\n........k.......\n.......k........\n.kkkkkkkkkkkkkk.\n.k............k.\n.kkkkkkkkkkkkkk.\n................", "project": "................\n.kkkkkkkkkkkk...\n.knkwwwwwwknkk..\n.knkwwwwwwknkck.\n.knnkkkkkknnkck.\n.knnnnnnnnnnkck.\n.knnkkkkkknnkck.\n.knnkssggknnkck.\n.knnkssggknnkck.\n.kkkkkkkkkkkkck.\n..kccccccccccck.\n...kkkkkkkkkkkk.\n................\n................\n................\n................", "paste": "................\n.....kkkkk......\n..kkkksssskkk...\n..kooksssskook..\n..koookkkkoook..\n..kooooooooook..\n..kooookkkkkkkkk\n..kooookwwwwwwwk\n..kooookwkkkkwwk\n..kooookwwwwwwwk\n..kooookwkkkkkwk\n..kooookwwwwwwwk\n..kkkkkkwkkkkwwk\n........wwwwwwwk\n........kkkkkkkk\n................", "swap": "................\n..kk............\n.kkkkk..........\nkkkkkkk.........\n..kk..k.........\n..kk...k........\n..kk....kk......\n...k.....kk.....\n....kk....k.....\n.....kk...kk....\n.........kkkkkk.\n..........kkkk..\n...........kk...\n................\n................\n................", "canvasview": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccccyycck.\n.kcccccccyyyyck.\n.kccccccccyycck.\n.kcccccccccccck.\n.kcccccccccccck.\n.kcccclccccccck.\n.kccclllcccccck.\n.kcclllllccclck.\n.kclllllllllllk.\n.kddddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................"};
+const ICONS = {"open": "................\n................\n.kkkk...........\nkyyyyk...kkk....\nkywyyykkk...k.k.\nkywyyyyyyk...kk.\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................\n................", "save": "................\n.kkkkkkkkkkkkkk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knnkkkkkkkknnk.\n.knnnnnnnnnnnnk.\n.knnkkkkkkkknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.kkkkkkkkkkkkkk.\n................\n................", "undo": "................\n................\n................\n....k...........\n...kk...........\n..kbkkkkkkk.....\n.kbbbbbbbbbkk...\n..kbkkkkkkkbbk..\n...kk......kbk..\n....k.......kbk.\n............kbk.\n............kbk.\n...........kbk..\n.........kkbk...\n.........kkk....\n................", "redo": "................\n................\n................\n...........k....\n...........kk...\n.....kkkkkkkbk..\n...kkbbbbbbbbbk.\n..kbbkkkkkkkbk..\n..kbk......kk...\n.kbk.......k....\n.kbk............\n.kbk............\n..kbk...........\n...kbkk.........\n....kkk.........\n................", "zoomin": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "zoomout": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "fit": "................\n.kkkk......kkkk.\n.kk..........kk.\n.k.k........k.k.\n.k..k......k..k.\n.....kkkkkk.....\n.....kwwwwk.....\n.....kwbbwk.....\n.....kwbbwk.....\n.....kwwwwk.....\n.....kkkkkk.....\n.k..k......k..k.\n.k.k........k.k.\n.kk..........kk.\n.kkkk......kkkk.\n................", "actual": "................\n................\n................\n..kk.......kk...\n.kkk......kkk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n..kk.......kk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n.kkkk.....kkkk..\n................\n................\n................", "vresult": "................\n.kkkkkkkkkkkkkk.\n.kwswswswswswsk.\n.kswswrrswswswk.\n.kwswrrrrswswsk.\n.kswswrrswswswk.\n.kwswswswswswsk.\n.kswswsddswswsk.\n.kwswsddddswswk.\n.ksswddddddswsk.\n.kwsddddddddswk.\n.ksddddddddddsk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vmask": "................\n.kkkkkkkkkkkkkk.\n.krrrrrrcccccck.\n.krrrrrryyyyyck.\n.krrrrrryyyyyck.\n.krrrrrrcccccck.\n.krrrrrrcccccck.\n.krrrrrrdccccck.\n.krrrrrrddcccck.\n.krrrrrrdddccck.\n.krrrrrrddddcck.\n.krrrrrrdddddck.\n.krrrrrrddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vorig": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccyycccck.\n.kcccccyyyyccck.\n.kccccccyycccck.\n.kcccccccccccck.\n.kccccccddcccck.\n.kcccccddddccck.\n.kccccddddddcck.\n.kcccddddddddck.\n.kccddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "eraser": "................\n................\n................\n.........kkkkkk.\n........kffffkk.\n.......kffffkfk.\n......kffffkffk.\n.....kffffkffk..\n....kwwwwkffk...\n...kwwwwkffk....\n..kwwwwkffk.....\n.kwwwwkffk......\n.kkkkkkfk.......\n.kkkkkkk........\n................\n................", "restore": "..........kkk...\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kmmmk.....\n.....kmmmk......\n....kssk........\n...kssk...dd....\n..kggk....dd....\n.kbbbk..dddddd..\n.kbbbk..dddddd..\nkbbbk.....dd....\nkbbk......dd....\nkkk.............\n................\n................", "wand": "..........y.....\n......y...y...y.\n.......y..y..y..\n................\n.....yy.....yy..\n................\n........kkk.y...\n.......kwwk..y..\n......kwwk....y.\n.....kkkk.......\n....kkkk........\n...kkkk.........\n..kkkk..........\n.kkkk...........\n.kkk............\n................", "crop": "...kk...........\n...kk...........\n...kk...........\nkkkkkkkkkkkkk...\nkkkkkkkkkkkkk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kkkkkkkkkkkkk\n...kkkkkkkkkkkkk\n...........kk...\n...........kk...\n...........kk...", "hand": ".......kk.......\n...kk.kwwkkk....\n..kwwkkwwkwwk...\n..kwwkkwwkwwk.k.\n...kwwkkwwkwwkwk\n...kwwkkwwkwwkwk\n.kk.kwwwwwwwwkwk\nkwwkkwwwwwwwwwwk\nkwwwkwwwwwwwwwk.\n.kwwwwwwwwwwwwk.\n..kwwwwwwwwwwwk.\n...kwwwwwwwwwk..\n....kwwwwwwwwk..\n.....kwwwwwwk...\n.....kwwwwwwk...\n................", "zoomtool": "................\n.....kkkk.......\n...kkccccww.....\n..kccccccccw....\n..kccccccccw....\n.kccccccccccw...\n.kccccccccccw...\n..kccccccccw....\n..kccccccccw....\n...kkcccckkg....\n.....kkkk.kgk...\n...........kmk..\n............kmk.\n.............mm.\n................\n................", "auto": "................\n.kwgwgwgwgwgwgk.\n.kgwgwgwgwgwgwk.\n.kwgwgyyyyyywgk.\n.kgwgyy.y.yyywk.\n.kwgyyyyyyyyygk.\n.kgwgyyyyyyywwk.\n.kwgwgyyyyywgwk.\n.kgwgwddddgwgwk.\n.kwgwgddddwgwgk.\n.kgwgwddddgwgwk.\n.kwgwddddddwgwk.\n.kgwgwgwgwgwgwk.\n.kkkkkkkkkkkkkk.\n................\n................", "specks": "................\n.k..........k...\n................\n....k...........\n..........k.....\n.k..............\n.......kkkk.....\n......kddddk..k.\n.....kddddddk...\n.....kddddddk...\n.k...kddddddk...\n......kddddk....\n.......kkkk.....\n..k.........k...\n................\n................", "finish": "................\n............kk..\n...........kwk..\n..........kwwk..\n.........kwwwk..\n........kwwwgk..\n.......kwwwgk...\n......kwwwgk....\n.....kwwwgk.....\n....kwwwgk......\n...kwwwgk.......\n...kwwgk........\n..kgggk.........\n..kkk...........\n.kk.............\nk...............", "opacity": "................\n.....kkkkkk.....\n...kknnnwgwkk...\n..knnnnngwgwgk..\n..knnnnnwgwgwk..\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n..knnnnnwgwgwk..\n..knnnnngwgwgk..\n...kknnnwgwkk...\n.....kkkkkk.....\n................\n................", "rotl": "................\n.....kkkkk......\n..k.kbbbbbkk....\n..kkbk....kbk...\n..kbbk.....kbk..\n..kbbbk.....kk..\n..kkkkkk....kbk.\n............kbk.\n............kbk.\n...kkkkkk...kbk.\n...kwwwwk..kbk..\n...kwwwwk.kbk...\n...kwwwwkkbk....\n...kwwwwkkk.....\n...kkkkkk.......\n................", "rotr": "................\n......kkkkk.....\n....kkbbbbbk.k..\n...kbk....kbkk..\n..kbk.....kbbk..\n..kk.....kbbbk..\n.kbk....kkkkkk..\n.kbk............\n.kbk............\n.kbk...kkkkkk...\n..kbk..kwwwwk...\n...kbk.kwwwwk...\n....kbkkwwwwk...\n.....kkkwwwwk...\n.......kkkkkk...\n................", "fliph": ".......kk.......\n.......kk.......\n..kk...kk...kk..\n.kbk...kk...kgk.\nkbbk...kk...kgsk\nkbbbk..kk..kgssk\nkbbbbk.kk.kgsssk\nkbbbbbkkkkgssssk\nkbbbbk.kk.kgsssk\nkbbbk..kk..kgssk\nkbbk...kk...kgsk\n.kbk...kk...kgk.\n..kk...kk...kk..\n.......kk.......\n.......kk.......\n................", "flipv": "................\n.....kkkkkk.....\n....kbbbbbbk....\n...kbbbbbbbbk...\n..kbbbbbbbbbbk..\n.kkkkkkkkkkkkkk.\n................\nkkkkkkkkkkkkkkkk\nkkkkkkkkkkkkkkkk\n................\n.kkkkkkkkkkkkkk.\n..kgsssssssssk..\n...kgssssssssk..\n....kgssssssk...\n.....kkkkkkk....\n................", "motion": "................\n................\n.........kkkk...\n........krrrrk..\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n..kkkkkkrrrrrrk.\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n........krrrrk..\n.........kkkk...\n................\n................\n................", "stab": ".......kk.......\n.......kk.......\n....kkkkkkkk....\n...kk..kk..kk...\n..kk...kk...kk..\n..k....kk....k..\n..k....rr....k..\nkkkkkkrrrrkkkkkk\nkkkkkkrrrrkkkkkk\n..k....rr....k..\n..k....kk....k..\n..kk...kk...kk..\n...kk..kk..kk...\n....kkkkkkkk....\n.......kk.......\n.......kk.......", "anim": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkk.cccck.cccck.k\nkk.cccck.ccrck.k\nkk.crcck.crrck.k\nkk.rrrck.rrrck.k\nkk.cdddk.cdddk.k\nkk.cccck.cccck.k\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................\n................", "play": "................\n................\n....kk..........\n....kdk.........\n....kddk........\n....kdddk.......\n....kddddk......\n....kdddddk.....\n....kddddddk....\n....kdddddk.....\n....kddddk......\n....kdddk.......\n....kddk........\n....kdk.........\n....kk..........\n................", "pause": "................\n................\n...kkkk..kkkk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...kkkk..kkkk...\n................\n................", "prev": "................\n................\n................\n...kk......kk...\n...kk.....kkk...\n...kk....kkkk...\n...kk...kkkkk...\n...kk..kkkkkk...\n...kk..kkkkkk...\n...kk...kkkkk...\n...kk....kkkk...\n...kk.....kkk...\n...kk......kk...\n................\n................\n................", "next": "................\n................\n................\n...kk......kk...\n...kkk.....kk...\n...kkkk....kk...\n...kkkkk...kk...\n...kkkkkk..kk...\n...kkkkkk..kk...\n...kkkkk...kk...\n...kkkk....kk...\n...kkk.....kk...\n...kk......kk...\n................\n................\n................", "help": "................\n.....kkkkkk.....\n...kkyyyyyykk...\n..kyyyykkyyyyk..\n..kyyykyykyyyk..\n.kyyyyyyykyyyyk.\n.kyyyyyykyyyyyk.\n.kyyyyykyyyyyyk.\n.kyyyyykyyyyyyk.\n..kyyyyyyyyyyk..\n..kyyyykyyyyyk..\n...kkyyyyyykk...\n.....kkyyykk....\n.......kyyk.....\n........kkk.....\n................", "track": "................\n.kkk.kkk.kkk.kk.\n.k............k.\n.k............k.\n......kk........\n.k....kk......k.\n.k..kkrrkk....k.\n....kkrrkk......\n.k....kk......k.\n.k....kk......k.\n................\n.k............k.\n.k............k.\n.kk.kkk.kkk.kkk.\n................\n................", "copy": "................\n.kkkkkkkk.......\n.kwwwwwwk.......\n.kwrrrwwk.......\n.kwrrrwwk.......\n.kwwwwkkkkkkkk..\n.kwwwwkwwwwwwk..\n.kwwwwkwrrrwwk..\n.kkkkkkwrrrwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kkkkkkkk..\n................\n................\n................", "options": "................\n.......kk.......\n...kk.kssk.kk...\n..ksskssssksk...\n..kssssggsssk...\n...kssk..kssk...\n.kkssk....kskk..\nkssssk....kssssk\nkssssk....kssssk\n.kkssk....kskk..\n...kssk..kssk...\n..kssssggsssk...\n..ksskssssksk...\n...kk.kssk.kk...\n.......kk.......\n................", "reset": "................\n.....kkkkkk.....\n...kkddddddkk...\n..kddkkkkkkddk..\n.kdkk......kddk.\n.kdk........kdk.\nkddk............\nkdk.............\nkdk.......kkkkk.\nkddk.......kddk.\n.kdk......kdddk.\n.kddkk..kkddkdk.\n..kdddddddk..kk.\n...kkkkkkkk.....\n................\n................", "exit": "................\n.kkkkkkkkk......\n.kssssssskk.....\n.ksssssssk.k....\n.ksssssssk..k...\n.kssssssskk.k.r.\n.ksssssssskkkrr.\n.ksssskssskrrrrr\n.ksssssssskkkrr.\n.kssssssskk.k.r.\n.ksssssssk..k...\n.ksssssssk.k....\n.kssssssskk.....\n.kkkkkkkkk......\n................\n................", "move": ".......kk.......\n......kwwk......\n.....kwwwwk.....\n.......kk.......\n.......kk.......\n..k....kk....k..\n.kk....kk....kk.\nkwkkkkkkkkkkkkwk\nkwkkkkkkkkkkkkwk\n.kk....kk....kk.\n..k....kk....k..\n.......kk.......\n.......kk.......\n.....kwwwwk.....\n......kwwk......\n.......kk.......", "pencil": "...........kk...\n..........kffk..\n.........kfffk..\n........kyykk...\n.......kyyyk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kyyyk........\n..keyyk.........\n..keek..........\n.kkek...........\n.kkk............\n.k..............\n................\n................", "pen": "............kk..\n...........kssk.\n..........ksssk.\n.........knsskk.\n........knnnkk..\n.......knnnk....\n......knnnk.....\n.....knnnk......\n....knnnk.......\n...ksssk........\n..kgssk.........\n..kggk..........\n.kgkk...........\n.kk.............\nk...............\n................", "brush": "............kk..\n...........kmmk.\n..........kmmmk.\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kssk......\n.....kssk.......\n....kssk........\n...kbbbk........\n..kbbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\n.kkk............\n................", "marker": "................\n...........kkk..\n..........kgggk.\n.........kgggk..\n........kgggk...\n.......kkkkk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kkyyk........\n..kkkkk.........\n..kyyk..........\n.kyk............\n.kk.............\nyyyyyyyy........\nyyyyyyyy........", "airbrush": "................\n.k.k............\n..k.k.kkkk......\n.k.k.kssssk.....\n..k.kgggggk.....\n.k.k.kssssk.....\n......kssk......\n.....kssssk.....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n.....kkkkkk.....\n................", "fill": "................\n.....kk.........\n....kssk........\n...kswssk.......\n..kswwwssk......\n.kswwwwwssk.....\nksswwwwwwsskb...\n.ksswwwwwssbbb..\n..ksswwwssk.bb..\n...kssswsk..bb..\n....kssssk..bb..\n.....ksskk..b...\n......kk........\n................\n................\n................", "picker": "................\n............kk..\n...........kkkk.\n..........kkkkk.\n.........kkkkk..\n........kwwkk...\n.......kwwwk....\n......kwwwk.....\n.....kwwwk......\n....kwwwk.......\n...kbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\nkk..............\n................", "text": "................\n................\n......kkk.......\n......kkk.......\n.....kk.kk......\n.....kk.kk......\n....kk...kk.....\n....kk...kk.....\n...kkkkkkkkk....\n...kk.....kk....\n..kk.......kk...\n..kk.......kk...\nkkkkk.....kkkkk.\n................\n................\n................", "line": "................\n..............k.\n.............kk.\n............kk..\n...........kk...\n..........kk....\n.........kk.....\n........kk......\n.......kk.......\n......kk........\n.....kk.........\n....kk..........\n...kk...........\n..kk............\n.k..............\n................", "rect": "................\n................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "ellipse": "................\n................\n.....kkkkkk.....\n...kk......kk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kk......kk...\n.....kkkkkk.....\n................\n................\n................", "rrect": "................\n................\n...kkkkkkkkkk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kkkkkkkkkk...\n................\n................\n................", "layers": "................\n.......kk.......\n.....kkcckk.....\n...kkcccccckk...\n.kkccccccccccck.\n..kkccccccccck..\n...gkkcccccckg..\n.kkgggkkcckkggk.\n..kkggggkkggggk.\n...gkkggggggkk..\n.kkgggkkggkkggk.\n..kkggggkkggggk.\n....kkggggggkk..\n......kkggkk....\n........kk......\n................", "layernew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwkk....\n.kwwwwwwwwkwk...\n.kwwwwwwwwkkkk..\n.kwwwwwwwwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwddddwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwwwwwwk..\n.kwwwwwwwwwwwk..\n.kkkkkkkkkkkkk..\n................\n................", "layerdup": "................\n.kkkkkkkk.......\n.kccccccck......\n.kccccccck......\n.kcccckkkkkkkk..\n.kcccckcccccck..\n.kcccckcccccck..\n.kcccckcccccck..\n.kkkkkkcccccck..\n......kcccccck..\n......kcccccck..\n......kcccccck..\n......kkkkkkkk..\n................\n................\n................", "layerdel": "................\n...kkkkkkkkkk...\n...kssssssssk...\n.kkkkkkkkkkkkkk.\n..kwwwwwwwwwwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwwwwwwwwwwk..\n..kkkkkkkkkkkk..\n................\n................", "layerup": "................\n.......kk.......\n......kddk......\n.....kddddk.....\n....kddddddk....\n...kddddddddk...\n..kkkkddddkkkk..\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kkkkkk.....\n................\n..kkkkkkkkkkkk..\n................\n................", "layerdown": "................\n................\n..kkkkkkkkkkkk..\n................\n.....kkkkkk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n..kkkkddddkkkk..\n...kddddddddk...\n....kddddddk....\n.....kddddk.....\n......kddk......\n.......kk.......\n................", "merge": "................\n..kkkkkkkkkkk...\n..kcccccccccck..\n..kkkkkkkkkkkk..\n.......kk.......\n.......kk.......\n.....kkkkkk.....\n......kkkk......\n.......kk.......\n..kkkkkkkkkkk...\n..kgggggggggk...\n..kgggggggggk...\n..kkkkkkkkkkk...\n................\n................\n................", "eye": "................\n................\n................\n.....kkkkkk.....\n...kkwwwwwwkk...\n..kwwwwkkwwwwk..\n.kwwwwkkkkwwwwk.\nkwwwwkkwkkkwwwwk\n.kwwwwkkkkwwwwk.\n..kwwwwkkwwwwk..\n...kkwwwwwwkk...\n.....kkkkkk.....\n................\n................\n................\n................", "lock": "................\n.....kkkkk......\n....kk...kk.....\n....k.....k.....\n....k.....k.....\n...kkkkkkkkk....\n...koooooook....\n...koookoook....\n...kookkkook....\n...koookoook....\n...koookoook....\n...koooooook....\n...kkkkkkkkk....\n................\n................\n................", "import": "................\n..........kk....\n.........kddk...\n........kdddk...\n.kkkk..kddddk...\nkyyyykkkddkk....\nkywyyyyykdk.....\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................", "newdoc": "................\n..kkkkkkkk......\n..kwwwwwwkk.....\n..kwwwwwwkwk....\n..kwwwwwwkkkk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kkkkkkkkkkk...\n................\n................", "adjust": "................\n.......k........\n...k...k...k....\n....k..k..k.....\n.....kkkkk......\n....kyyykwk.....\n.kkkkyyykwwkkkk.\n....kyyykwk.....\n.....kkkkk......\n....k..k..k.....\n...k...k...k....\n.......k........\n................\n................\n................\n................", "effects": "................\n..........y.....\n....f.....y.....\n...........y....\n.yy.....yyyyyy..\n...........y....\n....kk....y.....\n...kkkk...y.....\n..kkkkk.........\n.kkkkk...c......\nkkkkk..ccccc....\nkkkk.....c......\n.kk.............\n................\n................\n................", "shape": "................\n.......kk.......\n.......kk.......\n......kyyk......\n......kyyk......\nkkkkkkyyyykkkkk.\n.kyyyyyyyyyyyk..\n..kyyyyyyyyyk...\n...kyyyyyyyk....\n...kyyyyyyyk....\n..kyyyykyyyyk...\n..kyyk...kyyk...\n.kyk.......kyk..\n.kk.........kk..\n................\n................", "canvas": "................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k.kkkkkkkkkk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kkkkkkkkkk.k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "resize": "................\n.kkkkkkk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk..kkkk..\n.kkkkkkk...kkk..\n..........k.kk..\n.........k...k..\n........k.......\n.......k........\n.kkkkkkkkkkkkkk.\n.k............k.\n.kkkkkkkkkkkkkk.\n................", "project": "................\n.kkkkkkkkkkkk...\n.knkwwwwwwknkk..\n.knkwwwwwwknkck.\n.knnkkkkkknnkck.\n.knnnnnnnnnnkck.\n.knnkkkkkknnkck.\n.knnkssggknnkck.\n.knnkssggknnkck.\n.kkkkkkkkkkkkck.\n..kccccccccccck.\n...kkkkkkkkkkkk.\n................\n................\n................\n................", "paste": "................\n.....kkkkk......\n..kkkksssskkk...\n..kooksssskook..\n..koookkkkoook..\n..kooooooooook..\n..kooookkkkkkkkk\n..kooookwwwwwwwk\n..kooookwkkkkwwk\n..kooookwwwwwwwk\n..kooookwkkkkkwk\n..kooookwwwwwwwk\n..kkkkkkwkkkkwwk\n........wwwwwwwk\n........kkkkkkkk\n................", "swap": "................\n..kk............\n.kkkkk..........\nkkkkkkk.........\n..kk..k.........\n..kk...k........\n..kk....kk......\n...k.....kk.....\n....kk....k.....\n.....kk...kk....\n.........kkkkkk.\n..........kkkk..\n...........kk...\n................\n................\n................", "canvasview": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccccyycck.\n.kcccccccyyyyck.\n.kccccccccyycck.\n.kcccccccccccck.\n.kcccccccccccck.\n.kcccclccccccck.\n.kccclllcccccck.\n.kcclllllccclck.\n.kclllllllllllk.\n.kddddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................", "animate": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkwwwwkwwwwkwwwwk\nkwwwwkwwwwkwrrwk\nkwwwwkwwrwkrrrrk\nkwrrwkwrrrkwrrwk\nkrrrrkwwrwkwwwwk\nkwrrwkwwwwkwwwwk\nkwwwwkwwwwkwwwwk\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................", "onion": "................\n................\n...rrr..........\n..r...r.........\n.r.....r.ggg....\n.r.....rg...g...\n.r.....g.kkk.g..\n..r...g.kbbbk.g.\n...rrrgkbbbbbkg.\n......gkbbbbbkg.\n......gkbbbbbkg.\n.......gkbbbk.g.\n........gkkkgg..\n.........ggg....\n................\n................", "framenew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwkkdd..\n.kkkkkkkkkk.dd..\n..........dddddd\n..........dddddd\n............dd..\n............dd..\n................"};
 // ===================== layers: document model, compositing, undo, transforms, panel, projects =====================
 // The original editing code works on one image held in the globals W, H, frames, masks, delays and imgCanvas.
 // Each layer owns its own copy of those; the selected ("active") layer's data is bound to the globals,
@@ -3154,6 +3253,7 @@ function drawDocument(bgFill, x, y, w, h){
   g.save();
   if (!(S.rotA && $('#rexp').checked)){ g.beginPath(); g.rect(dx, dy, dw, dh); g.clip(); }
   if (docRot){ const cx = dx + dw / 2, cy = dy + dh / 2; g.translate(cx, cy); g.rotate(S.rotA * Math.PI / 180); g.translate(-cx, -cy); }
+  drawOnionDoc(g, dx, dy, dw, dh);
   for (const L of layers){
     if (!L.visible) continue;
     g.globalAlpha = L.opacity; g.globalCompositeOperation = L.blend;
@@ -3180,6 +3280,7 @@ function drawActiveLayer(g, x, y, w, h){
     g.translate(x + w / 2, y + h / 2); g.rotate(S.rotA * Math.PI / 180); g.translate(-(x + w / 2), -(y + h / 2));
     g.imageSmoothingEnabled = true;
   }
+  drawOnionLayer(g, x, y, w, h);
   if (so){ g.beginPath(); g.rect(x, y, w, h); g.clip(); g.drawImage(imgCanvas, x + so[0] * S.zoom, y + so[1] * S.zoom, w, h); }
   else g.drawImage(imgCanvas, x, y, w, h);
   if (DS.active && DS.canvas){
@@ -4691,6 +4792,7 @@ function showPage(name){
   curPage = name;
   if ((wasAdjust || name === 'adjust') && W) renderRect(0, 0, W, H);
   if (name === 'xform' || name === 'canvas') syncLayerProps();
+  if (name === 'animate') updateAnimPage();
   $$('#pages > .page').forEach(p => p.hidden = p.dataset.page !== name);
   let [title, icon] = PAGE_INFO[name];
   if (name === 'brush' && S.tool === 'restore'){ title = 'Restore brush'; icon = 'restore'; }
@@ -4871,6 +4973,7 @@ const MENUS = {
   helpm: [
     { l: 'Keyboard shortcuts', k: 'F1', c: 'help' },
     '-',
+    { l: 'Open the sample picture', c: 'sample' },
     { l: 'About G-WIZ', c: 'about' }
   ]
 };
@@ -4922,7 +5025,7 @@ function closeModal(id){ $('#' + id).hidden = true; }
 $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
 function openSaveOpts(){ if (!W) return; stopPlay(); updateFmtUI(); $('#soTitle').textContent = 'Save As — ' + S.name; openModal('saveOpts'); }
 function anyModal(){ return $$('.modal').some(m => !m.hidden); }
-function runCmd(c){ if (touchCmd(c)) return;
+function runCmd(c){ if (touchCmd(c) || animCmd(c)) return;
   const ci = c.indexOf(':'), k = ci < 0 ? c : c.slice(0, ci), v = ci < 0 ? undefined : c.slice(ci + 1);
   switch (k){
     case 'open': openFile(); break;
@@ -5080,7 +5183,7 @@ function boxEnd(){
 }
 // draw the track box and crop handles (called from draw)
 function drawToolBoxes(){
-  drawXfHandles(); drawDrawCursor(); positionTextEdit();
+  drawXfHandles(); drawDrawCursor(); positionTextEdit(); drawAnimOverlay();
   if (S.track && (S.tool === 'track' || curPage === 'stab')){
     const s = screenRect(S.track, true);
     vctx.save(); vctx.lineWidth = 1; vctx.setLineDash([4, 3]);
@@ -5649,10 +5752,295 @@ function showUpdateBar(ver){
 applyTouchMode();
 initPWA();
 
+// ===================== animation mode: frames, onion skin, motion tween =====================
+// Frames belong to layers. A layer with as many frames as the picture is "animated"; a one-frame layer is
+// shown on every frame. Frame commands work on the animated layers together so they stay in step.
+const ANIM = { on: !!store.get('animOn', false), onion: store.get('onion', true), before: store.get('onBefore', 2), after: store.get('onAfter', 1),
+  op: store.get('onOp', 35), tint: store.get('onTint', true), src: store.get('onSrc', 'layer'), copy: !!store.get('amCopy', false) };
+PAGE_INFO.animate = ['Animation', 'animate'];
+
+// ---------- frame commands ----------
+const isAnimated = (L, N) => lfr(L).length === N && N > 1;
+function cloneFrameOf(L, fi, blank){
+  const w = L.W, h = L.H;
+  return blank ? [new Uint8ClampedArray(w * h * 4), new Uint8Array(w * h).fill(255)] : [L.frames[fi].slice(), L.masks[fi].slice()];
+}
+// give a layer exactly n frames by repeating what it has (a still layer becomes n copies of itself)
+function unrollLayer(L, n){
+  const k = L.frames.length; if (k === n) return;
+  const fr = [], ms = [], dl = [];
+  for (let i = 0; i < n; i++){ const s = i % k; fr.push(i < k ? L.frames[s] : L.frames[s].slice()); ms.push(i < k ? L.masks[s] : L.masks[s].slice()); dl.push(L.delays[s] || 10); }
+  L.frames = fr; L.masks = ms; L.delays = dl;
+}
+function frameMemOk(extraFrames){
+  let px = 0; for (const L of layers) if (isAnimated(L, docFrames()) || L === AL) px += L.W * L.H;
+  const need = px * 5 * extraFrames, limit = IS_IOS ? 350e6 : 1.2e9;
+  let total = 0; for (const L of layers) total += L.frames.length * L.W * L.H * 5;
+  if (total + need > limit){ toast('There is not enough memory for more frames. Make the picture smaller or delete some frames.', 5000); return false; }
+  return true;
+}
+function frameOp(fn, msg){
+  if (!W || op) return; if (XF) xfCommit(); if (TE) textCommit(); stopPlay();
+  saveActive(); const before = captureDoc();
+  const go = fn(); if (go === false) return;
+  pushLayersUndo(before); refreshDoc(false); onionClear();
+  if (typeof go === 'number') setFrame(Math.max(0, Math.min(docFrames() - 1, go)));
+  else setFrame(Math.min(S.dcur, docFrames() - 1));
+  if (msg) sbFlash(typeof msg === 'function' ? msg() : msg);
+}
+function addFrame(dup){
+  frameOp(() => {
+    const N = docFrames(), at = S.dcur + 1;
+    if (!frameMemOk(1)) return false;
+    if (AL.frames.length !== N) unrollLayer(AL, N);   // the selected layer joins the animation
+    for (const L of layers){
+      if (!(L === AL || isAnimated(L, N))) continue;
+      const fi = S.dcur % L.frames.length, blank = L === AL && !dup && !ANIM.copy;
+      const [f, m] = cloneFrameOf(L, fi, blank);
+      L.frames = [...L.frames.slice(0, at), f, ...L.frames.slice(at)];
+      L.masks = [...L.masks.slice(0, at), m, ...L.masks.slice(at)];
+      L.delays = [...L.delays.slice(0, at), L.delays[fi] || 10, ...L.delays.slice(at)];
+    }
+    return at;
+  }, () => (dup ? 'Duplicated the frame' : 'Added a new frame') + ' · frame ' + (S.dcur + 1) + ' of ' + docFrames());
+}
+function deleteFrame(){
+  const N = docFrames(); if (N < 2){ toast('The picture has only one frame.'); return; }
+  frameOp(() => {
+    const at = S.dcur;
+    for (const L of layers){
+      if (!isAnimated(L, N)) continue;
+      L.frames = L.frames.filter((_, i) => i !== at); L.masks = L.masks.filter((_, i) => i !== at); L.delays = L.delays.filter((_, i) => i !== at);
+    }
+    return Math.min(at, N - 2);
+  }, () => 'Deleted the frame · ' + docFrames() + (docFrames() === 1 ? ' frame left' : ' frames left'));
+}
+function moveFrame(dir){
+  const N = docFrames(), j = S.dcur + dir; if (N < 2 || j < 0 || j >= N) return;
+  frameOp(() => {
+    const i = S.dcur, sw = a => { const b = a.slice(); [b[i], b[j]] = [b[j], b[i]]; return b; };
+    for (const L of layers){ if (!isAnimated(L, N)) continue; L.frames = sw(L.frames); L.masks = sw(L.masks); L.delays = sw(L.delays); }
+    return j;
+  }, 'Moved the frame to position ' + (j + 1) + '.');
+}
+function setDelays(cs, all){
+  const N = docFrames(); if (!W) return;
+  saveActive(); const before = captureDoc();
+  for (const L of layers){
+    const k = lfr(L).length; if (!(k === N || L === longestLayer())) continue;
+    L.delays = L.delays.map((d, i) => (all || i === S.dcur % k) ? cs : d);
+  }
+  pushLayersUndo(before); refreshDoc(false); updateAnimPage();
+}
+
+// ---------- onion skin ----------
+const onionCache = new Map();
+function onionClear(){ onionCache.clear(); }
+const onionOn = () => ANIM.on && ANIM.onion && !S.playing && !XF && docFrames() > 1 && (ANIM.before > 0 || ANIM.after > 0);
+function onionCanvas(key, make, w, h, tint){
+  let c = onionCache.get(key); if (c) return c;
+  c = toCanvas(make(), w, h);
+  if (tint){ const g = c.getContext('2d'); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.8; g.fillStyle = tint; g.fillRect(0, 0, w, h); }
+  if (onionCache.size > 48) onionCache.clear();
+  onionCache.set(key, c); return c;
+}
+function onionList(){
+  const N = docFrames(), out = [], far = Math.max(ANIM.before, ANIM.after, 1);
+  for (let k = ANIM.before; k >= 1; k--){ const f = S.dcur - k; if (f >= 0) out.push([f, k, ANIM.tint ? '#ff2a2a' : null]); }
+  for (let k = ANIM.after; k >= 1; k--){ const f = S.dcur + k; if (f < N) out.push([f, k, ANIM.tint ? '#14b83c' : null]); }
+  return out.map(([f, k, t]) => [f, t, (ANIM.op / 100) * (1 - 0.75 * (k - 1) / far)]);
+}
+// selected layer only: drawn under the layer's current frame, in the layer's own place
+function drawOnionLayer(g, x, y, w, h){
+  if (ANIM.src !== 'layer' || !onionOn() || frames.length < 2) return;
+  const a0 = g.globalAlpha; g.save(); g.globalCompositeOperation = 'source-over';
+  for (const [f, tint, a] of onionList()){
+    const fi = f % frames.length; if (fi === S.cur) continue;
+    const c = onionCanvas('L' + AL.id + ':' + fi + ':' + tint, () => layerVisible(AL, fi), W, H, tint);
+    g.globalAlpha = a0 * a; g.drawImage(c, x, y, w, h);
+  }
+  g.restore();
+}
+// whole picture: drawn under all layers
+function drawOnionDoc(g, dx, dy, dw, dh){
+  if (ANIM.src !== 'doc' || !onionOn()) return;
+  g.save(); g.globalCompositeOperation = 'source-over';
+  for (const [f, tint, a] of onionList()){
+    if (f === S.dcur) continue;
+    const c = onionCanvas('D:' + f + ':' + tint, () => composeDoc(f, false), DocW, DocH, tint);
+    g.globalAlpha = a; g.drawImage(c, dx, dy, dw, dh);
+  }
+  g.restore();
+}
+
+// ---------- motion tween (baked into frames) ----------
+const EASE = { linear: t => t, in: t => t * t, out: t => 1 - (1 - t) * (1 - t), inout: t => t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t) };
+const twVals = k => ({ x: +$('#twX' + k).value || 0, y: +$('#twY' + k).value || 0, s: Math.max(1, +$('#twS' + k).value || 100), r: +$('#twR' + k).value || 0, o: Math.max(0, Math.min(100, +$('#twO' + k).value)) });
+function twFromLayer(k){ if (!AL) return; $('#twX' + k).value = AL.x; $('#twY' + k).value = AL.y; $('#twS' + k).value = 100; $('#twR' + k).value = 0; $('#twO' + k).value = 100; requestDraw(); sbFlash(k ? 'End set to the layer\'s current position.' : 'Start set to the layer\'s current position.'); }
+function twAt(i, a, b, A, B){
+  const t = EASE[$('#twEase').value]((Math.max(a, Math.min(b, i)) - a) / Math.max(1, b - a)), L = (p, q) => p + (q - p) * t;
+  return { x: L(A.x, B.x), y: L(A.y, B.y), s: L(A.s, B.s), r: L(A.r, B.r), o: L(A.o, B.o) };
+}
+function createTween(){
+  if (!AL) return; if (AL.locked){ toast('The selected layer is locked.'); return; }
+  const a = Math.max(1, Math.round(+$('#twFrom').value)) - 1, b = Math.max(1, Math.round(+$('#twTo').value)) - 1;
+  if (b <= a){ toast('"To frame" must come after "From frame".'); return; }
+  const A = twVals(0), B = twVals(1);
+  if (A.x === B.x && A.y === B.y && A.s === B.s && A.r === B.r && A.o === B.o){ toast('Start and end are the same. Move the layer and press "Use the layer\'s current position" for the end.', 5000); return; }
+  const N0 = docFrames(), N = Math.max(N0, b + 1);
+  let total = 0; for (const L of layers) total += lfr(L).length * (L === AL ? W * H : L.W * L.H) * 5;
+  if (total + N * DocW * DocH * 5 > (IS_IOS ? 400e6 : 1.4e9)){ toast('That tween needs more memory than is available. Use fewer frames or a smaller picture.', 5000); return; }
+  busy(true);
+  setTimeout(() => {
+    try {
+      frameOp(() => {
+        // other animated layers hold their last frame when the timeline grows
+        if (N > N0) for (const L of layers){
+          if (L === AL || !isAnimated(L, N0)) continue;
+          const lastF = L.frames[N0 - 1], lastM = L.masks[N0 - 1], d = L.delays[N0 - 1] || 10;
+          for (let i = N0; i < N; i++){ L.frames = [...L.frames, lastF.slice()]; L.masks = [...L.masks, lastM.slice()]; L.delays = [...L.delays, d]; }
+        }
+        const k = AL.frames.length, srcs = [];
+        for (let f = 0; f < k; f++) srcs.push(toCanvas(layerVisible(AL, f), AL.W, AL.H));
+        const dl0 = []; for (let i = 0; i < N; i++) dl0.push(i < N0 ? (docDelay(i) || 10) : (docDelay(N0 - 1) || 10));
+        const cv = document.createElement('canvas'); cv.width = DocW; cv.height = DocH;
+        const g = cv.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+        const nf = [], nm = [];
+        for (let i = 0; i < N; i++){
+          const p = twAt(i, a, b, A, B);
+          g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.clearRect(0, 0, DocW, DocH);
+          g.globalAlpha = p.o / 100;
+          g.translate(p.x + AL.W / 2, p.y + AL.H / 2); g.rotate(p.r * Math.PI / 180); g.scale(p.s / 100, p.s / 100);
+          g.drawImage(srcs[i % k], -AL.W / 2, -AL.H / 2);
+          nf.push(g.getImageData(0, 0, DocW, DocH).data); nm.push(new Uint8Array(DocW * DocH).fill(255));
+        }
+        AL.frames = nf; AL.masks = nm; AL.delays = dl0; AL.W = DocW; AL.H = DocH; AL.x = 0; AL.y = 0;
+        ensureCanvas(AL);
+        return a;
+      }, () => 'Tweened "' + AL.name + '" over frames ' + (a + 1) + '–' + (b + 1) + '.');
+      if (!ANIM.on) setAnimMode(true);
+      $('#twPath').checked = false; requestDraw();
+    } finally { busy(false); }
+  }, 20);
+}
+// start and end boxes with the path between them, while the Animation page is open
+function drawAnimOverlay(){
+  if (curPage !== 'animate' || !AL || !$('#twPath').checked) return;
+  const z = S.zoom, A = twVals(0), B = twVals(1), w = W, h = H;
+  if (A.x === B.x && A.y === B.y && A.s === B.s && A.r === B.r && A.o === B.o) return;
+  const corners = p => { const c = Math.cos(p.r * Math.PI / 180), s = Math.sin(p.r * Math.PI / 180), k = p.s / 100, cx = p.x + w / 2, cy = p.y + h / 2;
+    return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]].map(([u, v]) => [S.panX + (cx + (u * c - v * s) * k) * z, S.panY + (cy + (u * s + v * c) * k) * z]); };
+  vctx.save(); vctx.lineWidth = 1.5;
+  [[A, '#ff4040'], [B, '#20c040']].forEach(([p, col]) => { const q = corners(p); vctx.beginPath(); q.forEach((pt, i) => i ? vctx.lineTo(pt[0], pt[1]) : vctx.moveTo(pt[0], pt[1])); vctx.closePath(); vctx.setLineDash([5, 4]); vctx.strokeStyle = col; vctx.stroke(); });
+  const a = +$('#twFrom').value - 1, b = +$('#twTo').value - 1;
+  vctx.setLineDash([]); vctx.beginPath();
+  for (let i = 0; i <= 24; i++){ const p = twAt(a + (b - a) * i / 24, a, b, A, B), x = S.panX + (p.x + w / 2) * z, y = S.panY + (p.y + h / 2) * z; i ? vctx.lineTo(x, y) : vctx.moveTo(x, y); }
+  vctx.lineWidth = 4; vctx.strokeStyle = 'rgba(0,0,0,.55)'; vctx.stroke(); vctx.lineWidth = 1.5; vctx.strokeStyle = '#ffffff'; vctx.stroke();
+  vctx.fillStyle = '#ffff00'; vctx.strokeStyle = '#000'; vctx.lineWidth = 1;
+  for (let i = 0; i <= Math.min(30, b - a); i++){ const p = twAt(a + i * (b - a) / Math.max(1, Math.min(30, b - a)), a, b, A, B); vctx.beginPath(); vctx.arc(S.panX + (p.x + w / 2) * z, S.panY + (p.y + h / 2) * z, 3, 0, Math.PI * 2); vctx.fill(); vctx.stroke(); }
+  vctx.restore();
+}
+
+// ---------- the page, the timeline buttons and the mode switch ----------
+function setAnimMode(on){
+  ANIM.on = on; store.set('animOn', on); $('#amOn').checked = on;
+  document.documentElement.classList.toggle('animmode', on);
+  onionClear(); setupAnim(); updateAnimPage(); requestDraw();
+  setTimeout(() => { resize(); requestDraw(); }, 30);
+}
+function updateAnimPage(){
+  const N = docFrames();
+  $('#amInfo').textContent = 'Frame ' + (S.dcur + 1) + ' of ' + N + (AL && lfr(AL).length === 1 && N > 1 ? ' · this layer is still (one frame)' : '');
+  const d = docDelay(S.dcur) || 10, ms = (d >= 2 ? d : 10) * 10;
+  const dur = $('#amDur'); if (document.activeElement !== dur){ dur.value = ms; $('#amDurOut').textContent = ms + ' ms'; }
+  $('#amDel').disabled = N < 2; $('#amLeft').disabled = S.dcur < 1; $('#amRight').disabled = S.dcur >= N - 1;
+  if (+$('#twTo').value < 2) $('#twTo').value = Math.max(2, N);
+}
+$('#amOn').checked = ANIM.on;
+$('#amOn').addEventListener('change', e => setAnimMode(e.target.checked));
+$('#amAdd').addEventListener('click', () => addFrame(false));
+$('#amDup').addEventListener('click', () => addFrame(true));
+$('#amDel').addEventListener('click', deleteFrame);
+$('#amLeft').addEventListener('click', () => moveFrame(-1));
+$('#amRight').addEventListener('click', () => moveFrame(1));
+$('#amCopy').checked = ANIM.copy; $('#amCopy').addEventListener('change', e => { ANIM.copy = e.target.checked; store.set('amCopy', ANIM.copy); });
+$('#amDur').addEventListener('input', e => $('#amDurOut').textContent = e.target.value + ' ms');
+$('#amDur').addEventListener('change', e => setDelays(Math.max(2, Math.round(+e.target.value / 10)), false));
+$('#amFps').addEventListener('input', e => $('#amFpsOut').textContent = e.target.value + ' fps');
+$('#amFpsApply').addEventListener('click', () => { setDelays(Math.max(2, Math.round(100 / +$('#amFps').value)), true); sbFlash('Every frame now plays at about ' + $('#amFps').value + ' frames a second.'); });
+[['onBefore', 'before', v => v], ['onAfter', 'after', v => v], ['onOp', 'op', v => v + '%']].forEach(([id, k, f]) => {
+  const el = $('#' + id); el.value = ANIM[k]; $('#' + id + 'Out').textContent = f(ANIM[k]);
+  el.addEventListener('input', () => { ANIM[k] = +el.value; store.set(id, ANIM[k]); $('#' + id + 'Out').textContent = f(ANIM[k]); requestDraw(); });
+});
+$('#onOn').checked = ANIM.onion; $('#onOn').addEventListener('change', e => { ANIM.onion = e.target.checked; store.set('onion', ANIM.onion); syncOnionBtn(); requestDraw(); });
+$('#onTint').checked = ANIM.tint; $('#onTint').addEventListener('change', e => { ANIM.tint = e.target.checked; store.set('onTint', ANIM.tint); requestDraw(); });
+segSet('#onSrc', 'v', ANIM.src); segBind('#onSrc', 'v', v => { ANIM.src = v; store.set('onSrc', v); requestDraw(); });
+$('#twSet0').addEventListener('click', () => twFromLayer(0));
+$('#twSet1').addEventListener('click', () => twFromLayer(1));
+$('#twApply').addEventListener('click', createTween);
+['twX0', 'twY0', 'twS0', 'twR0', 'twO0', 'twX1', 'twY1', 'twS1', 'twR1', 'twO1', 'twFrom', 'twTo', 'twEase', 'twPath'].forEach(id => $('#' + id).addEventListener('input', requestDraw));
+// quick buttons on the frame strip
+{
+  const box = document.createElement('div'); box.className = 'fd-btns fd-anim'; box.id = 'fdAnim';
+  box.innerHTML = '<span class="tsep"></span>' +
+    '<button class="tb" type="button" id="fdAdd" data-tip="New frame" data-help="Adds an empty frame after this one."><i class="ic" data-ic="framenew"></i></button>' +
+    '<button class="tb" type="button" id="fdDup" data-tip="Duplicate frame" data-help="Copies this frame."><i class="ic" data-ic="layerdup"></i></button>' +
+    '<button class="tb" type="button" id="fdDel" data-tip="Delete frame" data-help="Removes this frame."><i class="ic" data-ic="layerdel"></i></button>' +
+    '<button class="tb" type="button" id="fdOnion" data-tip="Onion skin" data-help="Shows faint copies of the neighboring frames." aria-pressed="false"><i class="ic" data-ic="onion"></i></button>';
+  $('#timeline .fd-btns').after(box);
+  $('#fdAdd').addEventListener('click', () => addFrame(false));
+  $('#fdDup').addEventListener('click', () => addFrame(true));
+  $('#fdDel').addEventListener('click', deleteFrame);
+  $('#fdOnion').addEventListener('click', () => { ANIM.onion = !ANIM.onion; store.set('onion', ANIM.onion); $('#onOn').checked = ANIM.onion; syncOnionBtn(); requestDraw(); });
+}
+function syncOnionBtn(){ $('#fdOnion').setAttribute('aria-pressed', String(ANIM.onion)); }
+syncOnionBtn();
+// whole-picture thumbnails for the frame strip in animation mode
+function drawDocThumb(f){
+  const t = thumbs[f]; if (!t) return;
+  const g = t.c.getContext('2d'), rgba = composeDoc(f, false);
+  g.clearRect(0, 0, t.c.width, t.c.height); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(toCanvas(rgba, DocW, DocH), 0, 0, t.c.width, t.c.height);
+  t.dot.hidden = true;
+}
+// menu entries
+{
+  const am = MENUS.animm;
+  am.unshift(
+    { l: 'Animation mode', c: 'animMode', ck: () => ANIM.on },
+    { l: 'New frame', c: 'animAdd', en: () => !!W }, { l: 'Duplicate frame', c: 'animDup', en: () => !!W },
+    { l: 'Delete frame', c: 'animDel', en: () => docFrames() > 1 },
+    { l: 'Onion skin', c: 'animOnion', ck: () => ANIM.onion },
+    { l: 'Motion tween…', c: 'page:animate' },
+    '-');
+}
+function animCmd(c){
+  if (c === 'animMode'){ setAnimMode(!ANIM.on); if (ANIM.on) showPage('animate'); return true; }
+  if (c === 'animAdd'){ addFrame(false); return true; }
+  if (c === 'animDup'){ addFrame(true); return true; }
+  if (c === 'animDel'){ deleteFrame(); return true; }
+  if (c === 'animOnion'){ $('#fdOnion').click(); return true; }
+  if (c === 'sample'){ setImage(makeSample(), 'sample-cactus'); setTool('erase'); return true; }
+  return false;
+}
+document.documentElement.classList.toggle('animmode', ANIM.on);
+
+// a new session starts on a blank white picture
+function startBlank(){
+  const w = 1280, h = 720, f = new Uint8ClampedArray(w * h * 4).fill(255);
+  setImage({ w, h, frames: [f], delays: [10] }, 'untitled');
+  if (layers[0]){ layers[0].name = 'Background'; renderLayersPanel(); }
+  setTool('brush');
+}
+
+// fade the bottom edge of the side panels when there is more to scroll to (iPad hides scroll bars)
+function markScrollMore(el){ if (el) el.classList.toggle('more', el.scrollHeight - el.clientHeight - el.scrollTop > 6); }
+['#pages', '.leftdock'].forEach(sel => { const el = $(sel); if (!el) return; el.addEventListener('scroll', () => markScrollMore(el), { passive: true }); new ResizeObserver(() => markScrollMore(el)).observe(el); new MutationObserver(() => markScrollMore(el)).observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden'] }); });
+
 // ---------- boot ----------
 readTheme(); resize();
 updateRelHint(); setTool('erase'); updateFmtUI();
-setImage(makeSample(), 'sample-cactus');
+if (/[?&]sample\b/.test(location.search)) setImage(makeSample(), 'sample-cactus'); else startBlank();
 setTimeout(fit, 0);
 })();
 </script>

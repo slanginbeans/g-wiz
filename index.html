@@ -122,6 +122,8 @@ output,.val{font:11px var(--mono);color:var(--text)}
 .inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .inline .spacer,.spacer{flex:1}
 .inline2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.curvebox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px;align-items:end}
+.curvebox canvas{background:#fff;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark);touch-action:none}
 .twgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
 .twgrid .num:nth-child(-n+2){grid-column:span 3}
 .twgrid .num:nth-child(n+3){grid-column:span 2}
@@ -380,6 +382,34 @@ html:not(.animmode) .fd-anim{display:none}
 .fd-anim{display:flex;align-items:center;gap:1px}
 .fd-anim .tsep{height:22px}
 html.touch .fd-anim .tsep{height:34px}
+
+/* ---------- mini tool strip (canvas view) ---------- */
+.minibar{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:6;background:var(--face);padding:3px;display:grid;gap:3px;opacity:.92;max-height:calc(100% - 16px);overflow:hidden}
+.minibar:hover{opacity:1}
+.mn-toggle{width:100%;height:14px;border:0;background:var(--face);font-size:9px;line-height:12px;padding:0}
+.minibar.closed .mn-body{display:none}
+.mn-body{display:grid;gap:4px;justify-items:center}
+.mn-tools{display:grid;grid-template-columns:repeat(2,26px);gap:1px}
+.mn-undo{display:grid;grid-template-columns:repeat(2,26px);gap:1px}
+.mn-tool{width:26px;height:26px;border:0;padding:0;background:var(--face);display:grid;place-items:center;box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+.mn-tool[aria-pressed="true"]{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow);background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px}
+.mn-tool:disabled .ic{opacity:.35}
+.mn-sliders{display:flex;gap:6px;justify-content:center}
+.mn-sl{display:grid;justify-items:center;gap:2px;touch-action:none}
+.mn-track{position:relative;width:12px;height:110px;background:var(--field);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark)}
+.mn-fill{position:absolute;left:3px;right:3px;bottom:3px;background:var(--navy)}
+.mn-thumb{position:absolute;left:-5px;width:22px;height:12px;background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.mn-val{font:10px var(--mono);min-width:26px;text-align:center}
+.mn-color{width:28px;height:22px;border:0;padding:2px;background-image:linear-gradient(var(--c),var(--c)),repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%);background-size:auto,6px 6px;background-clip:content-box,content-box;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark)}
+html.touch .mn-tools,html.touch .mn-undo{grid-template-columns:repeat(2,40px)}
+html.touch .mn-tool{width:40px;height:40px}
+html.touch .mn-tool .ic{width:24px;height:24px;background-size:24px 24px}
+html.touch .mn-track{width:18px;height:150px}
+html.touch .mn-thumb{left:-7px;width:32px;height:18px}
+html.touch .mn-val{font-size:12px}
+html.touch .mn-color{width:40px;height:30px}
+html.touch .mn-toggle{height:22px;font-size:13px}
+html.touch .minibar{left:calc(8px + env(safe-area-inset-left))}
 </style>
 
 <div class="app" id="app">
@@ -452,6 +482,8 @@ html.touch .fd-anim .tsep{height:34px}
         <button class="tool" data-tool="crop" aria-pressed="false" data-tip="Crop" data-key="C" data-help="Drag a box on the canvas to crop to. Drag its handles to resize, inside it to move, then Apply or Enter."><i class="ic" data-ic="crop"></i></button>
         <button class="tool" data-tool="erase" aria-pressed="true" data-tip="Eraser" data-key="B" data-help="Erases the background. Detection stops at edges and matches the sampled color. Alt+drag restores, Shift+drag forces."><i class="ic" data-ic="eraser"></i></button>
         <button class="tool" data-tool="restore" aria-pressed="false" data-tip="Restore brush" data-key="R" data-help="Paints the original pixels back where you erased too much."><i class="ic" data-ic="restore"></i></button>
+      <button class="tool" data-tool="hintKeep" data-tip="Mark subject" data-help="Paint over parts the background remover must keep. Used by Remove background (Smart)."><i class="ic" data-ic="hintkeep"></i></button>
+      <button class="tool" data-tool="hintDrop" data-tip="Mark background" data-help="Paint over parts the background remover must erase. Used by Remove background (Smart)."><i class="ic" data-ic="hintdrop"></i></button>
         <button class="tool" data-tool="wand" aria-pressed="false" data-tip="Magic wand" data-key="W" data-help="Click to erase a connected area of similar color. Alt+click restores, Shift+click ignores edges."><i class="ic" data-ic="wand"></i></button>
         <button class="tool" data-tool="fill" aria-pressed="false" data-tip="Fill with color" data-key="G" data-help="Click to fill an area of similar color. Left-click uses the primary color, right-click the secondary."><i class="ic" data-ic="fill"></i></button>
         <button class="tool" data-tool="picker" aria-pressed="false" data-tip="Pick color" data-key="I" data-help="Click to pick the primary color from the picture, right-click for the secondary."><i class="ic" data-ic="picker"></i></button>
@@ -564,6 +596,8 @@ html.touch .fd-anim .tsep{height:34px}
                 <button data-s="cont" aria-pressed="false" data-help="Re-samples the color as the brush moves.">Continuously</button>
               </div>
             </div>
+            <label class="check" data-help="Compares colors the way the eye does (Lab), so dark and light shades of one color are told apart better."><input type="checkbox" id="labMatch"> Perceptual color matching</label>
+            <label class="check" data-help="Looks at a wider area when finding edges, so grain, noise and fine texture do not count as edges."><input type="checkbox" id="edgeWide"> Ignore fine texture and noise in edges</label>
           </fieldset>
         </div>
 
@@ -572,24 +606,25 @@ html.touch .fd-anim .tsep{height:34px}
         <div class="page" data-page="draw" hidden>
           <fieldset><legend id="drawTitle">Brush</legend>
             <p class="hint dim" id="drawHint"></p>
+            <div class="row"><label for="dStyle">Style</label><select id="dStyle"></select><p class="hint dim" id="dStyleHint"></p></div>
             <div class="row"><div class="row-h"><label for="dSize">Size</label><output id="dSizeOut"></output></div><input type="range" id="dSize" min="1" max="200" value="8"></div>
             <div class="row"><div class="row-h"><label for="dOpacity">Opacity</label><output id="dOpacityOut"></output></div><input type="range" id="dOpacity" min="1" max="100" value="100"></div>
             <div class="row" data-dt="brush air"><div class="row-h"><label for="dFlow">Flow</label><output id="dFlowOut"></output></div><input type="range" id="dFlow" min="1" max="100" value="35" data-help="How much paint each dab lays down. Low flow builds up gradually."></div>
-            <div class="row" data-dt="brush"><div class="row-h"><label for="dHard">Hardness</label><output id="dHardOut"></output></div><input type="range" id="dHard" min="0" max="100" value="40"></div>
+            <div class="row" data-dt="brush" id="dHardRow"><div class="row-h"><label for="dHard">Hardness</label><output id="dHardOut"></output></div><input type="range" id="dHard" min="0" max="100" value="40"></div>
             <div class="row" data-dt="brush"><div class="row-h"><label for="dSpacing">Spacing</label><output id="dSpacingOut"></output></div><input type="range" id="dSpacing" min="2" max="100" value="12" data-help="Distance between dabs, as a share of the brush size."></div>
             <div class="row" data-dt="air"><div class="row-h"><label for="dDensity">Density</label><output id="dDensityOut"></output></div><input type="range" id="dDensity" min="1" max="100" value="40"></div>
-            <div class="row" data-dt="marker">
-              <span>Tip</span>
-              <div class="seg full" role="group" aria-label="Marker tip" id="dTip"><button data-v="chisel" aria-pressed="true">Chisel</button><button data-v="round" aria-pressed="false">Round</button></div>
-            </div>
-            <div class="row" data-dt="marker"><div class="row-h"><label for="dAngle">Tip angle</label><output id="dAngleOut"></output></div><input type="range" id="dAngle" min="0" max="180" value="45"></div>
+            <div class="row" data-dt="marker pen" id="dAngleRow"><div class="row-h"><label for="dAngle" id="dAngleLbl">Tip angle</label><output id="dAngleOut"></output></div><input type="range" id="dAngle" min="0" max="180" value="45"></div>
             <div class="row" data-dt="pen brush marker"><div class="row-h"><label for="dSmooth">Smoothing</label><output id="dSmoothOut"></output></div><input type="range" id="dSmooth" min="0" max="95" value="30" data-help="Steadies the line so shaky hand movements come out smooth."></div>
-            <div class="row" data-dt="pencil">
-              <span>Tip shape</span>
-              <div class="seg full" role="group" aria-label="Pencil tip" id="dPTip"><button data-v="round" aria-pressed="true">Round</button><button data-v="square" aria-pressed="false">Square</button></div>
-            </div>
-            <label class="check" data-dt="pen brush"><input type="checkbox" id="dPressSize" checked> Pen pressure changes size</label>
-            <label class="check" data-dt="brush"><input type="checkbox" id="dPressOp"> Pen pressure changes opacity</label>
+          </fieldset>
+          <fieldset data-dt="pen brush marker air"><legend>Pen pressure</legend>
+            <label class="check"><input type="checkbox" id="dPressSize" checked> Pressure changes size</label>
+            <label class="check"><input type="checkbox" id="dPressOp"> Pressure changes opacity</label>
+            <div class="row"><label for="pressPreset">Pressure curve</label>
+              <select id="pressPreset"><option value="linear">Linear</option><option value="light">Light touch (gets big early)</option><option value="vlight">Very light touch</option><option value="firm">Firm (press hard for full size)</option><option value="vfirm">Very firm</option><option value="custom">Custom (drag the red point)</option></select></div>
+            <div class="curvebox"><canvas id="pressCurve" width="160" height="110" data-help="Left to right: how hard you press. Bottom to top: how much of the size is used. Drag the red point to shape the curve."></canvas><div class="curveside"><span class="hint dim">light → hard</span></div></div>
+            <p class="val" id="pressRead"></p>
+            <div class="row"><div class="row-h"><label for="pressMin">Smallest size</label><output id="pressMinOut"></output></div><input type="range" id="pressMin" min="0" max="80" value="15" data-help="Size at the lightest touch, as a share of the full size."></div>
+            <div class="row"><div class="row-h"><label for="pressMinOp">Lowest opacity</label><output id="pressMinOpOut"></output></div><input type="range" id="pressMinOp" min="0" max="80" value="10"></div>
           </fieldset>
           <fieldset><legend>Paint</legend>
             <div class="row"><label for="dBlend">Blend</label>
@@ -881,11 +916,41 @@ html.touch .fd-anim .tsep{height:34px}
         <!-- ---------- auto remove ---------- -->
         <div class="page" data-page="auto" hidden>
           <fieldset><legend>Remove background</legend>
-            <p class="hint">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges.</p>
-            <div class="row"><div class="row-h"><label for="atol">Background tolerance</label><output id="atolOut"></output></div><input type="range" id="atol" min="1" max="100" value="22"></div>
+            <div class="seg full" role="group" aria-label="Method" id="aMethod">
+              <button data-v="smart" aria-pressed="true" data-help="Builds color models of the background and the subject, follows real edges and keeps soft edges on hair and fur.">Smart</button>
+              <button data-v="classic" aria-pressed="false" data-help="Floods inward from the border, erasing colors close to the border colors.">Classic</button>
+            </div>
+            <p class="hint" data-am="smart">Learns the background colors from the border, works out what the subject looks like, and cuts along the picture's real edges. Mark the subject or the background with the hint brushes when it guesses wrong.</p>
+            <p class="hint" data-am="classic">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges.</p>
+            <div class="row"><label for="aPreset">Preset</label>
+              <select id="aPreset"><option value="">Choose a starting point…</option><option value="plain">Plain background (studio, wall, sky)</option><option value="busy">Busy or uneven background</option><option value="hair">Hair, fur, soft edges</option><option value="product">Product photo, crisp edges</option><option value="logo">Logo or drawing, flat colors</option></select></div>
+            <div class="row"><div class="row-h"><label for="atol">Background tolerance</label><output id="atolOut"></output></div><input type="range" id="atol" min="1" max="100" value="22" data-help="How different a color can be from the background colors and still be erased."></div>
+            <div class="row"><div class="row-h"><label for="aEdge">Stop at edges</label><output id="aEdgeOut"></output></div><input type="range" id="aEdge" min="0" max="100" value="55" data-help="Higher values let fainter edges stop the background from leaking into the subject."></div>
             <label class="check"><input type="checkbox" id="aPrev"> Preview before applying</label>
             <p class="val" id="aPrevStat" hidden></p>
             <div class="winbtns"><button class="btn default" id="autoBtn"><i class="ic" data-ic="auto"></i>Remove</button></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Hints</legend>
+            <p class="hint dim">Paint over parts that were cut wrongly. Green marks the subject, magenta marks background. Right button paints the other color, Alt erases a hint.</p>
+            <div class="inline">
+              <button class="btn" id="aHintKeep" data-help="Paint over parts of the subject that must stay."><i class="ic" data-ic="hintkeep"></i>Mark subject</button>
+              <button class="btn" id="aHintDrop" data-help="Paint over parts that are background and must go."><i class="ic" data-ic="hintdrop"></i>Mark background</button>
+            </div>
+            <div class="row"><div class="row-h"><label for="aHintSize">Hint brush size</label><output id="aHintSizeOut"></output></div><input type="range" id="aHintSize" min="4" max="200" value="40"></div>
+            <div class="inline"><label class="check"><input type="checkbox" id="aShowHints" checked> Show hints</label><span class="spacer"></span><button class="btn" id="aHintClear">Clear hints</button></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Detection</legend>
+            <div class="row"><div class="row-h"><label for="aK">Background colors</label><output id="aKOut"></output></div><input type="range" id="aK" min="1" max="6" value="3" data-help="How many different colors the background is made of. Raise it for gradients, shadows and busy backgrounds."></div>
+            <div class="row"><div class="row-h"><label for="aBorder">Sample border width</label><output id="aBorderOut"></output></div><input type="range" id="aBorder" min="1" max="20" value="4" data-help="How much of the edge of the picture is read as background. Lower it when the subject touches the border."></div>
+            <div class="row"><div class="row-h"><label for="aIters">Refinement passes</label><output id="aItersOut"></output></div><input type="range" id="aIters" min="0" max="4" value="2" data-help="Extra passes re-learn the subject and background colors from the current result. More passes help when they look alike, but take longer."></div>
+            <label class="check" data-help="Only background that connects to the border is removed. Turn off to also clear matching colors inside the subject."><input type="checkbox" id="aContig" checked> Background must connect to the border</label>
+            <div class="row"><div class="row-h"><label for="aHoles">Clear enclosed gaps</label><output id="aHolesOut"></output></div><input type="range" id="aHoles" min="0" max="30" value="3" data-help="Background-colored gaps surrounded by the subject (between an arm and the body, say) are cleared when they are smaller than this share of the picture."></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Edges</legend>
+            <div class="row"><div class="row-h"><label for="aDetail">Edge detail</label><output id="aDetailOut"></output></div><input type="range" id="aDetail" min="1" max="12" value="3" data-help="How far around an edge the picture is studied. Larger values catch wisps of hair; smaller values keep crisp outlines."></div>
+            <div class="row"><div class="row-h"><label for="aSoft">Edge softness</label><output id="aSoftOut"></output></div><input type="range" id="aSoft" min="0" max="100" value="25" data-help="Low values stick tightly to color changes, high values smooth the decision over a wider area."></div>
+            <div class="row"><div class="row-h"><label for="aContrast">Edge contrast</label><output id="aContrastOut"></output></div><input type="range" id="aContrast" min="0" max="100" value="50" data-help="Low values keep semi-transparent edges, high values make every pixel fully kept or fully erased."></div>
+            <p class="hint dim">Edge finishing (shrink, soften, defringe) still applies on top of this when you save.</p>
           </fieldset>
         </div>
 
@@ -1263,7 +1328,7 @@ html.touch .fd-anim .tsep{height:34px}
       <div class="about">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABbklEQVR4nO2YaRKDIAxGodN76dF6NU+W/nAbZYcEUL430yluKTWPCCoFABgZ3boDFsixX6SvH4mgT+LbugPKyPhdgLTEE60BtI67cHgDWtYAunwZaKPhDUb2QCETYECD32TNvBEcNSCNmgYEMr9TZkAqwxtQYx5gzTzRmmCtQ0bIMrwBkuPMm3mjI4cJqAFVqW7AcTBYA+rMB2CAQMzI532IOrVgeAM6vgG0fc6GBB3fgDpwzgSLxn6rmeHwBnBW2CwDwjPDY4/R4AAGMMRgWe1JzwxdwACGGBcD4sd0LrwmwICCawtXe7nAAFaKDaBGr/T02fMiE2BAxjVNM3+n1AQY4DnWSY6LwTtBH7a7s2X+V7Mfgvz2htUEGGDZ95axfwcG2HC+E6TtQb8si1JKqWmaHrU9z/P+V/AU8OE0oJdM5m7HAgNcB3rJZO52LDDAdaCXTKIGCIMakHT2C0ENSDr7hYywGsRaAAAAALDzBxmcLHXqqIIcAAAAAElFTkSuQmCC" alt="">
         <div>
-          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.3.0</p>
+          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.4.0</p>
           <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
           <p class="hint" id="aboutMode"></p>
         </div>
@@ -1758,11 +1823,13 @@ function ensureEdges(f, x0, y0, x1, y1){
   return e.map;
 }
 function computeTile(src, edge, tx, ty){
+  const wide = S.edgeWide;
   const xs = tx * TILE, xe = Math.min(W, xs + TILE), ys = ty * TILE, ye = Math.min(H, ys + TILE);
   for (let y = ys; y < ye; y++){
     const ym = Math.max(0, y - 1) * W, yc = y * W, yp = Math.min(H - 1, y + 1) * W;
     for (let x = xs; x < xe; x++){
       const xm = Math.max(0, x - 1), xp = Math.min(W - 1, x + 1);
+      if (wide){ edge[yc + x] = wideEdge(src, x, y); continue; }
       const A = (ym + xm) * 4, B = (ym + x) * 4, C = (ym + xp) * 4, D = (yc + xm) * 4, F = (yc + xp) * 4, G = (yp + xm) * 4, Hh = (yp + x) * 4, K = (yp + xp) * 4;
       let best = 0;
       for (let c = 0; c < 4; c++){
@@ -1774,6 +1841,19 @@ function computeTile(src, edge, tx, ty){
       edge[yc + x] = best >= 1020 ? 255 : best >> 2;
     }
   }
+}
+// a 5×5 gradient: fine grain and noise average out, real edges stay
+function wideEdge(src, x, y){
+  let best = 0;
+  const x0 = Math.max(0, x - 2), x1 = Math.min(W - 1, x + 2), y0 = Math.max(0, y - 2), y1 = Math.min(H - 1, y + 2);
+  for (let c = 0; c < 4; c++){
+    let l = 0, r = 0, t = 0, b = 0, nl = 0, nt = 0;
+    for (let yy = y0; yy <= y1; yy++){ l += src[(yy * W + x0) * 4 + c] + src[(yy * W + Math.max(0, x - 1)) * 4 + c]; r += src[(yy * W + x1) * 4 + c] + src[(yy * W + Math.min(W - 1, x + 1)) * 4 + c]; nl += 2; }
+    for (let xx = x0; xx <= x1; xx++){ t += src[(y0 * W + xx) * 4 + c] + src[(Math.max(0, y - 1) * W + xx) * 4 + c]; b += src[(y1 * W + xx) * 4 + c] + src[(Math.min(H - 1, y + 1) * W + xx) * 4 + c]; nt += 2; }
+    const mg = (Math.abs(r - l) / nl + Math.abs(b - t) / nt) * 4;
+    if (mg > best) best = mg;
+  }
+  return best >= 1020 ? 255 : best >> 2;
 }
 const edgeThr = sens => 6 * Math.pow(220 / 6, (100 - sens) / 100);
 
@@ -1788,6 +1868,10 @@ function sampleAt(ix, iy, f = S.cur){
 }
 function colorAmtFn(sc, tolPct){
   const tol = 6 + tolPct * 1.6, inner = tol * 0.5, span = tol - inner;
+  if (S.labMatch){
+    const lab = new Float32Array(3); rgb2lab(sc[0], sc[1], sc[2], lab, 0);
+    return (src, o) => { const d = labDist(src, o, lab); return d <= inner ? 1 : d >= tol ? 0 : 1 - (d - inner) / span; };
+  }
   return (src, o) => {
     const dr = src[o] - sc[0], dg = src[o + 1] - sc[1], db = src[o + 2] - sc[2];
     const d = Math.sqrt((2 * dr * dr + 4 * dg * dg + 3 * db * db) / 9);
@@ -1825,7 +1909,7 @@ function swapEntry(e){ invalidateRefine(); onionClear();
   const cur = e.fs.map(f => cropM(masks[f], e.x0, e.y0, e.x1, e.y1)); e.fs.forEach((f, i) => pasteM(masks[f], e.data[i], e.x0, e.y0, e.x1, e.y1)); renderRect(e.x0, e.y0, e.x1, e.y1); thumbsDirty(e.fs); return { ...e, data: cur }; }
 function undo(){ if (XF) xfCancel(true); if (TE) textCancel(); if (op || DS.active || !undoStack.length) return; const e = undoStack.pop(); undoBytes -= entryBytes(e); redoStack.push(swapEntry(e)); updateUndoUI(); }
 function redo(){ if (XF) xfCancel(true); if (TE) textCancel(); if (op || DS.active || !redoStack.length) return; const e = redoStack.pop(); pushUndo(swapEntry(e)); updateUndoUI(); }
-function updateUndoUI(){ $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (frames.length > 1) drawTlMarks(); }
+function updateUndoUI(){ $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (typeof miniSync === 'function') miniSync(); if (frames.length > 1) drawTlMarks(); }
 
 // ---------- brush ----------
 let amt = new Float32Array(0), visited = new Uint8Array(0), queue = new Int32Array(0);
@@ -2698,7 +2782,8 @@ segBind('#rotScope', 'r', v => { S.rotAll = v === 'all'; updateRotScopeHint(); r
 function autoAmt(f, out){
   const N = W * H, seed = new Int32Array(N), vis = new Uint8Array(N);
   let q = new Int32Array(1 << 16), qh = 0, qt = 0;
-  const tol = 6 + S.atol * 1.6, inner = tol * 0.5, span = tol - inner, thr = edgeThr(S.wedge);
+  if (CUT.method === 'smart') return smartAmt(f, out);
+  const tol = 6 + S.atol * 1.6, inner = tol * 0.5, span = tol - inner, thr = edgeThr(CUT.edge);
   const src = frames[f], edge = ensureEdges(f, 0, 0, W, H);
   out.fill(0);
   const push = v => { if (qt >= q.length){ if (qh > q.length / 2){ q.copyWithin(0, qh, qt); qt -= qh; qh = 0; } else { const nq = new Int32Array(q.length * 2); nq.set(q); q = nq; } } q[qt++] = v; };
@@ -2764,6 +2849,7 @@ function scheduleAutoPreview(){
   autoPrevT = setTimeout(() => {
     if (!W || !S.autoPrev || stroke || S.playing) return;
     const N = W * H, d = new Uint8Array(N), m = masks[S.cur];
+    const st0 = $('#aPrevStat'); st0.hidden = false; st0.textContent = 'Working…';
     autoAmt(S.cur, d);
     // only show pixels this would actually change
     let n = 0; for (let i = 0; i < N; i++){ if (d[i] && m[i] > 255 - d[i]) n++; else d[i] = 0; }
@@ -2771,12 +2857,12 @@ function scheduleAutoPreview(){
     const st = $('#aPrevStat'); st.hidden = false;
     st.textContent = n ? 'Would erase ' + (n * 100 / N).toFixed(1) + '% of ' + (frames.length > 1 ? 'this frame' : 'the picture') + ', shown in red.' : 'Nothing left to remove at this tolerance.';
     requestOverlay();
-  }, 140);
+  }, CUT.method === 'smart' ? 260 : 140);
 }
 function requestOverlay(){ if (!ovRaf) ovRaf = requestAnimationFrame(() => { ovRaf = 0; renderOverlay(); }); }
 function renderOverlay(){
-  const sel = S.mShow && motionSel, heat = S.mHeat && motion, ap = S.autoPrev && autoPrevData;
-  if (!W || !(sel || heat || ap)){ ovOn = false; requestDraw(); return; }
+  const sel = S.mShow && motionSel, heat = S.mHeat && motion, ap = S.autoPrev && autoPrevData, hn = CUT.showHints && AL && AL.hints && AL.hints.length === W * H ? AL.hints : null;
+  if (!W || !(sel || heat || ap || hn)){ ovOn = false; requestDraw(); return; }
   if (ovCanvas.width !== W || ovCanvas.height !== H){ ovCanvas.width = W; ovCanvas.height = H; }
   const g = ovCanvas.getContext('2d'), id = g.createImageData(W, H), d = id.data, N = W * H;
   const ac = hexToRgb(themeCols ? themeCols.accent : '#d23a26');
@@ -2784,6 +2870,7 @@ function renderOverlay(){
     let r = 0, gg = 0, b = 0, a = 0;
     if (heat){ const v = motion[i] / 255; [r, gg, b] = heatColor(v); a = 140; }
     if (sel && motionSel[i]){ const t = 0.7; r = r * (1 - t) + 25 * t; gg = gg * (1 - t) + 205 * t; b = b * (1 - t) + 230 * t; a = Math.max(a, 120); }
+    if (hn && hn[i]){ const t = 0.55; const hc = hn[i] === 1 ? [54, 213, 90] : [235, 40, 190]; r = r * (1 - t) + hc[0] * t; gg = gg * (1 - t) + hc[1] * t; b = b * (1 - t) + hc[2] * t; a = Math.max(a, 150); }
     if (ap && ap[i]){ const t = ap[i] / 255; r = r * (1 - t) + ac[0] * t; gg = gg * (1 - t) + ac[1] * t; b = b * (1 - t) + ac[2] * t; a = Math.max(a, 60 + 120 * t); }
     d[p] = r; d[p + 1] = gg; d[p + 2] = b; d[p + 3] = a;
   }
@@ -3177,7 +3264,7 @@ function makeSample(){
 }
 
 const ICON_PAL = {".": null, "k": "#000000", "w": "#ffffff", "g": "#808080", "s": "#c0c0c0", "n": "#000080", "b": "#0000ff", "t": "#008080", "c": "#00ffff", "d": "#008000", "l": "#00ff00", "m": "#800000", "r": "#ff0000", "o": "#808000", "y": "#ffff00", "p": "#800080", "f": "#ff00ff", "e": "#e0a060"};
-const ICONS = {"open": "................\n................\n.kkkk...........\nkyyyyk...kkk....\nkywyyykkk...k.k.\nkywyyyyyyk...kk.\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................\n................", "save": "................\n.kkkkkkkkkkkkkk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knnkkkkkkkknnk.\n.knnnnnnnnnnnnk.\n.knnkkkkkkkknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.kkkkkkkkkkkkkk.\n................\n................", "undo": "................\n................\n................\n....k...........\n...kk...........\n..kbkkkkkkk.....\n.kbbbbbbbbbkk...\n..kbkkkkkkkbbk..\n...kk......kbk..\n....k.......kbk.\n............kbk.\n............kbk.\n...........kbk..\n.........kkbk...\n.........kkk....\n................", "redo": "................\n................\n................\n...........k....\n...........kk...\n.....kkkkkkkbk..\n...kkbbbbbbbbbk.\n..kbbkkkkkkkbk..\n..kbk......kk...\n.kbk.......k....\n.kbk............\n.kbk............\n..kbk...........\n...kbkk.........\n....kkk.........\n................", "zoomin": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "zoomout": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "fit": "................\n.kkkk......kkkk.\n.kk..........kk.\n.k.k........k.k.\n.k..k......k..k.\n.....kkkkkk.....\n.....kwwwwk.....\n.....kwbbwk.....\n.....kwbbwk.....\n.....kwwwwk.....\n.....kkkkkk.....\n.k..k......k..k.\n.k.k........k.k.\n.kk..........kk.\n.kkkk......kkkk.\n................", "actual": "................\n................\n................\n..kk.......kk...\n.kkk......kkk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n..kk.......kk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n.kkkk.....kkkk..\n................\n................\n................", "vresult": "................\n.kkkkkkkkkkkkkk.\n.kwswswswswswsk.\n.kswswrrswswswk.\n.kwswrrrrswswsk.\n.kswswrrswswswk.\n.kwswswswswswsk.\n.kswswsddswswsk.\n.kwswsddddswswk.\n.ksswddddddswsk.\n.kwsddddddddswk.\n.ksddddddddddsk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vmask": "................\n.kkkkkkkkkkkkkk.\n.krrrrrrcccccck.\n.krrrrrryyyyyck.\n.krrrrrryyyyyck.\n.krrrrrrcccccck.\n.krrrrrrcccccck.\n.krrrrrrdccccck.\n.krrrrrrddcccck.\n.krrrrrrdddccck.\n.krrrrrrddddcck.\n.krrrrrrdddddck.\n.krrrrrrddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vorig": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccyycccck.\n.kcccccyyyyccck.\n.kccccccyycccck.\n.kcccccccccccck.\n.kccccccddcccck.\n.kcccccddddccck.\n.kccccddddddcck.\n.kcccddddddddck.\n.kccddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "eraser": "................\n................\n................\n.........kkkkkk.\n........kffffkk.\n.......kffffkfk.\n......kffffkffk.\n.....kffffkffk..\n....kwwwwkffk...\n...kwwwwkffk....\n..kwwwwkffk.....\n.kwwwwkffk......\n.kkkkkkfk.......\n.kkkkkkk........\n................\n................", "restore": "..........kkk...\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kmmmk.....\n.....kmmmk......\n....kssk........\n...kssk...dd....\n..kggk....dd....\n.kbbbk..dddddd..\n.kbbbk..dddddd..\nkbbbk.....dd....\nkbbk......dd....\nkkk.............\n................\n................", "wand": "..........y.....\n......y...y...y.\n.......y..y..y..\n................\n.....yy.....yy..\n................\n........kkk.y...\n.......kwwk..y..\n......kwwk....y.\n.....kkkk.......\n....kkkk........\n...kkkk.........\n..kkkk..........\n.kkkk...........\n.kkk............\n................", "crop": "...kk...........\n...kk...........\n...kk...........\nkkkkkkkkkkkkk...\nkkkkkkkkkkkkk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kkkkkkkkkkkkk\n...kkkkkkkkkkkkk\n...........kk...\n...........kk...\n...........kk...", "hand": ".......kk.......\n...kk.kwwkkk....\n..kwwkkwwkwwk...\n..kwwkkwwkwwk.k.\n...kwwkkwwkwwkwk\n...kwwkkwwkwwkwk\n.kk.kwwwwwwwwkwk\nkwwkkwwwwwwwwwwk\nkwwwkwwwwwwwwwk.\n.kwwwwwwwwwwwwk.\n..kwwwwwwwwwwwk.\n...kwwwwwwwwwk..\n....kwwwwwwwwk..\n.....kwwwwwwk...\n.....kwwwwwwk...\n................", "zoomtool": "................\n.....kkkk.......\n...kkccccww.....\n..kccccccccw....\n..kccccccccw....\n.kccccccccccw...\n.kccccccccccw...\n..kccccccccw....\n..kccccccccw....\n...kkcccckkg....\n.....kkkk.kgk...\n...........kmk..\n............kmk.\n.............mm.\n................\n................", "auto": "................\n.kwgwgwgwgwgwgk.\n.kgwgwgwgwgwgwk.\n.kwgwgyyyyyywgk.\n.kgwgyy.y.yyywk.\n.kwgyyyyyyyyygk.\n.kgwgyyyyyyywwk.\n.kwgwgyyyyywgwk.\n.kgwgwddddgwgwk.\n.kwgwgddddwgwgk.\n.kgwgwddddgwgwk.\n.kwgwddddddwgwk.\n.kgwgwgwgwgwgwk.\n.kkkkkkkkkkkkkk.\n................\n................", "specks": "................\n.k..........k...\n................\n....k...........\n..........k.....\n.k..............\n.......kkkk.....\n......kddddk..k.\n.....kddddddk...\n.....kddddddk...\n.k...kddddddk...\n......kddddk....\n.......kkkk.....\n..k.........k...\n................\n................", "finish": "................\n............kk..\n...........kwk..\n..........kwwk..\n.........kwwwk..\n........kwwwgk..\n.......kwwwgk...\n......kwwwgk....\n.....kwwwgk.....\n....kwwwgk......\n...kwwwgk.......\n...kwwgk........\n..kgggk.........\n..kkk...........\n.kk.............\nk...............", "opacity": "................\n.....kkkkkk.....\n...kknnnwgwkk...\n..knnnnngwgwgk..\n..knnnnnwgwgwk..\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n..knnnnnwgwgwk..\n..knnnnngwgwgk..\n...kknnnwgwkk...\n.....kkkkkk.....\n................\n................", "rotl": "................\n.....kkkkk......\n..k.kbbbbbkk....\n..kkbk....kbk...\n..kbbk.....kbk..\n..kbbbk.....kk..\n..kkkkkk....kbk.\n............kbk.\n............kbk.\n...kkkkkk...kbk.\n...kwwwwk..kbk..\n...kwwwwk.kbk...\n...kwwwwkkbk....\n...kwwwwkkk.....\n...kkkkkk.......\n................", "rotr": "................\n......kkkkk.....\n....kkbbbbbk.k..\n...kbk....kbkk..\n..kbk.....kbbk..\n..kk.....kbbbk..\n.kbk....kkkkkk..\n.kbk............\n.kbk............\n.kbk...kkkkkk...\n..kbk..kwwwwk...\n...kbk.kwwwwk...\n....kbkkwwwwk...\n.....kkkwwwwk...\n.......kkkkkk...\n................", "fliph": ".......kk.......\n.......kk.......\n..kk...kk...kk..\n.kbk...kk...kgk.\nkbbk...kk...kgsk\nkbbbk..kk..kgssk\nkbbbbk.kk.kgsssk\nkbbbbbkkkkgssssk\nkbbbbk.kk.kgsssk\nkbbbk..kk..kgssk\nkbbk...kk...kgsk\n.kbk...kk...kgk.\n..kk...kk...kk..\n.......kk.......\n.......kk.......\n................", "flipv": "................\n.....kkkkkk.....\n....kbbbbbbk....\n...kbbbbbbbbk...\n..kbbbbbbbbbbk..\n.kkkkkkkkkkkkkk.\n................\nkkkkkkkkkkkkkkkk\nkkkkkkkkkkkkkkkk\n................\n.kkkkkkkkkkkkkk.\n..kgsssssssssk..\n...kgssssssssk..\n....kgssssssk...\n.....kkkkkkk....\n................", "motion": "................\n................\n.........kkkk...\n........krrrrk..\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n..kkkkkkrrrrrrk.\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n........krrrrk..\n.........kkkk...\n................\n................\n................", "stab": ".......kk.......\n.......kk.......\n....kkkkkkkk....\n...kk..kk..kk...\n..kk...kk...kk..\n..k....kk....k..\n..k....rr....k..\nkkkkkkrrrrkkkkkk\nkkkkkkrrrrkkkkkk\n..k....rr....k..\n..k....kk....k..\n..kk...kk...kk..\n...kk..kk..kk...\n....kkkkkkkk....\n.......kk.......\n.......kk.......", "anim": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkk.cccck.cccck.k\nkk.cccck.ccrck.k\nkk.crcck.crrck.k\nkk.rrrck.rrrck.k\nkk.cdddk.cdddk.k\nkk.cccck.cccck.k\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................\n................", "play": "................\n................\n....kk..........\n....kdk.........\n....kddk........\n....kdddk.......\n....kddddk......\n....kdddddk.....\n....kddddddk....\n....kdddddk.....\n....kddddk......\n....kdddk.......\n....kddk........\n....kdk.........\n....kk..........\n................", "pause": "................\n................\n...kkkk..kkkk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...kkkk..kkkk...\n................\n................", "prev": "................\n................\n................\n...kk......kk...\n...kk.....kkk...\n...kk....kkkk...\n...kk...kkkkk...\n...kk..kkkkkk...\n...kk..kkkkkk...\n...kk...kkkkk...\n...kk....kkkk...\n...kk.....kkk...\n...kk......kk...\n................\n................\n................", "next": "................\n................\n................\n...kk......kk...\n...kkk.....kk...\n...kkkk....kk...\n...kkkkk...kk...\n...kkkkkk..kk...\n...kkkkkk..kk...\n...kkkkk...kk...\n...kkkk....kk...\n...kkk.....kk...\n...kk......kk...\n................\n................\n................", "help": "................\n.....kkkkkk.....\n...kkyyyyyykk...\n..kyyyykkyyyyk..\n..kyyykyykyyyk..\n.kyyyyyyykyyyyk.\n.kyyyyyykyyyyyk.\n.kyyyyykyyyyyyk.\n.kyyyyykyyyyyyk.\n..kyyyyyyyyyyk..\n..kyyyykyyyyyk..\n...kkyyyyyykk...\n.....kkyyykk....\n.......kyyk.....\n........kkk.....\n................", "track": "................\n.kkk.kkk.kkk.kk.\n.k............k.\n.k............k.\n......kk........\n.k....kk......k.\n.k..kkrrkk....k.\n....kkrrkk......\n.k....kk......k.\n.k....kk......k.\n................\n.k............k.\n.k............k.\n.kk.kkk.kkk.kkk.\n................\n................", "copy": "................\n.kkkkkkkk.......\n.kwwwwwwk.......\n.kwrrrwwk.......\n.kwrrrwwk.......\n.kwwwwkkkkkkkk..\n.kwwwwkwwwwwwk..\n.kwwwwkwrrrwwk..\n.kkkkkkwrrrwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kkkkkkkk..\n................\n................\n................", "options": "................\n.......kk.......\n...kk.kssk.kk...\n..ksskssssksk...\n..kssssggsssk...\n...kssk..kssk...\n.kkssk....kskk..\nkssssk....kssssk\nkssssk....kssssk\n.kkssk....kskk..\n...kssk..kssk...\n..kssssggsssk...\n..ksskssssksk...\n...kk.kssk.kk...\n.......kk.......\n................", "reset": "................\n.....kkkkkk.....\n...kkddddddkk...\n..kddkkkkkkddk..\n.kdkk......kddk.\n.kdk........kdk.\nkddk............\nkdk.............\nkdk.......kkkkk.\nkddk.......kddk.\n.kdk......kdddk.\n.kddkk..kkddkdk.\n..kdddddddk..kk.\n...kkkkkkkk.....\n................\n................", "exit": "................\n.kkkkkkkkk......\n.kssssssskk.....\n.ksssssssk.k....\n.ksssssssk..k...\n.kssssssskk.k.r.\n.ksssssssskkkrr.\n.ksssskssskrrrrr\n.ksssssssskkkrr.\n.kssssssskk.k.r.\n.ksssssssk..k...\n.ksssssssk.k....\n.kssssssskk.....\n.kkkkkkkkk......\n................\n................", "move": ".......kk.......\n......kwwk......\n.....kwwwwk.....\n.......kk.......\n.......kk.......\n..k....kk....k..\n.kk....kk....kk.\nkwkkkkkkkkkkkkwk\nkwkkkkkkkkkkkkwk\n.kk....kk....kk.\n..k....kk....k..\n.......kk.......\n.......kk.......\n.....kwwwwk.....\n......kwwk......\n.......kk.......", "pencil": "...........kk...\n..........kffk..\n.........kfffk..\n........kyykk...\n.......kyyyk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kyyyk........\n..keyyk.........\n..keek..........\n.kkek...........\n.kkk............\n.k..............\n................\n................", "pen": "............kk..\n...........kssk.\n..........ksssk.\n.........knsskk.\n........knnnkk..\n.......knnnk....\n......knnnk.....\n.....knnnk......\n....knnnk.......\n...ksssk........\n..kgssk.........\n..kggk..........\n.kgkk...........\n.kk.............\nk...............\n................", "brush": "............kk..\n...........kmmk.\n..........kmmmk.\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kssk......\n.....kssk.......\n....kssk........\n...kbbbk........\n..kbbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\n.kkk............\n................", "marker": "................\n...........kkk..\n..........kgggk.\n.........kgggk..\n........kgggk...\n.......kkkkk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kkyyk........\n..kkkkk.........\n..kyyk..........\n.kyk............\n.kk.............\nyyyyyyyy........\nyyyyyyyy........", "airbrush": "................\n.k.k............\n..k.k.kkkk......\n.k.k.kssssk.....\n..k.kgggggk.....\n.k.k.kssssk.....\n......kssk......\n.....kssssk.....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n.....kkkkkk.....\n................", "fill": "................\n.....kk.........\n....kssk........\n...kswssk.......\n..kswwwssk......\n.kswwwwwssk.....\nksswwwwwwsskb...\n.ksswwwwwssbbb..\n..ksswwwssk.bb..\n...kssswsk..bb..\n....kssssk..bb..\n.....ksskk..b...\n......kk........\n................\n................\n................", "picker": "................\n............kk..\n...........kkkk.\n..........kkkkk.\n.........kkkkk..\n........kwwkk...\n.......kwwwk....\n......kwwwk.....\n.....kwwwk......\n....kwwwk.......\n...kbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\nkk..............\n................", "text": "................\n................\n......kkk.......\n......kkk.......\n.....kk.kk......\n.....kk.kk......\n....kk...kk.....\n....kk...kk.....\n...kkkkkkkkk....\n...kk.....kk....\n..kk.......kk...\n..kk.......kk...\nkkkkk.....kkkkk.\n................\n................\n................", "line": "................\n..............k.\n.............kk.\n............kk..\n...........kk...\n..........kk....\n.........kk.....\n........kk......\n.......kk.......\n......kk........\n.....kk.........\n....kk..........\n...kk...........\n..kk............\n.k..............\n................", "rect": "................\n................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "ellipse": "................\n................\n.....kkkkkk.....\n...kk......kk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kk......kk...\n.....kkkkkk.....\n................\n................\n................", "rrect": "................\n................\n...kkkkkkkkkk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kkkkkkkkkk...\n................\n................\n................", "layers": "................\n.......kk.......\n.....kkcckk.....\n...kkcccccckk...\n.kkccccccccccck.\n..kkccccccccck..\n...gkkcccccckg..\n.kkgggkkcckkggk.\n..kkggggkkggggk.\n...gkkggggggkk..\n.kkgggkkggkkggk.\n..kkggggkkggggk.\n....kkggggggkk..\n......kkggkk....\n........kk......\n................", "layernew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwkk....\n.kwwwwwwwwkwk...\n.kwwwwwwwwkkkk..\n.kwwwwwwwwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwddddwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwwwwwwk..\n.kwwwwwwwwwwwk..\n.kkkkkkkkkkkkk..\n................\n................", "layerdup": "................\n.kkkkkkkk.......\n.kccccccck......\n.kccccccck......\n.kcccckkkkkkkk..\n.kcccckcccccck..\n.kcccckcccccck..\n.kcccckcccccck..\n.kkkkkkcccccck..\n......kcccccck..\n......kcccccck..\n......kcccccck..\n......kkkkkkkk..\n................\n................\n................", "layerdel": "................\n...kkkkkkkkkk...\n...kssssssssk...\n.kkkkkkkkkkkkkk.\n..kwwwwwwwwwwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwwwwwwwwwwk..\n..kkkkkkkkkkkk..\n................\n................", "layerup": "................\n.......kk.......\n......kddk......\n.....kddddk.....\n....kddddddk....\n...kddddddddk...\n..kkkkddddkkkk..\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kkkkkk.....\n................\n..kkkkkkkkkkkk..\n................\n................", "layerdown": "................\n................\n..kkkkkkkkkkkk..\n................\n.....kkkkkk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n..kkkkddddkkkk..\n...kddddddddk...\n....kddddddk....\n.....kddddk.....\n......kddk......\n.......kk.......\n................", "merge": "................\n..kkkkkkkkkkk...\n..kcccccccccck..\n..kkkkkkkkkkkk..\n.......kk.......\n.......kk.......\n.....kkkkkk.....\n......kkkk......\n.......kk.......\n..kkkkkkkkkkk...\n..kgggggggggk...\n..kgggggggggk...\n..kkkkkkkkkkk...\n................\n................\n................", "eye": "................\n................\n................\n.....kkkkkk.....\n...kkwwwwwwkk...\n..kwwwwkkwwwwk..\n.kwwwwkkkkwwwwk.\nkwwwwkkwkkkwwwwk\n.kwwwwkkkkwwwwk.\n..kwwwwkkwwwwk..\n...kkwwwwwwkk...\n.....kkkkkk.....\n................\n................\n................\n................", "lock": "................\n.....kkkkk......\n....kk...kk.....\n....k.....k.....\n....k.....k.....\n...kkkkkkkkk....\n...koooooook....\n...koookoook....\n...kookkkook....\n...koookoook....\n...koookoook....\n...koooooook....\n...kkkkkkkkk....\n................\n................\n................", "import": "................\n..........kk....\n.........kddk...\n........kdddk...\n.kkkk..kddddk...\nkyyyykkkddkk....\nkywyyyyykdk.....\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................", "newdoc": "................\n..kkkkkkkk......\n..kwwwwwwkk.....\n..kwwwwwwkwk....\n..kwwwwwwkkkk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kkkkkkkkkkk...\n................\n................", "adjust": "................\n.......k........\n...k...k...k....\n....k..k..k.....\n.....kkkkk......\n....kyyykwk.....\n.kkkkyyykwwkkkk.\n....kyyykwk.....\n.....kkkkk......\n....k..k..k.....\n...k...k...k....\n.......k........\n................\n................\n................\n................", "effects": "................\n..........y.....\n....f.....y.....\n...........y....\n.yy.....yyyyyy..\n...........y....\n....kk....y.....\n...kkkk...y.....\n..kkkkk.........\n.kkkkk...c......\nkkkkk..ccccc....\nkkkk.....c......\n.kk.............\n................\n................\n................", "shape": "................\n.......kk.......\n.......kk.......\n......kyyk......\n......kyyk......\nkkkkkkyyyykkkkk.\n.kyyyyyyyyyyyk..\n..kyyyyyyyyyk...\n...kyyyyyyyk....\n...kyyyyyyyk....\n..kyyyykyyyyk...\n..kyyk...kyyk...\n.kyk.......kyk..\n.kk.........kk..\n................\n................", "canvas": "................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k.kkkkkkkkkk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kkkkkkkkkk.k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "resize": "................\n.kkkkkkk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk..kkkk..\n.kkkkkkk...kkk..\n..........k.kk..\n.........k...k..\n........k.......\n.......k........\n.kkkkkkkkkkkkkk.\n.k............k.\n.kkkkkkkkkkkkkk.\n................", "project": "................\n.kkkkkkkkkkkk...\n.knkwwwwwwknkk..\n.knkwwwwwwknkck.\n.knnkkkkkknnkck.\n.knnnnnnnnnnkck.\n.knnkkkkkknnkck.\n.knnkssggknnkck.\n.knnkssggknnkck.\n.kkkkkkkkkkkkck.\n..kccccccccccck.\n...kkkkkkkkkkkk.\n................\n................\n................\n................", "paste": "................\n.....kkkkk......\n..kkkksssskkk...\n..kooksssskook..\n..koookkkkoook..\n..kooooooooook..\n..kooookkkkkkkkk\n..kooookwwwwwwwk\n..kooookwkkkkwwk\n..kooookwwwwwwwk\n..kooookwkkkkkwk\n..kooookwwwwwwwk\n..kkkkkkwkkkkwwk\n........wwwwwwwk\n........kkkkkkkk\n................", "swap": "................\n..kk............\n.kkkkk..........\nkkkkkkk.........\n..kk..k.........\n..kk...k........\n..kk....kk......\n...k.....kk.....\n....kk....k.....\n.....kk...kk....\n.........kkkkkk.\n..........kkkk..\n...........kk...\n................\n................\n................", "canvasview": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccccyycck.\n.kcccccccyyyyck.\n.kccccccccyycck.\n.kcccccccccccck.\n.kcccccccccccck.\n.kcccclccccccck.\n.kccclllcccccck.\n.kcclllllccclck.\n.kclllllllllllk.\n.kddddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................", "animate": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkwwwwkwwwwkwwwwk\nkwwwwkwwwwkwrrwk\nkwwwwkwwrwkrrrrk\nkwrrwkwrrrkwrrwk\nkrrrrkwwrwkwwwwk\nkwrrwkwwwwkwwwwk\nkwwwwkwwwwkwwwwk\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................", "onion": "................\n................\n...rrr..........\n..r...r.........\n.r.....r.ggg....\n.r.....rg...g...\n.r.....g.kkk.g..\n..r...g.kbbbk.g.\n...rrrgkbbbbbkg.\n......gkbbbbbkg.\n......gkbbbbbkg.\n.......gkbbbk.g.\n........gkkkgg..\n.........ggg....\n................\n................", "framenew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwkkdd..\n.kkkkkkkkkk.dd..\n..........dddddd\n..........dddddd\n............dd..\n............dd..\n................"};
+const ICONS = {"open": "................\n................\n.kkkk...........\nkyyyyk...kkk....\nkywyyykkk...k.k.\nkywyyyyyyk...kk.\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................\n................", "save": "................\n.kkkkkkkkkkkkkk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knkwwwwwwwwknk.\n.knnkkkkkkkknnk.\n.knnnnnnnnnnnnk.\n.knnkkkkkkkknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.knnkssssggknnk.\n.kkkkkkkkkkkkkk.\n................\n................", "undo": "................\n................\n................\n....k...........\n...kk...........\n..kbkkkkkkk.....\n.kbbbbbbbbbkk...\n..kbkkkkkkkbbk..\n...kk......kbk..\n....k.......kbk.\n............kbk.\n............kbk.\n...........kbk..\n.........kkbk...\n.........kkk....\n................", "redo": "................\n................\n................\n...........k....\n...........kk...\n.....kkkkkkkbk..\n...kkbbbbbbbbbk.\n..kbbkkkkkkkbk..\n..kbk......kk...\n.kbk.......k....\n.kbk............\n.kbk............\n..kbk...........\n...kbkk.........\n....kkk.........\n................", "zoomin": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwkkwwwk....\n..kwwwkkwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "zoomout": "................\n.....kkkk.......\n...kkwwwwkk.....\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n.kwwkkkkkkwwk...\n.kwwkkkkkkwwk...\n..kwwwwwwwwk....\n..kwwwwwwwwk....\n...kkwwwwkkg....\n.....kkkk.kgk...\n...........kgk..\n............kgk.\n.............kk.\n................\n................", "fit": "................\n.kkkk......kkkk.\n.kk..........kk.\n.k.k........k.k.\n.k..k......k..k.\n.....kkkkkk.....\n.....kwwwwk.....\n.....kwbbwk.....\n.....kwbbwk.....\n.....kwwwwk.....\n.....kkkkkk.....\n.k..k......k..k.\n.k.k........k.k.\n.kk..........kk.\n.kkkk......kkkk.\n................", "actual": "................\n................\n................\n..kk.......kk...\n.kkk......kkk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n..kk.......kk...\n..kk...k...kk...\n..kk..kkk..kk...\n..kk...k...kk...\n.kkkk.....kkkk..\n................\n................\n................", "vresult": "................\n.kkkkkkkkkkkkkk.\n.kwswswswswswsk.\n.kswswrrswswswk.\n.kwswrrrrswswsk.\n.kswswrrswswswk.\n.kwswswswswswsk.\n.kswswsddswswsk.\n.kwswsddddswswk.\n.ksswddddddswsk.\n.kwsddddddddswk.\n.ksddddddddddsk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vmask": "................\n.kkkkkkkkkkkkkk.\n.krrrrrrcccccck.\n.krrrrrryyyyyck.\n.krrrrrryyyyyck.\n.krrrrrrcccccck.\n.krrrrrrcccccck.\n.krrrrrrdccccck.\n.krrrrrrddcccck.\n.krrrrrrdddccck.\n.krrrrrrddddcck.\n.krrrrrrdddddck.\n.krrrrrrddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "vorig": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccyycccck.\n.kcccccyyyyccck.\n.kccccccyycccck.\n.kcccccccccccck.\n.kccccccddcccck.\n.kcccccddddccck.\n.kccccddddddcck.\n.kcccddddddddck.\n.kccddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................\n................", "eraser": "................\n................\n................\n.........kkkkkk.\n........kffffkk.\n.......kffffkfk.\n......kffffkffk.\n.....kffffkffk..\n....kwwwwkffk...\n...kwwwwkffk....\n..kwwwwkffk.....\n.kwwwwkffk......\n.kkkkkkfk.......\n.kkkkkkk........\n................\n................", "restore": "..........kkk...\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kmmmk.....\n.....kmmmk......\n....kssk........\n...kssk...dd....\n..kggk....dd....\n.kbbbk..dddddd..\n.kbbbk..dddddd..\nkbbbk.....dd....\nkbbk......dd....\nkkk.............\n................\n................", "wand": "..........y.....\n......y...y...y.\n.......y..y..y..\n................\n.....yy.....yy..\n................\n........kkk.y...\n.......kwwk..y..\n......kwwk....y.\n.....kkkk.......\n....kkkk........\n...kkkk.........\n..kkkk..........\n.kkkk...........\n.kkk............\n................", "crop": "...kk...........\n...kk...........\n...kk...........\nkkkkkkkkkkkkk...\nkkkkkkkkkkkkk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kk......kk...\n...kkkkkkkkkkkkk\n...kkkkkkkkkkkkk\n...........kk...\n...........kk...\n...........kk...", "hand": ".......kk.......\n...kk.kwwkkk....\n..kwwkkwwkwwk...\n..kwwkkwwkwwk.k.\n...kwwkkwwkwwkwk\n...kwwkkwwkwwkwk\n.kk.kwwwwwwwwkwk\nkwwkkwwwwwwwwwwk\nkwwwkwwwwwwwwwk.\n.kwwwwwwwwwwwwk.\n..kwwwwwwwwwwwk.\n...kwwwwwwwwwk..\n....kwwwwwwwwk..\n.....kwwwwwwk...\n.....kwwwwwwk...\n................", "zoomtool": "................\n.....kkkk.......\n...kkccccww.....\n..kccccccccw....\n..kccccccccw....\n.kccccccccccw...\n.kccccccccccw...\n..kccccccccw....\n..kccccccccw....\n...kkcccckkg....\n.....kkkk.kgk...\n...........kmk..\n............kmk.\n.............mm.\n................\n................", "auto": "................\n.kwgwgwgwgwgwgk.\n.kgwgwgwgwgwgwk.\n.kwgwgyyyyyywgk.\n.kgwgyy.y.yyywk.\n.kwgyyyyyyyyygk.\n.kgwgyyyyyyywwk.\n.kwgwgyyyyywgwk.\n.kgwgwddddgwgwk.\n.kwgwgddddwgwgk.\n.kgwgwddddgwgwk.\n.kwgwddddddwgwk.\n.kgwgwgwgwgwgwk.\n.kkkkkkkkkkkkkk.\n................\n................", "specks": "................\n.k..........k...\n................\n....k...........\n..........k.....\n.k..............\n.......kkkk.....\n......kddddk..k.\n.....kddddddk...\n.....kddddddk...\n.k...kddddddk...\n......kddddk....\n.......kkkk.....\n..k.........k...\n................\n................", "finish": "................\n............kk..\n...........kwk..\n..........kwwk..\n.........kwwwk..\n........kwwwgk..\n.......kwwwgk...\n......kwwwgk....\n.....kwwwgk.....\n....kwwwgk......\n...kwwwgk.......\n...kwwgk........\n..kgggk.........\n..kkk...........\n.kk.............\nk...............", "opacity": "................\n.....kkkkkk.....\n...kknnnwgwkk...\n..knnnnngwgwgk..\n..knnnnnwgwgwk..\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n.knnnnnnwgwgwgk.\n.knnnnnngwgwgwk.\n..knnnnnwgwgwk..\n..knnnnngwgwgk..\n...kknnnwgwkk...\n.....kkkkkk.....\n................\n................", "rotl": "................\n.....kkkkk......\n..k.kbbbbbkk....\n..kkbk....kbk...\n..kbbk.....kbk..\n..kbbbk.....kk..\n..kkkkkk....kbk.\n............kbk.\n............kbk.\n...kkkkkk...kbk.\n...kwwwwk..kbk..\n...kwwwwk.kbk...\n...kwwwwkkbk....\n...kwwwwkkk.....\n...kkkkkk.......\n................", "rotr": "................\n......kkkkk.....\n....kkbbbbbk.k..\n...kbk....kbkk..\n..kbk.....kbbk..\n..kk.....kbbbk..\n.kbk....kkkkkk..\n.kbk............\n.kbk............\n.kbk...kkkkkk...\n..kbk..kwwwwk...\n...kbk.kwwwwk...\n....kbkkwwwwk...\n.....kkkwwwwk...\n.......kkkkkk...\n................", "fliph": ".......kk.......\n.......kk.......\n..kk...kk...kk..\n.kbk...kk...kgk.\nkbbk...kk...kgsk\nkbbbk..kk..kgssk\nkbbbbk.kk.kgsssk\nkbbbbbkkkkgssssk\nkbbbbk.kk.kgsssk\nkbbbk..kk..kgssk\nkbbk...kk...kgsk\n.kbk...kk...kgk.\n..kk...kk...kk..\n.......kk.......\n.......kk.......\n................", "flipv": "................\n.....kkkkkk.....\n....kbbbbbbk....\n...kbbbbbbbbk...\n..kbbbbbbbbbbk..\n.kkkkkkkkkkkkkk.\n................\nkkkkkkkkkkkkkkkk\nkkkkkkkkkkkkkkkk\n................\n.kkkkkkkkkkkkkk.\n..kgsssssssssk..\n...kgssssssssk..\n....kgssssssk...\n.....kkkkkkk....\n................", "motion": "................\n................\n.........kkkk...\n........krrrrk..\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n..kkkkkkrrrrrrk.\n.......krrrrrrk.\n.kkkk..krrrrrrk.\n.......krrrrrrk.\n........krrrrk..\n.........kkkk...\n................\n................\n................", "stab": ".......kk.......\n.......kk.......\n....kkkkkkkk....\n...kk..kk..kk...\n..kk...kk...kk..\n..k....kk....k..\n..k....rr....k..\nkkkkkkrrrrkkkkkk\nkkkkkkrrrrkkkkkk\n..k....rr....k..\n..k....kk....k..\n..kk...kk...kk..\n...kk..kk..kk...\n....kkkkkkkk....\n.......kk.......\n.......kk.......", "anim": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkk.cccck.cccck.k\nkk.cccck.ccrck.k\nkk.crcck.crrck.k\nkk.rrrck.rrrck.k\nkk.cdddk.cdddk.k\nkk.cccck.cccck.k\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................\n................", "play": "................\n................\n....kk..........\n....kdk.........\n....kddk........\n....kdddk.......\n....kddddk......\n....kdddddk.....\n....kddddddk....\n....kdddddk.....\n....kddddk......\n....kdddk.......\n....kddk........\n....kdk.........\n....kk..........\n................", "pause": "................\n................\n...kkkk..kkkk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...knnk..knnk...\n...kkkk..kkkk...\n................\n................", "prev": "................\n................\n................\n...kk......kk...\n...kk.....kkk...\n...kk....kkkk...\n...kk...kkkkk...\n...kk..kkkkkk...\n...kk..kkkkkk...\n...kk...kkkkk...\n...kk....kkkk...\n...kk.....kkk...\n...kk......kk...\n................\n................\n................", "next": "................\n................\n................\n...kk......kk...\n...kkk.....kk...\n...kkkk....kk...\n...kkkkk...kk...\n...kkkkkk..kk...\n...kkkkkk..kk...\n...kkkkk...kk...\n...kkkk....kk...\n...kkk.....kk...\n...kk......kk...\n................\n................\n................", "help": "................\n.....kkkkkk.....\n...kkyyyyyykk...\n..kyyyykkyyyyk..\n..kyyykyykyyyk..\n.kyyyyyyykyyyyk.\n.kyyyyyykyyyyyk.\n.kyyyyykyyyyyyk.\n.kyyyyykyyyyyyk.\n..kyyyyyyyyyyk..\n..kyyyykyyyyyk..\n...kkyyyyyykk...\n.....kkyyykk....\n.......kyyk.....\n........kkk.....\n................", "track": "................\n.kkk.kkk.kkk.kk.\n.k............k.\n.k............k.\n......kk........\n.k....kk......k.\n.k..kkrrkk....k.\n....kkrrkk......\n.k....kk......k.\n.k....kk......k.\n................\n.k............k.\n.k............k.\n.kk.kkk.kkk.kkk.\n................\n................", "copy": "................\n.kkkkkkkk.......\n.kwwwwwwk.......\n.kwrrrwwk.......\n.kwrrrwwk.......\n.kwwwwkkkkkkkk..\n.kwwwwkwwwwwwk..\n.kwwwwkwrrrwwk..\n.kkkkkkwrrrwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kwwwwwwk..\n......kkkkkkkk..\n................\n................\n................", "options": "................\n.......kk.......\n...kk.kssk.kk...\n..ksskssssksk...\n..kssssggsssk...\n...kssk..kssk...\n.kkssk....kskk..\nkssssk....kssssk\nkssssk....kssssk\n.kkssk....kskk..\n...kssk..kssk...\n..kssssggsssk...\n..ksskssssksk...\n...kk.kssk.kk...\n.......kk.......\n................", "reset": "................\n.....kkkkkk.....\n...kkddddddkk...\n..kddkkkkkkddk..\n.kdkk......kddk.\n.kdk........kdk.\nkddk............\nkdk.............\nkdk.......kkkkk.\nkddk.......kddk.\n.kdk......kdddk.\n.kddkk..kkddkdk.\n..kdddddddk..kk.\n...kkkkkkkk.....\n................\n................", "exit": "................\n.kkkkkkkkk......\n.kssssssskk.....\n.ksssssssk.k....\n.ksssssssk..k...\n.kssssssskk.k.r.\n.ksssssssskkkrr.\n.ksssskssskrrrrr\n.ksssssssskkkrr.\n.kssssssskk.k.r.\n.ksssssssk..k...\n.ksssssssk.k....\n.kssssssskk.....\n.kkkkkkkkk......\n................\n................", "move": ".......kk.......\n......kwwk......\n.....kwwwwk.....\n.......kk.......\n.......kk.......\n..k....kk....k..\n.kk....kk....kk.\nkwkkkkkkkkkkkkwk\nkwkkkkkkkkkkkkwk\n.kk....kk....kk.\n..k....kk....k..\n.......kk.......\n.......kk.......\n.....kwwwwk.....\n......kwwk......\n.......kk.......", "pencil": "...........kk...\n..........kffk..\n.........kfffk..\n........kyykk...\n.......kyyyk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kyyyk........\n..keyyk.........\n..keek..........\n.kkek...........\n.kkk............\n.k..............\n................\n................", "pen": "............kk..\n...........kssk.\n..........ksssk.\n.........knsskk.\n........knnnkk..\n.......knnnk....\n......knnnk.....\n.....knnnk......\n....knnnk.......\n...ksssk........\n..kgssk.........\n..kggk..........\n.kgkk...........\n.kk.............\nk...............\n................", "brush": "............kk..\n...........kmmk.\n..........kmmmk.\n.........kmmmk..\n........kmmmk...\n.......kmmmk....\n......kssk......\n.....kssk.......\n....kssk........\n...kbbbk........\n..kbbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\n.kkk............\n................", "marker": "................\n...........kkk..\n..........kgggk.\n.........kgggk..\n........kgggk...\n.......kkkkk....\n......kyyyk.....\n.....kyyyk......\n....kyyyk.......\n...kkyyk........\n..kkkkk.........\n..kyyk..........\n.kyk............\n.kk.............\nyyyyyyyy........\nyyyyyyyy........", "airbrush": "................\n.k.k............\n..k.k.kkkk......\n.k.k.kssssk.....\n..k.kgggggk.....\n.k.k.kssssk.....\n......kssk......\n.....kssssk.....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n....kssssssk....\n.....kkkkkk.....\n................", "fill": "................\n.....kk.........\n....kssk........\n...kswssk.......\n..kswwwssk......\n.kswwwwwssk.....\nksswwwwwwsskb...\n.ksswwwwwssbbb..\n..ksswwwssk.bb..\n...kssswsk..bb..\n....kssssk..bb..\n.....ksskk..b...\n......kk........\n................\n................\n................", "picker": "................\n............kk..\n...........kkkk.\n..........kkkkk.\n.........kkkkk..\n........kwwkk...\n.......kwwwk....\n......kwwwk.....\n.....kwwwk......\n....kwwwk.......\n...kbbbk........\n..kbbbk.........\n.kbbbk..........\n.kbbk...........\nkk..............\n................", "text": "................\n................\n......kkk.......\n......kkk.......\n.....kk.kk......\n.....kk.kk......\n....kk...kk.....\n....kk...kk.....\n...kkkkkkkkk....\n...kk.....kk....\n..kk.......kk...\n..kk.......kk...\nkkkkk.....kkkkk.\n................\n................\n................", "line": "................\n..............k.\n.............kk.\n............kk..\n...........kk...\n..........kk....\n.........kk.....\n........kk......\n.......kk.......\n......kk........\n.....kk.........\n....kk..........\n...kk...........\n..kk............\n.k..............\n................", "rect": "................\n................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "ellipse": "................\n................\n.....kkkkkk.....\n...kk......kk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kk......kk...\n.....kkkkkk.....\n................\n................\n................", "rrect": "................\n................\n...kkkkkkkkkk...\n..k..........k..\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n.k............k.\n..k..........k..\n...kkkkkkkkkk...\n................\n................\n................", "layers": "................\n.......kk.......\n.....kkcckk.....\n...kkcccccckk...\n.kkccccccccccck.\n..kkccccccccck..\n...gkkcccccckg..\n.kkgggkkcckkggk.\n..kkggggkkggggk.\n...gkkggggggkk..\n.kkgggkkggkkggk.\n..kkggggkkggggk.\n....kkggggggkk..\n......kkggkk....\n........kk......\n................", "layernew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwkk....\n.kwwwwwwwwkwk...\n.kwwwwwwwwkkkk..\n.kwwwwwwwwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwddddwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwdwwwwk..\n.kwwwwwwwwwwwk..\n.kwwwwwwwwwwwk..\n.kkkkkkkkkkkkk..\n................\n................", "layerdup": "................\n.kkkkkkkk.......\n.kccccccck......\n.kccccccck......\n.kcccckkkkkkkk..\n.kcccckcccccck..\n.kcccckcccccck..\n.kcccckcccccck..\n.kkkkkkcccccck..\n......kcccccck..\n......kcccccck..\n......kcccccck..\n......kkkkkkkk..\n................\n................\n................", "layerdel": "................\n...kkkkkkkkkk...\n...kssssssssk...\n.kkkkkkkkkkkkkk.\n..kwwwwwwwwwwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwgwgwwgwgwk..\n..kwwwwwwwwwwk..\n..kkkkkkkkkkkk..\n................\n................", "layerup": "................\n.......kk.......\n......kddk......\n.....kddddk.....\n....kddddddk....\n...kddddddddk...\n..kkkkddddkkkk..\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kkkkkk.....\n................\n..kkkkkkkkkkkk..\n................\n................", "layerdown": "................\n................\n..kkkkkkkkkkkk..\n................\n.....kkkkkk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n.....kddddk.....\n..kkkkddddkkkk..\n...kddddddddk...\n....kddddddk....\n.....kddddk.....\n......kddk......\n.......kk.......\n................", "merge": "................\n..kkkkkkkkkkk...\n..kcccccccccck..\n..kkkkkkkkkkkk..\n.......kk.......\n.......kk.......\n.....kkkkkk.....\n......kkkk......\n.......kk.......\n..kkkkkkkkkkk...\n..kgggggggggk...\n..kgggggggggk...\n..kkkkkkkkkkk...\n................\n................\n................", "eye": "................\n................\n................\n.....kkkkkk.....\n...kkwwwwwwkk...\n..kwwwwkkwwwwk..\n.kwwwwkkkkwwwwk.\nkwwwwkkwkkkwwwwk\n.kwwwwkkkkwwwwk.\n..kwwwwkkwwwwk..\n...kkwwwwwwkk...\n.....kkkkkk.....\n................\n................\n................\n................", "lock": "................\n.....kkkkk......\n....kk...kk.....\n....k.....k.....\n....k.....k.....\n...kkkkkkkkk....\n...koooooook....\n...koookoook....\n...kookkkook....\n...koookoook....\n...koookoook....\n...koooooook....\n...kkkkkkkkk....\n................\n................\n................", "import": "................\n..........kk....\n.........kddk...\n........kdddk...\n.kkkk..kddddk...\nkyyyykkkddkk....\nkywyyyyykdk.....\nkywykkkkkkkkkkk.\nkywkyyyyyyyyyk..\nkyykyyyyyyyyyk..\nkykyyyyyyyyyk...\nkykyyyyyyyyyk...\nkkyyyyyyyyyk....\nkkkkkkkkkkkk....\n................\n................", "newdoc": "................\n..kkkkkkkk......\n..kwwwwwwkk.....\n..kwwwwwwkwk....\n..kwwwwwwkkkk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kwwwwwwwwwk...\n..kkkkkkkkkkk...\n................\n................", "adjust": "................\n.......k........\n...k...k...k....\n....k..k..k.....\n.....kkkkk......\n....kyyykwk.....\n.kkkkyyykwwkkkk.\n....kyyykwk.....\n.....kkkkk......\n....k..k..k.....\n...k...k...k....\n.......k........\n................\n................\n................\n................", "effects": "................\n..........y.....\n....f.....y.....\n...........y....\n.yy.....yyyyyy..\n...........y....\n....kk....y.....\n...kkkk...y.....\n..kkkkk.........\n.kkkkk...c......\nkkkkk..ccccc....\nkkkk.....c......\n.kk.............\n................\n................\n................", "shape": "................\n.......kk.......\n.......kk.......\n......kyyk......\n......kyyk......\nkkkkkkyyyykkkkk.\n.kyyyyyyyyyyyk..\n..kyyyyyyyyyk...\n...kyyyyyyyk....\n...kyyyyyyyk....\n..kyyyykyyyyk...\n..kyyk...kyyk...\n.kyk.......kyk..\n.kk.........kk..\n................\n................", "canvas": "................\n.kkkkkkkkkkkkkk.\n.k............k.\n.k.kkkkkkkkkk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kwwwwwwwwk.k.\n.k.kkkkkkkkkk.k.\n.k............k.\n.kkkkkkkkkkkkkk.\n................\n................\n................", "resize": "................\n.kkkkkkk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk........\n.kwwwwwk..kkkk..\n.kkkkkkk...kkk..\n..........k.kk..\n.........k...k..\n........k.......\n.......k........\n.kkkkkkkkkkkkkk.\n.k............k.\n.kkkkkkkkkkkkkk.\n................", "project": "................\n.kkkkkkkkkkkk...\n.knkwwwwwwknkk..\n.knkwwwwwwknkck.\n.knnkkkkkknnkck.\n.knnnnnnnnnnkck.\n.knnkkkkkknnkck.\n.knnkssggknnkck.\n.knnkssggknnkck.\n.kkkkkkkkkkkkck.\n..kccccccccccck.\n...kkkkkkkkkkkk.\n................\n................\n................\n................", "paste": "................\n.....kkkkk......\n..kkkksssskkk...\n..kooksssskook..\n..koookkkkoook..\n..kooooooooook..\n..kooookkkkkkkkk\n..kooookwwwwwwwk\n..kooookwkkkkwwk\n..kooookwwwwwwwk\n..kooookwkkkkkwk\n..kooookwwwwwwwk\n..kkkkkkwkkkkwwk\n........wwwwwwwk\n........kkkkkkkk\n................", "swap": "................\n..kk............\n.kkkkk..........\nkkkkkkk.........\n..kk..k.........\n..kk...k........\n..kk....kk......\n...k.....kk.....\n....kk....k.....\n.....kk...kk....\n.........kkkkkk.\n..........kkkk..\n...........kk...\n................\n................\n................", "canvasview": "................\n.kkkkkkkkkkkkkk.\n.kcccccccccccck.\n.kccccccccyycck.\n.kcccccccyyyyck.\n.kccccccccyycck.\n.kcccccccccccck.\n.kcccccccccccck.\n.kcccclccccccck.\n.kccclllcccccck.\n.kcclllllccclck.\n.kclllllllllllk.\n.kddddddddddddk.\n.kddddddddddddk.\n.kkkkkkkkkkkkkk.\n................", "animate": "................\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\nkwwwwkwwwwkwwwwk\nkwwwwkwwwwkwrrwk\nkwwwwkwwrwkrrrrk\nkwrrwkwrrrkwrrwk\nkrrrrkwwrwkwwwwk\nkwrrwkwwwwkwwwwk\nkwwwwkwwwwkwwwwk\nkkkkkkkkkkkkkkkk\nkwkwkwkwkwkwkwkk\nkkkkkkkkkkkkkkkk\n................\n................", "onion": "................\n................\n...rrr..........\n..r...r.........\n.r.....r.ggg....\n.r.....rg...g...\n.r.....g.kkk.g..\n..r...g.kbbbk.g.\n...rrrgkbbbbbkg.\n......gkbbbbbkg.\n......gkbbbbbkg.\n.......gkbbbk.g.\n........gkkkgg..\n.........ggg....\n................\n................", "framenew": "................\n.kkkkkkkkkk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwk.....\n.kwwwwwwwwkkdd..\n.kkkkkkkkkk.dd..\n..........dddddd\n..........dddddd\n............dd..\n............dd..\n................", "hintkeep": "............kk..\n...........kddk.\n..........kdddk.\n.........kdddk..\n........kdddk...\n.......kdddk....\n......kdddk.....\n.....kdddk......\n....kdddk.......\n...kkddk..ll....\n..kssdk...ll....\n.kssssk.llllll..\n.kssssk.llllll..\n.ksssk....ll....\n..kkk.....ll....\n................", "hintdrop": "............kk..\n...........krrk.\n..........krrrk.\n.........krrrk..\n........krrrk...\n.......krrrk....\n......krrrk.....\n.....krrrk......\n....krrrk.......\n...kkrrk........\n..kssrk.........\n.kssssk.rrrrrr..\n.kssssk.rrrrrr..\n.ksssk..........\n..kkk...........\n................", "curve": "................\n.kkkkkkkkkkkkkk.\n.kwwwwwwwwwwwbk.\n.kwwwwwwwwwwbwk.\n.kwwwwwwwwwbwwk.\n.kwwwwwwwwbwwwk.\n.kwwwwwwwbwwwwk.\n.kwwwwwwbwwwwwk.\n.kwwwwwbwwwwwwk.\n.kwwwwbwwwwwwwk.\n.kwwwbwwwwwwwwk.\n.kwwbwwwwwwwwwk.\n.kwbwwwwwwwwwwk.\n.kbwwwwwwwwwwwk.\n.kkkkkkkkkkkkkk.\n................"};
 // ===================== layers: document model, compositing, undo, transforms, panel, projects =====================
 // The original editing code works on one image held in the globals W, H, frames, masks, delays and imgCanvas.
 // Each layer owns its own copy of those; the selected ("active") layer's data is bound to the globals,
@@ -3207,7 +3294,9 @@ function initDocFromGlobals(name){
   setTimeout(() => { renderLayersPanel(); syncLayerProps(); }, 0);
 }
 function loadActive(L){
-  ensureCanvas(L);   // the layer may have changed size (crop, resize, rotate) since its canvas was made
+  ensureCanvas(L);
+  if (L.hints && L.hints.length !== L.W * L.H) L.hints = null;
+  if (typeof cutModels !== 'undefined') cutModels = null;   // the layer may have changed size (crop, resize, rotate) since its canvas was made
   AL = L; W = L.W; H = L.H; frames = L.frames; masks = L.masks; delays = L.delays; imgCanvas = L.canvas; imgCtx = L.ctx; disp = L.disp;
   S.cur = S.dcur % frames.length;
   resetEdges(); refCache = null; resetMotion(); resetStabResult(); S.track = null;
@@ -4176,14 +4265,38 @@ function renderCustom(){
 }
 
 // ---------- drawing tools ----------
-const DRAW_TOOLS = ['pencil', 'pen', 'brush', 'marker', 'air'], SHAPE_TOOLS = ['line', 'rect', 'ellipse', 'rrect'];
+var DRAW_TOOLS = ['pencil', 'pen', 'brush', 'marker', 'air'], SHAPE_TOOLS = ['line', 'rect', 'ellipse', 'rrect'];
 S.draw = Object.assign({
-  pencil: { size: 1, opacity: 100, tip: 'round', blend: 'source-over' },
-  pen: { size: 4, opacity: 100, smooth: 40, pressSize: true, pressOp: false, blend: 'source-over' },
-  brush: { size: 24, opacity: 100, flow: 35, hard: 40, spacing: 12, smooth: 30, pressSize: true, pressOp: false, blend: 'source-over' },
-  marker: { size: 18, opacity: 55, tip: 'chisel', angle: 45, smooth: 30, blend: 'multiply' },
-  air: { size: 40, opacity: 100, flow: 30, density: 40, blend: 'source-over' }
+  pencil: { size: 1, opacity: 100, tip: 'round', style: 'round', blend: 'source-over' },
+  pen: { size: 4, opacity: 100, smooth: 40, style: 'ink', angle: 45, pressSize: true, pressOp: false, blend: 'source-over' },
+  brush: { size: 24, opacity: 100, flow: 35, hard: 40, spacing: 12, smooth: 30, style: 'soft', pressSize: true, pressOp: false, blend: 'source-over' },
+  marker: { size: 18, opacity: 55, tip: 'chisel', style: 'chisel', angle: 45, smooth: 30, pressSize: false, pressOp: false, blend: 'multiply' },
+  air: { size: 40, opacity: 100, flow: 30, density: 40, style: 'fine', pressSize: false, pressOp: true, blend: 'source-over' }
 }, store.get('draw', {}));
+for (const t of ['pencil', 'pen', 'brush', 'marker', 'air']) if (!S.draw[t].style) S.draw[t].style = { pencil: 'round', pen: 'ink', brush: 'soft', marker: S.draw.marker.tip || 'chisel', air: 'fine' }[t];
+const STYLES = {
+  pencil: [['round', 'Hard round', 'Solid pixels, round tip.'], ['square', 'Square', 'Solid pixels, square tip.'], ['grainy', 'Grainy', 'Graphite look: some pixels are skipped at random.'], ['sketch', 'Sketch', 'Several light, slightly offset lines, like quick sketching.']],
+  pen: [['ink', 'Ink', 'Smooth solid line.'], ['ballpoint', 'Ballpoint', 'A thinner, even line.'], ['calligraphy', 'Calligraphy', 'A flat nib: thick and thin depending on the direction. Set the nib angle below.'], ['felt', 'Felt tip', 'Soft, slightly fuzzy edge.'], ['brushpen', 'Brush pen', 'Thin when you move fast, thick when you slow down.']],
+  brush: [['soft', 'Soft round', 'Round dab with a soft edge; hardness sets how soft.'], ['hard', 'Hard round', 'Round dab with a crisp edge.'], ['bristle', 'Bristle', 'Several fine hairs that leave streaks.'], ['chalk', 'Chalk', 'Rough, textured dab.'], ['splatter', 'Splatter', 'Speckles sprayed around the dab.'], ['watercolor', 'Watercolor', 'Thin wash that darkens toward the rim.']],
+  marker: [['chisel', 'Chisel tip', 'Flat tip at the angle below; thick and thin strokes.'], ['round', 'Round tip', 'Even width.'], ['highlighter', 'Highlighter', 'A wide flat tip held upright: broad sideways, thin up and down.'], ['dry', 'Dry marker', 'Chisel tip that is running out of ink.']],
+  air: [['fine', 'Fine spray', 'Fine mist of dots.'], ['coarse', 'Coarse spray', 'Bigger, rougher dots.'], ['soft', 'Soft airbrush', 'Smooth cloud of color that builds up.'], ['spatter', 'Spatter', 'Random blobs of different sizes.'], ['stipple', 'Stipple', 'Round dots of one size.']]
+};
+// pen pressure: a curve from raw pressure to how much of the size / opacity is used
+S.press = Object.assign({ preset: 'linear', cx: 0.5, cy: 0.5, minSize: 15, minOp: 10 }, store.get('press', {}));
+const PRESS_PRESETS = { linear: [0.5, 0.5], light: [0.25, 0.75], vlight: [0.1, 0.9], firm: [0.75, 0.25], vfirm: [0.9, 0.1] };
+let pressLUT = null;
+function pressCurve(x){
+  const cx = S.press.cx, cy = S.press.cy, A = 1 - 2 * cx;
+  let t = Math.abs(A) < 1e-6 ? x / (2 * cx || 1) : (-2 * cx + Math.sqrt(Math.max(0, 4 * cx * cx + 4 * A * x))) / (2 * A);
+  t = Math.min(1, Math.max(0, t));
+  return Math.min(1, Math.max(0, 2 * (1 - t) * t * cy + t * t));
+}
+function pressRebuild(){ pressLUT = new Float32Array(65); for (let i = 0; i <= 64; i++) pressLUT[i] = pressCurve(i / 64); }
+pressRebuild();
+const pressMapped = p => { const x = Math.min(1, Math.max(0, p)) * 64, i = x | 0, f = x - i; return i >= 64 ? pressLUT[64] : pressLUT[i] + (pressLUT[i + 1] - pressLUT[i]) * f; };
+const sizeScale = (st, p) => st.pressSize && DS.pen ? S.press.minSize / 100 + (1 - S.press.minSize / 100) * pressMapped(p) : 1;
+const opScale = (st, p) => st.pressOp && DS.pen ? S.press.minOp / 100 + (1 - S.press.minOp / 100) * pressMapped(p) : 1;
+let lastPressure = 0;
 S.shape = Object.assign({ style: 'stroke', width: 3, opacity: 100, dash: 'solid', radius: 18, arrow: 'none', cap: 'round', aa: true }, store.get('shape', {}));
 S.drawLock = false;
 const DRAW_INFO = {
@@ -4199,8 +4312,35 @@ function loadDrawUI(t){
   $$('[data-dt]').forEach(el => el.hidden = !el.dataset.dt.split(' ').includes(t));
   const sv = (id, v) => { const el = $('#' + id); if (el && v != null){ el.value = v; el.dispatchEvent(new Event('input')); } };
   sv('dSize', st.size); sv('dOpacity', st.opacity); sv('dFlow', st.flow); sv('dHard', st.hard); sv('dSpacing', st.spacing); sv('dDensity', st.density); sv('dAngle', st.angle); sv('dSmooth', st.smooth);
-  if (st.tip) segSet(t === 'pencil' ? '#dPTip' : '#dTip', 'v', st.tip);
+  const sel = $('#dStyle'); sel.innerHTML = '';
+  for (const [v, name] of STYLES[t]){ const o = document.createElement('option'); o.value = v; o.textContent = name; sel.appendChild(o); }
+  sel.value = st.style; styleHint(t);
+  $('#dAngleLbl').textContent = t === 'pen' ? 'Nib angle' : 'Tip angle';
+  $('#dAngleRow').hidden = !((t === 'marker' && (st.style === 'chisel' || st.style === 'dry')) || (t === 'pen' && st.style === 'calligraphy'));
+  $('#dHardRow').hidden = !(t === 'brush' && (st.style === 'soft' || st.style === 'chalk' || st.style === 'watercolor'));
   $('#dPressSize').checked = !!st.pressSize; $('#dPressOp').checked = !!st.pressOp; $('#dBlend').value = st.blend || 'source-over'; $('#dLock').checked = S.drawLock;
+  drawPressCurve();
+}
+function styleHint(t){ const st = S.draw[t], e = STYLES[t].find(x => x[0] === st.style); $('#dStyleHint').textContent = e ? e[2] : ''; }
+$('#dStyle').addEventListener('change', e => { const t = DRAW_TOOL(); if (!t) return; S.draw[t].style = e.target.value; if (t === 'marker' && (e.target.value === 'chisel' || e.target.value === 'round')) S.draw.marker.tip = e.target.value; store.set('draw', S.draw); dabCache.key = ''; loadDrawUI(t); requestDraw(); });
+// pressure curve editor
+const pcv = $('#pressCurve');
+function drawPressCurve(){
+  if (!pcv) return; const g = pcv.getContext('2d'), w = pcv.width, h = pcv.height;
+  g.clearRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#c0c0c0'; g.lineWidth = 1; g.beginPath(); for (let i = 1; i < 4; i++){ g.moveTo(i * w / 4 + 0.5, 0); g.lineTo(i * w / 4 + 0.5, h); g.moveTo(0, i * h / 4 + 0.5); g.lineTo(w, i * h / 4 + 0.5); } g.stroke();
+  const ms = S.press.minSize / 100;
+  g.strokeStyle = '#000080'; g.lineWidth = 2; g.beginPath();
+  for (let i = 0; i <= 64; i++){ const x = i / 64, y = ms + (1 - ms) * pressMapped(x); i ? g.lineTo(x * w, h - y * h) : g.moveTo(x * w, h - y * h); } g.stroke();
+  g.fillStyle = '#ff0000'; g.beginPath(); g.arc(S.press.cx * w, h - S.press.cy * h, 4, 0, Math.PI * 2); g.fill();
+  if (lastPressure > 0){ const y = ms + (1 - ms) * pressMapped(lastPressure); g.fillStyle = '#008000'; g.beginPath(); g.arc(lastPressure * w, h - y * h, 4, 0, Math.PI * 2); g.fill(); }
+  $('#pressRead').textContent = lastPressure > 0 ? 'Last pen pressure ' + Math.round(lastPressure * 100) + '% → size ' + Math.round((ms + (1 - ms) * pressMapped(lastPressure)) * 100) + '%' : 'Draw with the pen to see its pressure here.';
+}
+if (pcv){
+  dragOn(pcv, e => { const r = pcv.getBoundingClientRect(); S.press.cx = clamp((e.clientX - r.left) / r.width, 0.02, 0.98); S.press.cy = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); S.press.preset = 'custom'; $('#pressPreset').value = 'custom'; pressRebuild(); store.set('press', S.press); drawPressCurve(); });
+  $('#pressPreset').value = S.press.preset;
+  $('#pressPreset').addEventListener('change', e => { const v = e.target.value; S.press.preset = v; if (PRESS_PRESETS[v]){ [S.press.cx, S.press.cy] = PRESS_PRESETS[v]; } pressRebuild(); store.set('press', S.press); drawPressCurve(); });
+  [['pressMin', 'minSize'], ['pressMinOp', 'minOp']].forEach(([id, k]) => { const el = $('#' + id); el.value = S.press[k]; $('#' + id + 'Out').textContent = S.press[k] + '%'; el.addEventListener('input', () => { S.press[k] = +el.value; $('#' + id + 'Out').textContent = el.value + '%'; store.set('press', S.press); drawPressCurve(); }); });
 }
 const DRAW_TOOL = () => DRAW_TOOLS.includes(S.tool) ? S.tool : null;
 function bindDraw(id, key, fmt){
@@ -4209,8 +4349,7 @@ function bindDraw(id, key, fmt){
 }
 bindDraw('dSize', 'size', v => v + ' px'); bindDraw('dOpacity', 'opacity', v => v + '%'); bindDraw('dFlow', 'flow', v => v + '%'); bindDraw('dHard', 'hard', v => v + '%');
 bindDraw('dSpacing', 'spacing', v => v + '%'); bindDraw('dDensity', 'density', v => v + '%'); bindDraw('dAngle', 'angle', v => v + '°'); bindDraw('dSmooth', 'smooth', v => v === 0 ? 'Off' : v + '%');
-segBind('#dTip', 'v', v => { if (S.draw.marker) { S.draw.marker.tip = v; store.set('draw', S.draw); } });
-segBind('#dPTip', 'v', v => { S.draw.pencil.tip = v; store.set('draw', S.draw); });
+
 $('#dPressSize').addEventListener('change', e => { const t = DRAW_TOOL(); if (t){ S.draw[t].pressSize = e.target.checked; store.set('draw', S.draw); } });
 $('#dPressOp').addEventListener('change', e => { const t = DRAW_TOOL(); if (t){ S.draw[t].pressOp = e.target.checked; store.set('draw', S.draw); } });
 $('#dBlend').addEventListener('change', e => { const t = DRAW_TOOL(); if (t){ S.draw[t].blend = e.target.value; store.set('draw', S.draw); } });
@@ -4243,7 +4382,7 @@ function strokeCanvasReady(){
   DS.bbox = [Infinity, Infinity, -Infinity, -Infinity];
 }
 function grow(x, y, r){ const b = DS.bbox; b[0] = Math.min(b[0], x - r - 2); b[1] = Math.min(b[1], y - r - 2); b[2] = Math.max(b[2], x + r + 2); b[3] = Math.max(b[3], y + r + 2); }
-const pressureOf = e => (e.pointerType === 'pen' ? (e.pressure || 0.5) : 1);
+const pressureOf = e => { if (e.pointerType === 'pen'){ lastPressure = e.pressure || 0; return e.pressure || 0.5; } return 1; };
 // make sure the layer covers the point we start drawing at
 function ensureDrawableAt(p){
   const [lx, ly] = toImg(p), [dx, dy] = toDoc(p);
@@ -4266,10 +4405,10 @@ function beginDraw(e, p){
   }
   const st = S.draw[t];
   DS.opacity = st.opacity / 100 * c.a / 255; DS.blend = st.blend || 'source-over'; DS.lock = S.drawLock; DS.hard = t === 'pencil';
-  DS.p = pressureOf(e); DS.last = [lx, ly]; DS.sm = [lx, ly]; DS.mid = [lx, ly]; DS.rem = 0;
+  DS.pen = e.pointerType === 'pen'; DS.p = pressureOf(e); DS.last = [lx, ly]; DS.sm = [lx, ly]; DS.mid = [lx, ly]; DS.rem = 0; DS.speed = 0; DS.lastT = performance.now(); DS.dir = 0; DS.sk = null; DS.skN = 0;
   const g = DS.ctx; g.fillStyle = csso(c); g.strokeStyle = csso(c);
   if (t === 'pencil') pencilLine(lx, ly, lx, ly);
-  else if (t === 'pen'){ const w = penWidth(); g.beginPath(); g.arc(lx, ly, w / 2, 0, Math.PI * 2); g.fill(); grow(lx, ly, w); }
+  else if (t === 'pen'){ const w = penWidth(); if (st.style !== 'calligraphy'){ g.globalAlpha = penAlpha(); g.beginPath(); g.arc(lx, ly, w / 2, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; } grow(lx, ly, w); }
   else if (t === 'brush') brushDab(lx, ly);
   else if (t === 'marker') markerDab(lx, ly);
   else if (t === 'air'){ spray(); DS.airT = setInterval(spray, 28); }
@@ -4282,6 +4421,7 @@ function moveDraw(e){
     const [lx, ly] = toImg(localPt(ce));
     if (SHAPE_TOOLS.includes(DS.tool)){ DS.cur = [lx, ly]; DS.shift = ce.shiftKey; continue; }
     DS.p = pressureOf(ce);
+    { const now = performance.now(), dt = Math.max(1, now - DS.lastT), v = Math.hypot(lx - DS.raw0x, ly - DS.raw0y) / dt; DS.speed = DS.speed * 0.7 + (isFinite(v) ? v : 0) * 0.3; DS.lastT = now; DS.raw0x = lx; DS.raw0y = ly; }
     const st = S.draw[DS.tool], s = DS.tool === 'pencil' || DS.tool === 'air' ? 0 : (st.smooth || 0) / 100;
     DS.sm = [DS.sm[0] + (lx - DS.sm[0]) * (1 - s), DS.sm[1] + (ly - DS.sm[1]) * (1 - s)];
     if (DS.tool === 'air'){ DS.last = [lx, ly]; continue; }
@@ -4294,22 +4434,41 @@ function endDraw(){
   if (!DS.active) return;
   clearInterval(DS.airT);
   if (DS.raw && !SHAPE_TOOLS.includes(DS.tool) && DS.tool !== 'air'){ segment(DS.last, DS.raw); }
-  if (DS.tool === 'pen'){ const g = DS.ctx; g.beginPath(); g.moveTo(DS.mid[0], DS.mid[1]); g.lineTo(DS.last[0], DS.last[1]); g.lineWidth = penWidth(); g.lineCap = 'round'; g.stroke(); }
+  if (DS.tool === 'pen' && S.draw.pen.style !== 'calligraphy'){ const g = DS.ctx; g.globalAlpha = penAlpha(); g.beginPath(); g.moveTo(DS.mid[0], DS.mid[1]); g.lineTo(DS.last[0], DS.last[1]); g.lineWidth = penWidth(); g.lineCap = 'round'; g.stroke(); g.globalAlpha = 1; }
   DS.raw = null;
   commitStroke();
 }
 const localPt = ev => { const r = view.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
-const penWidth = () => { const st = S.draw.pen; return Math.max(0.5, st.size * (st.pressSize ? 0.25 + 0.75 * DS.p : 1)); };
+const penWidth = () => {
+  const st = S.draw.pen; let w = st.size * sizeScale(st, DS.p);
+  if (st.style === 'ballpoint') w *= 0.7;
+  else if (st.style === 'brushpen'){ const sp = Math.min(1, DS.speed / 1.6); w *= 1.25 - 1.05 * sp; }
+  return Math.max(0.5, w);
+};
+const penAlpha = () => { const st = S.draw.pen; return opScale(st, DS.p); };
+// a flat nib: the line's width depends on its direction
+function nibSegment(a, b){
+  const st = S.draw.pen, g = DS.ctx, nib = st.angle * Math.PI / 180, w = st.size * sizeScale(st, DS.p);
+  const nx = Math.cos(nib) * w / 2, ny = -Math.sin(nib) * w / 2;
+  g.globalAlpha = penAlpha(); g.beginPath(); g.moveTo(a[0] + nx, a[1] + ny); g.lineTo(b[0] + nx, b[1] + ny); g.lineTo(b[0] - nx, b[1] - ny); g.lineTo(a[0] - nx, a[1] - ny); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(a[0] + nx, a[1] + ny); g.lineTo(a[0] - nx, a[1] - ny); g.lineWidth = 1; g.stroke(); g.globalAlpha = 1;
+  grow(a[0], a[1], w); grow(b[0], b[1], w);
+}
 function segment(a, b){
   const t = DS.tool, g = DS.ctx;
   if (t === 'pencil'){ pencilLine(a[0], a[1], b[0], b[1]); return; }
   if (t === 'pen'){
+    const st = S.draw.pen;
+    if (st.style === 'calligraphy'){ nibSegment(a, b); return; }
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], w = penWidth();
+    g.globalAlpha = penAlpha();
+    if (st.style === 'felt'){ g.beginPath(); g.moveTo(DS.mid[0], DS.mid[1]); g.quadraticCurveTo(a[0], a[1], mid[0], mid[1]); g.lineWidth = w * 1.25; g.lineCap = 'round'; g.lineJoin = 'round'; g.globalAlpha = penAlpha() * 0.45; g.stroke(); g.globalAlpha = penAlpha(); }
     g.beginPath(); g.moveTo(DS.mid[0], DS.mid[1]); g.quadraticCurveTo(a[0], a[1], mid[0], mid[1]);
-    g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); DS.mid = mid; grow(a[0], a[1], w); grow(b[0], b[1], w); return;
+    g.lineWidth = st.style === 'felt' ? w * 0.75 : w; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); g.globalAlpha = 1; DS.mid = mid; grow(a[0], a[1], w * 1.3); grow(b[0], b[1], w * 1.3); return;
   }
-  const st = S.draw[t], size = st.size * (st.pressSize ? 0.3 + 0.7 * DS.p : 1);
-  const step = t === 'marker' ? Math.max(0.6, st.size * 0.06) : Math.max(0.6, size * st.spacing / 100);
+  const st = S.draw[t], size = st.size * sizeScale(st, DS.p);
+  DS.dir = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  const step = t === 'marker' ? Math.max(0.6, size * 0.06) : Math.max(0.6, size * (st.style === 'bristle' ? Math.min(st.spacing, 8) : st.spacing) / 100);
   const dx = b[0] - a[0], dy = b[1] - a[1], dist = Math.hypot(dx, dy);
   let d = step - DS.rem;
   while (d <= dist){ const x = a[0] + dx * d / dist, y = a[1] + dy * d / dist; t === 'marker' ? markerDab(x, y) : brushDab(x, y); d += step; }
@@ -4318,10 +4477,12 @@ function segment(a, b){
 // pencil: aliased pixels, Bresenham between integer points
 let discCache = {};
 function pencilDot(x, y){
-  const st = S.draw.pencil, n = Math.max(1, st.size | 0), g = DS.ctx;
+  const st = S.draw.pencil, n = Math.max(1, st.size | 0), g = DS.ctx, sty = st.style;
+  if (sty === 'grainy'){ const h = Math.floor(n / 2); for (let yy = 0; yy < n; yy++) for (let xx = 0; xx < n; xx++){ const dx = xx + 0.5 - n / 2, dy = yy + 0.5 - n / 2; const px = x - h + xx, py = y - h + yy; let hsh = (px * 374761393 + py * 668265263) | 0; hsh = ((hsh ^ (hsh >> 13)) * 1274126177) | 0; if (dx * dx + dy * dy <= n * n / 4 && ((hsh >>> 8) & 255) < 110) g.fillRect(px, py, 1, 1); } grow(x, y, n); return; }
+  if (sty === 'sketch'){ const sp = Math.max(1, Math.round(n * 0.7)), d = Math.max(1, Math.round(n / 4)); if (!DS.sk) DS.sk = [0, 1, 2].map(() => [Math.round((Math.random() - 0.5) * sp * 2), Math.round((Math.random() - 0.5) * sp * 2)]); g.globalAlpha = 0.45; for (const [ox, oy] of DS.sk) g.fillRect(x + ox - (d >> 1), y + oy - (d >> 1), d, d); g.globalAlpha = 1; grow(x, y, n + sp); return; }
   if (n === 1){ g.fillRect(x, y, 1, 1); grow(x, y, 1); return; }
   const h = Math.floor(n / 2);
-  if (st.tip === 'square'){ g.fillRect(x - h, y - h, n, n); grow(x, y, n); return; }
+  if (sty === 'square' || st.tip === 'square' && sty === 'round' && false){ g.fillRect(x - h, y - h, n, n); grow(x, y, n); return; }
   let rows = discCache[n];
   if (!rows){ rows = []; const r = n / 2; for (let yy = 0; yy < n; yy++){ const cy = yy + 0.5 - r, half = Math.sqrt(Math.max(0, r * r - cy * cy)); const x0 = Math.round(r - half), x1 = Math.round(r + half); if (x1 > x0) rows.push([yy, x0, x1 - x0]); } discCache[n] = rows; }
   for (const [yy, xx, ww] of rows) g.fillRect(x - h + xx, y - h + yy, ww, 1);
@@ -4334,31 +4495,83 @@ function pencilLine(x0, y0, x1, y1){
 }
 // brush: soft round dab, cached per size/hardness/color
 let dabCache = { key: '', c: null };
+let noiseCv = null;
+function noiseCanvas(){
+  if (noiseCv) return noiseCv;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), id = g.createImageData(128, 128), d = id.data;
+  let seed = 12345; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 128 * 128; i++){ const v = rnd(); d[i * 4 + 3] = v < 0.35 ? 0 : v < 0.6 ? 110 : 255; }
+  g.putImageData(id, 0, 0); return noiseCv = c;
+}
+let dryCv = { key: '', c: null };
+function dryCanvas(col){
+  const key = hex6(col); if (dryCv.key === key) return dryCv.c;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = csso(col); g.fillRect(0, 0, 128, 128); g.globalCompositeOperation = 'destination-in'; g.drawImage(noiseCanvas(), 0, 0);
+  dryCv = { key, c }; return c;
+}
+function makeDab(style, hard, col){
+  const c = document.createElement('canvas'); c.width = c.height = 128; const cg = c.getContext('2d'), rgb = col.r + ',' + col.g + ',' + col.b;
+  const gr = cg.createRadialGradient(64, 64, 0, 64, 64, 64);
+  if (style === 'hard'){ cg.fillStyle = 'rgb(' + rgb + ')'; cg.beginPath(); cg.arc(64, 64, 63, 0, Math.PI * 2); cg.fill(); return c; }
+  if (style === 'watercolor'){ gr.addColorStop(0, 'rgba(' + rgb + ',0.35)'); gr.addColorStop(0.75, 'rgba(' + rgb + ',0.45)'); gr.addColorStop(0.93, 'rgba(' + rgb + ',0.9)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)'); }
+  else { gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(Math.min(0.99, hard / 100), 'rgba(' + rgb + ',1)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)'); }
+  cg.fillStyle = gr; cg.fillRect(0, 0, 128, 128);
+  if (style === 'chalk'){ cg.globalCompositeOperation = 'destination-in'; cg.drawImage(noiseCanvas(), 0, 0); }
+  return c;
+}
 function brushDab(x, y){
-  const st = S.draw.brush, size = Math.max(1, st.size * (st.pressSize ? 0.3 + 0.7 * DS.p : 1)), g = DS.ctx;
-  const key = st.hard + '|' + hex6(DS.color);
-  if (dabCache.key !== key){
-    const c = document.createElement('canvas'); c.width = c.height = 128; const cg = c.getContext('2d');
-    const gr = cg.createRadialGradient(64, 64, 0, 64, 64, 64), col = DS.color, rgb = col.r + ',' + col.g + ',' + col.b;
-    gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(Math.min(0.99, st.hard / 100), 'rgba(' + rgb + ',1)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
-    cg.fillStyle = gr; cg.fillRect(0, 0, 128, 128); dabCache = { key, c };
+  const st = S.draw.brush, size = Math.max(1, st.size * sizeScale(st, DS.p)), g = DS.ctx, sty = st.style;
+  const key = sty + '|' + st.hard + '|' + hex6(DS.color);
+  if (dabCache.key !== key) dabCache = { key, c: makeDab(sty, st.hard, DS.color) };
+  const flow = st.flow / 100 * opScale(st, DS.p);
+  if (sty === 'bristle'){
+    const n = Math.max(4, Math.round(size / 3)), px = -Math.sin(DS.dir), py = Math.cos(DS.dir); let seed = ((x * 73 + y * 151) | 0) & 0xffff;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    g.globalAlpha = flow;
+    for (let i = 0; i < n; i++){ const t = (i + 0.5) / n - 0.5, off = t * size * (0.9 + 0.2 * rnd()), hs = size * (0.08 + 0.12 * rnd()); g.beginPath(); g.arc(x + px * off, y + py * off, hs, 0, Math.PI * 2); g.fillStyle = csso(DS.color); g.fill(); }
+    g.globalAlpha = 1; grow(x, y, size / 2); return;
   }
-  g.globalAlpha = st.flow / 100 * (st.pressOp ? DS.p : 1);
-  g.drawImage(dabCache.c, x - size / 2, y - size / 2, size, size); g.globalAlpha = 1;
-  grow(x, y, size / 2);
+  if (sty === 'splatter'){
+    g.globalAlpha = flow; g.fillStyle = csso(DS.color);
+    const n = Math.max(3, Math.round(size / 4));
+    for (let i = 0; i < n; i++){ const a = Math.random() * Math.PI * 2, d = size * 0.7 * Math.sqrt(Math.random()), r = size * (0.03 + 0.09 * Math.random() * Math.random()); g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, Math.max(0.5, r), 0, Math.PI * 2); g.fill(); }
+    g.globalAlpha = 1; grow(x, y, size * 0.8); return;
+  }
+  g.globalAlpha = sty === 'watercolor' ? Math.min(1, flow * 0.8) : flow;
+  if (sty === 'chalk'){ g.save(); g.translate(x, y); g.rotate(((x * 7 + y * 13) % 360) * Math.PI / 180); g.drawImage(dabCache.c, -size / 2, -size / 2, size, size); g.restore(); }
+  else g.drawImage(dabCache.c, x - size / 2, y - size / 2, size, size);
+  g.globalAlpha = 1; grow(x, y, size / 2);
 }
 function markerDab(x, y){
-  const st = S.draw.marker, g = DS.ctx, s = st.size;
+  const st = S.draw.marker, g = DS.ctx, s = st.size * sizeScale(st, DS.p), sty = st.style;
+  g.globalAlpha = opScale(st, DS.p);
+  if (sty === 'highlighter'){ g.fillRect(x - s * 0.14, y - s * 0.5, s * 0.28, s); g.globalAlpha = 1; grow(x, y, s / 2); return; }
+  if (sty === 'dry'){
+    g.save(); g.translate(x, y); g.rotate(-st.angle * Math.PI / 180); g.beginPath(); g.ellipse(0, 0, s / 2, Math.max(0.8, s * 0.16), 0, 0, Math.PI * 2); g.clip();
+    g.drawImage(dryCanvas(DS.color), -s / 2, -s / 2, s, s); g.restore(); g.globalAlpha = 1; grow(x, y, s / 2); return;
+  }
   g.beginPath();
-  if (st.tip === 'chisel') g.ellipse(x, y, s / 2, Math.max(0.8, s * 0.16), st.angle * Math.PI / 180, 0, Math.PI * 2);
+  if (sty === 'chisel') g.ellipse(x, y, s / 2, Math.max(0.8, s * 0.16), st.angle * Math.PI / 180, 0, Math.PI * 2);
   else g.arc(x, y, s / 2, 0, Math.PI * 2);
-  g.fill(); grow(x, y, s / 2);
+  g.fill(); g.globalAlpha = 1; grow(x, y, s / 2);
 }
 function spray(){
-  const st = S.draw.air, g = DS.ctx, [x, y] = DS.last, r = st.size / 2;
-  const n = Math.max(2, Math.round(st.density * st.size / 25));
-  g.globalAlpha = st.flow / 100;
-  for (let i = 0; i < n; i++){ const a = Math.random() * Math.PI * 2, d = r * Math.sqrt(Math.random()); g.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.2, 1.2); }
+  const st = S.draw.air, g = DS.ctx, [x, y] = DS.last, size = st.size * sizeScale(st, DS.p), r = size / 2, sty = st.style;
+  const flow = st.flow / 100 * opScale(st, DS.p);
+  if (sty === 'soft'){
+    const key = 'air|' + hex6(DS.color); if (dabCache.key !== key) dabCache = { key, c: makeDab('soft', 0, DS.color) };
+    g.globalAlpha = Math.min(1, flow * 0.4 * Math.max(0.2, st.density / 50)); g.drawImage(dabCache.c, x - r, y - r, size, size); g.globalAlpha = 1; grow(x, y, r); requestDraw(); return;
+  }
+  const n = Math.max(2, Math.round(st.density * size / (sty === 'spatter' ? 120 : sty === 'stipple' ? 60 : 25)));
+  g.globalAlpha = flow; g.fillStyle = csso(DS.color);
+  for (let i = 0; i < n; i++){
+    const a = Math.random() * Math.PI * 2, d = r * Math.sqrt(Math.random()), px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+    if (sty === 'fine') g.fillRect(px, py, 1.2, 1.2);
+    else if (sty === 'coarse'){ const k = 1.5 + Math.random() * 2.5; g.fillRect(px, py, k, k); }
+    else if (sty === 'stipple'){ g.beginPath(); g.arc(px, py, Math.max(0.8, size / 14), 0, Math.PI * 2); g.fill(); }
+    else { g.beginPath(); g.arc(px, py, Math.max(0.6, size * (0.02 + 0.1 * Math.random() * Math.random())), 0, Math.PI * 2); g.fill(); }
+  }
   g.globalAlpha = 1; grow(x, y, r); requestDraw();
 }
 function dashFor(kind, w){ return kind === 'dash' ? [w * 3, w * 2] : kind === 'dot' ? [0.1, w * 2] : kind === 'dashdot' ? [w * 3, w * 1.5, 0.1, w * 1.5] : []; }
@@ -4662,12 +4875,13 @@ $('#eShBtn').addEventListener('click', () => {
 });
 
 // ---------- pointer routing for the new tools ----------
-const NEW_TOOLS = ['move', 'fill', 'picker', 'text', ...DRAW_TOOLS, ...SHAPE_TOOLS];
+const NEW_TOOLS = ['move', 'fill', 'picker', 'text', 'hintKeep', 'hintDrop', ...DRAW_TOOLS, ...SHAPE_TOOLS];
 function handleToolDown(e, p){
   const t = S.tool; if (!NEW_TOOLS.includes(t)) return false;
   if (!W) return true;
   if (t === 'picker' || (e.altKey && (DRAW_TOOLS.includes(t) || SHAPE_TOOLS.includes(t) || t === 'fill'))){ pickColorAt(p, e.button === 2); return true; }
   if (t === 'move'){ if (e.button === 0) xfDown(e, p); return true; }
+  if (t === 'hintKeep' || t === 'hintDrop') return hintDown(e, p);
   if (t === 'text'){ if (e.button === 0) textClick(p); return true; }
   if (AL.locked){ toast('The selected layer is locked. Unlock it in the Layers panel to draw on it.'); return true; }
   if (t === 'fill'){ fillAt(p, e.button === 2); return true; }
@@ -4676,11 +4890,12 @@ function handleToolDown(e, p){
 }
 function handleToolMove(e, p){
   if (XF && XF.drag){ xfMove(e, p); return true; }
+  if (hintStroke){ hintMove(e, p); return true; }
   if (DS.active){ moveDraw(e); return true; }
   if (S.tool === 'move' && XF && !S.space){ const m = xfHit(p); view.style.cursor = XF_CURSOR[m] || 'default'; }
   return false;
 }
-function handleToolUp(e){ if (XF && XF.drag){ xfUp(); return true; } if (DS.active){ endDraw(); return true; } return false; }
+function handleToolUp(e){ if (hintStroke){ hintUp(); return true; } if (XF && XF.drag){ xfUp(); return true; } if (DS.active){ endDraw(); return true; } return false; }
 function beforeToolChange(t){
   if (XF && t !== 'move') xfCommit();
   if (TE && t !== 'text') textCommit();
@@ -4689,13 +4904,14 @@ function beforeToolChange(t){
 }
 // brush outline for the drawing tools
 function drawDrawCursor(){
+  drawHintCursor();
   const hv = S.hover; if (!hv || pan || S.space || DS.active && DS.tool === 'air' && false) return;
   const t = S.tool; let size = 0;
   if (DRAW_TOOLS.includes(t)) size = S.draw[t].size; else return;
   const r = Math.max(1, size * S.zoom / 2);
   vctx.save();
-  if (t === 'marker' && S.draw.marker.tip === 'chisel'){ vctx.beginPath(); vctx.ellipse(hv.x, hv.y, r, Math.max(1, r * 0.32), S.draw.marker.angle * Math.PI / 180, 0, Math.PI * 2); }
-  else if (t === 'pencil' && S.draw.pencil.tip === 'square'){ vctx.beginPath(); vctx.rect(hv.x - r, hv.y - r, r * 2, r * 2); }
+  if (t === 'marker' && (S.draw.marker.style === 'chisel' || S.draw.marker.style === 'dry')){ vctx.beginPath(); vctx.ellipse(hv.x, hv.y, r, Math.max(1, r * 0.32), S.draw.marker.angle * Math.PI / 180, 0, Math.PI * 2); }
+  else if (t === 'pencil' && S.draw.pencil.style === 'square'){ vctx.beginPath(); vctx.rect(hv.x - r, hv.y - r, r * 2, r * 2); }
   else { vctx.beginPath(); vctx.arc(hv.x, hv.y, r, 0, Math.PI * 2); }
   vctx.lineWidth = 2.5; vctx.strokeStyle = 'rgba(0,0,0,.5)'; vctx.stroke(); vctx.lineWidth = 1; vctx.strokeStyle = '#fff'; vctx.stroke();
   vctx.restore();
@@ -4807,6 +5023,7 @@ $$('[data-page-btn]').forEach(b => b.addEventListener('click', () => showPage(b.
 
 // ---------- Paint-style tool options box under the toolbox ----------
 function renderToolOpts(){
+  if (typeof miniSync === 'function') miniSync();
   const box = $('#toolOpts'); box.innerHTML = '';
   const add = (label, pressed, fn, help, inner) => {
     const b = document.createElement('button'); b.className = 'to-btn'; b.type = 'button';
@@ -4898,6 +5115,7 @@ const MENUS = {
     { l: 'Effects…', c: 'page:effects', en: hasDoc },
     '-',
     { l: 'Remove background…', c: 'page:auto', en: hasDoc },
+    { l: 'Mark subject (hint)', c: 'tool:hintKeep', r: () => S.tool === 'hintKeep', en: hasDoc }, { l: 'Mark background (hint)', c: 'tool:hintDrop', r: () => S.tool === 'hintDrop', en: hasDoc }, { l: 'Clear hints', c: 'clearHints', en: hasDoc },
     { l: 'Remove stray specks…', c: 'page:specks', en: hasDoc },
     { l: 'Edge finishing…', c: 'page:finish', en: hasDoc },
     { l: 'Picture opacity…', c: 'page:opacity', en: hasDoc },
@@ -5025,7 +5243,8 @@ function closeModal(id){ $('#' + id).hidden = true; }
 $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
 function openSaveOpts(){ if (!W) return; stopPlay(); updateFmtUI(); $('#soTitle').textContent = 'Save As — ' + S.name; openModal('saveOpts'); }
 function anyModal(){ return $$('.modal').some(m => !m.hidden); }
-function runCmd(c){ if (touchCmd(c) || animCmd(c)) return;
+function runCmd(c){ if (touchCmd(c) || animCmd(c) || miniCmd(c)) return;
+  if (c === 'clearHints'){ clearHints(); return; }
   const ci = c.indexOf(':'), k = ci < 0 ? c : c.slice(0, ci), v = ci < 0 ? undefined : c.slice(ci + 1);
   switch (k){
     case 'open': openFile(); break;
@@ -5593,6 +5812,7 @@ coExit.addEventListener('pointerdown', e => e.stopPropagation());
 coExit.addEventListener('click', () => setCanvasOnly(false));
 function setCanvasOnly(on){
   document.documentElement.classList.toggle('canvasonly', on); coExit.hidden = !on;
+  if (typeof miniSync === 'function') setTimeout(miniSync, 0);
   if (on) sbFlash('Canvas view');
   setTimeout(() => { resize(); requestDraw(); }, 30);
   if (on && !store.get('coHint', false)){ store.set('coHint', true); toast('Canvas view. To bring the interface back: double-tap with the Pencil tip, tap with four fingers, press Tab, or use the button in the corner.', 6000); }
@@ -6036,6 +6256,478 @@ function startBlank(){
 // fade the bottom edge of the side panels when there is more to scroll to (iPad hides scroll bars)
 function markScrollMore(el){ if (el) el.classList.toggle('more', el.scrollHeight - el.clientHeight - el.scrollTop > 6); }
 ['#pages', '.leftdock'].forEach(sel => { const el = $(sel); if (!el) return; el.addEventListener('scroll', () => markScrollMore(el), { passive: true }); new ResizeObserver(() => markScrollMore(el)).observe(el); new MutationObserver(() => markScrollMore(el)).observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden'] }); });
+
+// ===================== smart background removal =====================
+// The classic remover floods inward from the border, comparing each pixel with the color it came from.
+// The smart remover works the way dedicated cut-out tools do:
+//   1. colors along the border (and any "remove" hints) are grouped into a few background colors (k-means, Lab);
+//   2. everything that is not close to those colors seeds a foreground color model; both models are refined
+//      a few times (the expectation-maximization idea behind GrabCut);
+//   3. each pixel gets a background probability from the two models, which is smoothed with an edge-aware
+//      guided filter so the decision follows the picture's real edges;
+//   4. background must connect to the border (edges block leaks into the subject), enclosed gaps up to a chosen
+//      size are cleared, and the soft map is refined once more at full resolution so hair and fur keep soft edges.
+const CUT = Object.assign({ method: 'smart', k: 3, border: 4, detail: 3, soft: 25, holes: 3, contig: true, iters: 2, edge: 55, contrast: 50, showHints: true, hintSize: 40 }, store.get('cut', {}));
+const saveCut = () => store.set('cut', CUT);
+
+// ---------- color helpers ----------
+const SRGB_LIN = new Float32Array(256);
+for (let i = 0; i < 256; i++){ const c = i / 255; SRGB_LIN[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+const labF = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+function rgb2lab(r, g, b, out, o){
+  const R = SRGB_LIN[r], G = SRGB_LIN[g], B = SRGB_LIN[b];
+  const fx = labF((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047), fy = labF(R * 0.2126 + G * 0.7152 + B * 0.0722), fz = labF((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
+  out[o] = 116 * fy - 16; out[o + 1] = 500 * (fx - fy); out[o + 2] = 200 * (fy - fz);
+}
+// perceptual color distance for the brush, wand and classic remover (used when "perceptual matching" is on)
+function labDist(src, o, lab2){
+  const t = labTmp; rgb2lab(src[o], src[o + 1], src[o + 2], t, 0);
+  const dl = t[0] - lab2[0], da = t[1] - lab2[1], db = t[2] - lab2[2];
+  return Math.sqrt(dl * dl + da * da + db * db) * 2.4;   // scaled so the tolerance sliders mean about the same as before
+}
+const labTmp = new Float32Array(3);
+
+// ---------- small image helpers ----------
+function boxF(src, w, h, r, norm){
+  // mean over a (2r+1)² window, normalized at the borders by the window's real pixel count
+  const t = new Float32Array(w * h), o = new Float32Array(w * h);
+  for (let y = 0; y < h; y++){ const row = y * w; let s = 0; for (let k = -r; k <= r; k++) s += src[row + Math.min(w - 1, Math.max(0, k))];
+    for (let x = 0; x < w; x++){ t[row + x] = s; s += src[row + Math.min(w - 1, x + r + 1)] - src[row + Math.max(0, x - r)]; } }
+  for (let x = 0; x < w; x++){ let s = 0; for (let k = -r; k <= r; k++) s += t[Math.min(h - 1, Math.max(0, k)) * w + x];
+    for (let y = 0; y < h; y++){ o[y * w + x] = s; s += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x]; } }
+  if (norm) for (let i = 0; i < w * h; i++) o[i] /= norm[i];
+  return o;
+}
+function boxNorm(w, h, r){ const ones = new Float32Array(w * h).fill(1); return boxF(ones, w, h, r, null); }
+// edge-preserving smoothing of p guided by a gray image (He, Sun, Tang: "Guided Image Filtering")
+function guidedGray(I, p, w, h, r, eps){
+  const n = boxNorm(w, h, r), mI = boxF(I, w, h, r, n), mp = boxF(p, w, h, r, n), N = w * h;
+  const II = new Float32Array(N), Ip = new Float32Array(N);
+  for (let i = 0; i < N; i++){ II[i] = I[i] * I[i]; Ip[i] = I[i] * p[i]; }
+  const cII = boxF(II, w, h, r, n), cIp = boxF(Ip, w, h, r, n), a = II, b = Ip;   // reuse buffers
+  for (let i = 0; i < N; i++){ const vI = cII[i] - mI[i] * mI[i], cv = cIp[i] - mI[i] * mp[i]; a[i] = cv / (vI + eps); b[i] = mp[i] - a[i] * mI[i]; }
+  const ma = boxF(a, w, h, r, n), mb = boxF(b, w, h, r, n), q = new Float32Array(N);
+  for (let i = 0; i < N; i++) q[i] = ma[i] * I[i] + mb[i];
+  return q;
+}
+// the color version: the guide is the 3-channel Lab image, which separates colors of equal brightness too
+function guidedColor(lab, p, w, h, r, eps){
+  const N = w * h, n = boxNorm(w, h, r), ch = [0, 1, 2].map(c => { const a = new Float32Array(N); for (let i = 0; i < N; i++) a[i] = lab[i * 3 + c] / 100; return a; });
+  const m = ch.map(c => boxF(c, w, h, r, n)), mp = boxF(p, w, h, r, n);
+  const prod = (A, B) => { const t = new Float32Array(N); for (let i = 0; i < N; i++) t[i] = A[i] * B[i]; return boxF(t, w, h, r, n); };
+  const Ip = ch.map(c => prod(c, p)), v = [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2], [2, 2]].map(([i, j]) => prod(ch[i], ch[j]));
+  const a = [new Float32Array(N), new Float32Array(N), new Float32Array(N)], b = new Float32Array(N);
+  for (let i = 0; i < N; i++){
+    const rr = v[0][i] - m[0][i] * m[0][i] + eps, rg = v[1][i] - m[0][i] * m[1][i], rb = v[2][i] - m[0][i] * m[2][i];
+    const gg = v[3][i] - m[1][i] * m[1][i] + eps, gb = v[4][i] - m[1][i] * m[2][i], bb = v[5][i] - m[2][i] * m[2][i] + eps;
+    const c0 = Ip[0][i] - m[0][i] * mp[i], c1 = Ip[1][i] - m[1][i] * mp[i], c2 = Ip[2][i] - m[2][i] * mp[i];
+    // solve the 3×3 symmetric system Σ a = cov
+    const A = gg * bb - gb * gb, B = -(rg * bb - gb * rb), C = rg * gb - gg * rb, det = rr * A + rg * B + rb * C || 1e-9;
+    const D = rr * bb - rb * rb, E = -(rr * gb - rg * rb), F = rr * gg - rg * rg;
+    a[0][i] = (A * c0 + B * c1 + C * c2) / det; a[1][i] = (B * c0 + D * c1 + E * c2) / det; a[2][i] = (C * c0 + E * c1 + F * c2) / det;
+    b[i] = mp[i] - a[0][i] * m[0][i] - a[1][i] * m[1][i] - a[2][i] * m[2][i];
+  }
+  const ma = a.map(x => boxF(x, w, h, r, n)), mb = boxF(b, w, h, r, n), q = new Float32Array(N);
+  for (let i = 0; i < N; i++) q[i] = ma[0][i] * ch[0][i] + ma[1][i] * ch[1][i] + ma[2][i] * ch[2][i] + mb[i];
+  return q;
+}
+// k-means in Lab over the listed pixel indexes; returns centers and a spread per cluster
+function kmeans(lab, idx, k, init){
+  if (!idx.length) return null;
+  k = Math.max(1, Math.min(k, idx.length));
+  let cen = init && init.length === k ? init.map(c => c.slice()) : null;
+  if (!cen){
+    // k-means++ style start: the first center is the mean, the rest are far from the ones chosen so far
+    cen = []; let L = 0, A = 0, B = 0; for (const i of idx){ L += lab[i * 3]; A += lab[i * 3 + 1]; B += lab[i * 3 + 2]; }
+    cen.push([L / idx.length, A / idx.length, B / idx.length]);
+    const step = Math.max(1, Math.floor(idx.length / 4000));
+    while (cen.length < k){
+      let best = -1, bd = -1;
+      for (let s = 0; s < idx.length; s += step){ const i = idx[s]; let dm = Infinity; for (const c of cen){ const d = (lab[i * 3] - c[0]) ** 2 + (lab[i * 3 + 1] - c[1]) ** 2 + (lab[i * 3 + 2] - c[2]) ** 2; if (d < dm) dm = d; } if (dm > bd){ bd = dm; best = i; } }
+      cen.push([lab[best * 3], lab[best * 3 + 1], lab[best * 3 + 2]]);
+    }
+  }
+  const sum = new Float64Array(k * 3), cnt = new Int32Array(k), sq = new Float64Array(k);
+  for (let it = 0; it < 10; it++){
+    sum.fill(0); cnt.fill(0); sq.fill(0);
+    for (const i of idx){
+      const L = lab[i * 3], A = lab[i * 3 + 1], B = lab[i * 3 + 2]; let bk = 0, bd = Infinity;
+      for (let c = 0; c < k; c++){ const d = (L - cen[c][0]) ** 2 + (A - cen[c][1]) ** 2 + (B - cen[c][2]) ** 2; if (d < bd){ bd = d; bk = c; } }
+      sum[bk * 3] += L; sum[bk * 3 + 1] += A; sum[bk * 3 + 2] += B; cnt[bk]++; sq[bk] += bd;
+    }
+    let moved = 0;
+    for (let c = 0; c < k; c++){ if (!cnt[c]) continue; const nx = sum[c * 3] / cnt[c], ny = sum[c * 3 + 1] / cnt[c], nz = sum[c * 3 + 2] / cnt[c]; moved += Math.abs(nx - cen[c][0]) + Math.abs(ny - cen[c][1]) + Math.abs(nz - cen[c][2]); cen[c] = [nx, ny, nz]; }
+    if (moved < 0.05) break;
+  }
+  return { cen: cen.filter((_, c) => cnt[c] > 0), spread: cen.map((_, c) => cnt[c] ? Math.sqrt(sq[c] / cnt[c]) : 0).filter((_, c) => cnt[c] > 0), n: idx.length };
+}
+function nearestDist(lab, i, model, out){
+  const L = lab[i * 3], A = lab[i * 3 + 1], B = lab[i * 3 + 2]; let bd = Infinity;
+  for (const c of model.cen){ const d = (L - c[0]) ** 2 + (A - c[1]) ** 2 + (B - c[2]) ** 2; if (d < bd) bd = d; }
+  return Math.sqrt(bd);
+}
+
+// ---------- the smart remover ----------
+let cutModels = null;   // models from the last run, reused as a warm start for the next frame
+function smartAmt(f, out){
+  const N = W * H, src = frames[f], hints = AL && AL.hints;
+  const tol = 3 + CUT.atol * 0.55;                                     // Lab distance that still counts as "the background color"
+  const sc = Math.min(1, 480 / Math.max(W, H)), w = Math.max(2, Math.round(W * sc)), h = Math.max(2, Math.round(H * sc)), n = w * h;
+  // 1. a small working copy in Lab, with transparent pixels and hints carried along
+  const lab = new Float32Array(n * 3), alpha = new Uint8Array(n), hint = new Uint8Array(n);
+  for (let y = 0; y < h; y++){
+    const sy0 = Math.floor(y / sc), sy1 = Math.max(sy0 + 1, Math.min(H, Math.floor((y + 1) / sc)));
+    for (let x = 0; x < w; x++){
+      const sx0 = Math.floor(x / sc), sx1 = Math.max(sx0 + 1, Math.min(W, Math.floor((x + 1) / sc))), i = y * w + x;
+      // every source pixel in the cell is averaged, which also quiets sensor noise
+      let r = 0, g = 0, b = 0, a = 0, cnt = 0, hv = 0;
+      for (let yy = sy0; yy < sy1; yy++) for (let xx = sx0; xx < sx1; xx++){ const gi = yy * W + xx, o = gi * 4; r += src[o]; g += src[o + 1]; b += src[o + 2]; a += src[o + 3]; cnt++; if (hints && hints[gi]) hv = hints[gi]; }
+      rgb2lab(Math.round(r / cnt), Math.round(g / cnt), Math.round(b / cnt), lab, i * 3); alpha[i] = a / cnt; hint[i] = hv;
+    }
+  }
+  // 2. which border colors are really background? Group the border pixels; a group counts when it reaches a
+  //    corner, runs along at least two sides, or covers a large share of the border. A subject that touches one
+  //    side (a person cut off at the waist) is left alone that way.
+  const bw = Math.max(1, Math.round(Math.min(w, h) * CUT.border / 100)), cornerR = Math.max(bw * 3, Math.round(Math.min(w, h) * 0.08));
+  const isBorder = i => { const x = i % w, y = (i / w) | 0; return x < bw || y < bw || x >= w - bw || y >= h - bw; };
+  const sideOf = i => { const x = i % w, y = (i / w) | 0; return y < bw ? 0 : x >= w - bw ? 1 : y >= h - bw ? 2 : 3; };
+  const isCorner = i => { const x = i % w, y = (i / w) | 0; return (x < cornerR || x >= w - cornerR) && (y < cornerR || y >= h - cornerR); };
+  const borderIdx = [], keepIdx = [], dropIdx = [];
+  for (let i = 0; i < n; i++){
+    if (hint[i] === 1){ keepIdx.push(i); continue; }
+    if (hint[i] === 2){ dropIdx.push(i); continue; }
+    if (alpha[i] >= 16 && isBorder(i)) borderIdx.push(i);
+  }
+  // colors painted with the "keep" hint can never be background, wherever else they appear
+  const keepModel = keepIdx.length >= 4 ? kmeans(lab, keepIdx, 3, null) : null;
+  const nearKeep = i => keepModel && nearestDist(lab, i, keepModel) < tol * 0.9;
+  const bgSeed = dropIdx.slice();
+  if (borderIdx.length){
+    const grp = kmeans(lab, borderIdx, Math.max(CUT.k, 3) + 1, null), K = grp.cen.length;
+    const cover = new Float64Array(K), sides = Array.from({ length: K }, () => [0, 0, 0, 0]), corner = new Uint8Array(K), sideTot = [0, 0, 0, 0];
+    const assign = new Int32Array(borderIdx.length);
+    borderIdx.forEach((i, k) => {
+      const L = lab[i * 3], A = lab[i * 3 + 1], B = lab[i * 3 + 2]; let bk = 0, bd = Infinity;
+      for (let c = 0; c < K; c++){ const d = (L - grp.cen[c][0]) ** 2 + (A - grp.cen[c][1]) ** 2 + (B - grp.cen[c][2]) ** 2; if (d < bd){ bd = d; bk = c; } }
+      assign[k] = bk; cover[bk]++; const sd = sideOf(i); sides[bk][sd]++; sideTot[sd]++; if (isCorner(i)) corner[bk]++;
+    });
+    const ok = new Uint8Array(K);
+    for (let c = 0; c < K; c++){
+      const nSides = sides[c].filter((v, sd) => v >= sideTot[sd] * 0.08).length;
+      ok[c] = (corner[c] >= 8 || nSides >= 2 || cover[c] >= borderIdx.length * 0.35) ? 1 : 0;
+      if (keepModel && keepModel.cen.some(d => Math.sqrt((grp.cen[c][0] - d[0]) ** 2 + (grp.cen[c][1] - d[1]) ** 2 + (grp.cen[c][2] - d[2]) ** 2) < tol * 0.9)) ok[c] = 0;
+    }
+    if (!ok.some(v => v)) ok.fill(1);
+    borderIdx.forEach((i, k) => { if (ok[assign[k]] && !nearKeep(i)) bgSeed.push(i); });
+  }
+  if (!bgSeed.length){ out.fill(0); return 0; }
+  // 3. flood from those seeds through gently changing color (so gradients and shadows are followed), stopping at
+  //    edges: that region is what the background model learns from
+  const reach0 = new Uint8Array(n), seedOf = new Int32Array(n), tolL = tol * 0.8, innerL = tolL * 0.5;
+  const edge = new Float32Array(n), thr = edgeThr(CUT.edge);
+  {
+    // Sobel on the Lab copy (a 5×5 average first when fine texture is to be ignored); scaled so a plain
+    // 30-unit RGB step reads about 30, like the full-size edge map the eraser uses
+    let E = lab;
+    if (S.edgeWide){ E = new Float32Array(n * 3); const nrm = boxNorm(w, h, 2); for (let c = 0; c < 3; c++){ const ch = new Float32Array(n); for (let i = 0; i < n; i++) ch[i] = lab[i * 3 + c]; const bl = boxF(ch, w, h, 2, nrm); for (let i = 0; i < n; i++) E[i * 3 + c] = bl[i]; } }
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++){
+      const i = y * w + x; let best = 0;
+      for (let c = 0; c < 3; c++){
+        const A = E[(i - w - 1) * 3 + c], B = E[(i - w) * 3 + c], C = E[(i - w + 1) * 3 + c], D = E[(i - 1) * 3 + c], F = E[(i + 1) * 3 + c], G = E[(i + w - 1) * 3 + c], Hh = E[(i + w) * 3 + c], K = E[(i + w + 1) * 3 + c];
+        const gx = (C + 2 * F + K) - (A + 2 * D + G), gy = (G + 2 * Hh + K) - (A + 2 * B + C);
+        const m = Math.abs(gx) + Math.abs(gy); if (m > best) best = m;
+      }
+      edge[i] = best * 0.7;
+    }
+  }
+  {
+    let qu = new Int32Array(n), qh = 0, qt = 0;
+    for (const i of bgSeed){ if (!reach0[i]){ reach0[i] = 1; seedOf[i] = i; qu[qt++] = i; } }
+    for (let i = 0; i < n; i++) if (alpha[i] < 16 && !reach0[i]){ reach0[i] = 1; seedOf[i] = i; qu[qt++] = i; }
+    const dist = (i, j) => Math.sqrt((lab[i * 3] - lab[j * 3]) ** 2 + (lab[i * 3 + 1] - lab[j * 3 + 1]) ** 2 + (lab[i * 3 + 2] - lab[j * 3 + 2]) ** 2);
+    while (qh < qt){
+      const i = qu[qh++], x = i % w, s0 = seedOf[i];
+      const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i + w < n ? i + w : -1];
+      for (const j of nb){
+        if (j < 0 || reach0[j] || hint[j] === 1) continue;
+        if (keepModel && alpha[j] >= 16 && nearKeep(j)) continue;
+        const d = alpha[j] < 16 ? 0 : dist(j, s0);
+        if (d > tolL) continue;
+        if (edge[j] >= thr && hint[j] !== 2) continue;
+        reach0[j] = 1; seedOf[j] = d <= innerL ? j : s0; qu[qt++] = j;
+      }
+    }
+  }
+  // 4. background color model from the flooded region, subject model from the rest, refined together
+  const bgIdx0 = []; for (let i = 0; i < n; i++) if (reach0[i] && alpha[i] >= 16) bgIdx0.push(i);
+  let bg = kmeans(lab, bgIdx0.length > 20 ? bgIdx0 : bgSeed, CUT.k + 1, cutModels && cutModels.bg && cutModels.bg.cen.length === CUT.k + 1 ? cutModels.bg.cen : null);
+  const dBg = new Float32Array(n), dFg = new Float32Array(n), p = new Float32Array(n);
+  for (let i = 0; i < n; i++) dBg[i] = nearestDist(lab, i, bg);
+  let fg = null;
+  for (let it = 0; it <= CUT.iters; it++){
+    const fgIdx = keepIdx.slice(), bgIdx = bgSeed.slice();
+    for (let i = 0; i < n; i++){
+      if (hint[i] || alpha[i] < 16) continue;
+      if (it === 0){ if (nearKeep(i) || (!reach0[i] && dBg[i] > tol * 0.9)) fgIdx.push(i); else if (reach0[i]) bgIdx.push(i); }
+      else { if (p[i] < 0.5 || nearKeep(i)) fgIdx.push(i); else bgIdx.push(i); }
+    }
+    if (fgIdx.length < 20) fg = null;
+    else {
+      fg = kmeans(lab, fgIdx, Math.min(6, CUT.k + 2), fg ? fg.cen : null);
+      // a subject color that is really a background color is decided by where it is, not by the color models
+      const near = c => bg.cen.some(d => Math.sqrt((c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2) < tol * 0.9);
+      const nearK = c => keepModel && keepModel.cen.some(d => Math.sqrt((c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2) < tol * 0.9);
+      const keep = fg.cen.map(c => !near(c) || nearK(c));
+      fg.cen = fg.cen.filter((c, k) => keep[k]); fg.spread = fg.spread.filter((c, k) => keep[k]);
+      if (!fg.cen.length) fg = null;
+    }
+    if (it > 0 || bgIdx.length !== bgIdx0.length){ bg = kmeans(lab, bgIdx, CUT.k + 1, bg.cen); for (let i = 0; i < n; i++) dBg[i] = nearestDist(lab, i, bg); }
+    for (let i = 0; i < n; i++){
+      const pb = Math.pow(2, -((dBg[i] / tol) ** 2));
+      if (!fg){ p[i] = pb; continue; }
+      dFg[i] = nearestDist(lab, i, fg);
+      const pf = Math.pow(2, -((dFg[i] / tol) ** 2));
+      // a pixel the flood reached gets a nudge toward background, one it could not reach a nudge toward subject
+      const prior = reach0[i] ? 2.5 : 0.4;
+      p[i] = (pb * prior + 1e-6) / (pb * prior + pf + 2e-6);
+    }
+  }
+  cutModels = { bg, fg };
+  // the hard facts stay fixed
+  for (let i = 0; i < n; i++){ if (alpha[i] < 16 || hint[i] === 2) p[i] = 1; else if (hint[i] === 1) p[i] = 0; }
+  // 4. edge-aware smoothing of the probabilities
+  const r1 = Math.max(1, Math.round(CUT.detail * sc * 1.5)), eps1 = 1e-4 + (CUT.soft / 100) ** 2 * 0.08;
+  let q = guidedColor(lab, p, w, h, r1, eps1);
+  for (let i = 0; i < n; i++){ if (alpha[i] < 16 || hint[i] === 2) q[i] = 1; else if (hint[i] === 1) q[i] = 0; else q[i] = Math.min(1, Math.max(0, q[i])); }
+  // 5. background has to connect to the border; edges block the way into the subject
+  const reach = new Uint8Array(n);
+  if (CUT.contig){
+    let qu = new Int32Array(n), qh = 0, qt = 0;
+    for (let i = 0; i < n; i++) if ((isBorder(i) && q[i] >= 0.5) || hint[i] === 2 || alpha[i] < 16){ reach[i] = 1; qu[qt++] = i; }
+    while (qh < qt){
+      const i = qu[qh++], x = i % w;
+      const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i + w < n ? i + w : -1];
+      for (const j of nb){
+        if (j < 0 || reach[j] || q[j] < 0.5) continue;
+        if (edge[j] >= thr && q[j] < 0.9 && hint[j] !== 2) continue;   // a real edge: only sure background crosses it
+        reach[j] = 1; qu[qt++] = j;
+      }
+    }
+    // enclosed gaps that look like background are cleared up to the chosen size
+    const maxHole = CUT.holes / 100 * n;
+    if (maxHole > 0){
+      const seen = new Uint8Array(n), comp = [];
+      for (let s = 0; s < n; s++){
+        if (seen[s] || reach[s] || q[s] < 0.5) continue;
+        let h0 = 0, t0 = 0; comp.length = 0; seen[s] = 1; comp.push(s); let sum = 0;
+        while (h0 < comp.length){ const i = comp[h0++], x = i % w; sum += q[i];
+          const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i + w < n ? i + w : -1];
+          for (const j of nb){ if (j < 0 || seen[j] || reach[j] || q[j] < 0.5) continue; seen[j] = 1; comp.push(j); } }
+        if (comp.length <= maxHole && sum / comp.length >= 0.7) for (const i of comp) reach[i] = 1;
+      }
+    }
+    for (let i = 0; i < n; i++) if (!reach[i]) q[i] = Math.min(q[i], 0.3);   // background color that the border cannot reach is part of the subject
+  }
+  if (window.__cutDebug) window.__cutDebug = { w, h, reach0: Array.from(reach0), p: Array.from(p), q: Array.from(q), edge: Array.from(edge), reach: Array.from(reach), bg: bg.cen, fg: fg && fg.cen };
+  // 6. back to full size, with one more edge-aware pass against the real pixels so fine detail is kept
+  const up = new Float32Array(N), G = new Float32Array(N);
+  for (let y = 0; y < H; y++){
+    const fy = Math.min(h - 1, Math.max(0, (y + 0.5) * sc - 0.5)), y0 = Math.floor(fy), y1 = Math.min(h - 1, y0 + 1), ty = fy - y0;
+    for (let x = 0; x < W; x++){
+      const fx = Math.min(w - 1, Math.max(0, (x + 0.5) * sc - 0.5)), x0 = Math.floor(fx), x1 = Math.min(w - 1, x0 + 1), tx = fx - x0, gi = y * W + x;
+      up[gi] = (q[y0 * w + x0] * (1 - tx) + q[y0 * w + x1] * tx) * (1 - ty) + (q[y1 * w + x0] * (1 - tx) + q[y1 * w + x1] * tx) * ty;
+      const o = gi * 4; G[gi] = (src[o] * 0.299 + src[o + 1] * 0.587 + src[o + 2] * 0.114) / 255;
+    }
+  }
+  let full = up;
+  if (sc < 1 && N <= 24e6){ const r2 = Math.max(1, Math.round(CUT.detail / Math.max(sc, 0.25))); full = guidedGray(G, up, W, H, Math.min(24, r2), 1e-4 + (CUT.soft / 100) ** 2 * 0.03); }
+  // 6b. a band along the boundary is unmixed pixel by pixel: how far does each color sit between the nearest
+  //     subject color and the nearest background color? That is what keeps single hairs and soft fur edges.
+  if (fg && fg.cen.length){
+    const bandR = Math.max(2, Math.round(CUT.detail * 1.2));
+    const dS = new Float32Array(n).fill(1e9);
+    for (let i = 0; i < n; i++){ const x = i % w, y = (i / w) | 0, qi = q[i] >= 0.5; if ((x > 0 && (q[i - 1] >= 0.5) !== qi) || (x < w - 1 && (q[i + 1] >= 0.5) !== qi) || (y > 0 && (q[i - w] >= 0.5) !== qi) || (y < h - 1 && (q[i + w] >= 0.5) !== qi)) dS[i] = 0; }
+    for (let i = 0; i < n; i++){ const x = i % w; if (x > 0) dS[i] = Math.min(dS[i], dS[i - 1] + 1); if (i >= w) dS[i] = Math.min(dS[i], dS[i - w] + 1); }
+    for (let i = n - 1; i >= 0; i--){ const x = i % w; if (x < w - 1) dS[i] = Math.min(dS[i], dS[i + 1] + 1); if (i + w < n) dS[i] = Math.min(dS[i], dS[i + w] + 1); }
+    // busy areas on the subject side of the boundary (hair, fur, lace) are unmixed too, not just the boundary line
+    const inBand = new Uint8Array(n);
+    { const Lc = new Float32Array(n), L2 = new Float32Array(n); for (let i = 0; i < n; i++){ Lc[i] = lab[i * 3]; L2[i] = Lc[i] * Lc[i]; }
+      const nrm = boxNorm(w, h, 2), mL = boxF(Lc, w, h, 2, nrm), mL2 = boxF(L2, w, h, 2, nrm), far = Math.max(bandR * 6, 25);
+      for (let i = 0; i < n; i++){ const sd = Math.sqrt(Math.max(0, mL2[i] - mL[i] * mL[i])); inBand[i] = dS[i] <= bandR || (sd > 6 && q[i] < 0.5 && dS[i] <= far) ? 1 : 0; } }
+    const lt = new Float32Array(3), bgC = bg.cen, fgC = fg.cen;
+    for (let y = 0; y < H; y++){
+      const sy = Math.min(h - 1, Math.floor(y * sc));
+      for (let x = 0; x < W; x++){
+        const sx = Math.min(w - 1, Math.floor(x * sc)); if (!inBand[sy * w + sx]) continue;
+        const gi = y * W + x, o = gi * 4; if (src[o + 3] < 16) continue;
+        rgb2lab(src[o], src[o + 1], src[o + 2], lt, 0);
+        let B = bgC[0], bd = Infinity; for (const c of bgC){ const d = (lt[0] - c[0]) ** 2 + (lt[1] - c[1]) ** 2 + (lt[2] - c[2]) ** 2; if (d < bd){ bd = d; B = c; } }
+        let F = fgC[0], fd = Infinity; for (const c of fgC){ const d = (lt[0] - c[0]) ** 2 + (lt[1] - c[1]) ** 2 + (lt[2] - c[2]) ** 2; if (d < fd){ fd = d; F = c; } }
+        const vx = B[0] - F[0], vy = B[1] - F[1], vz = B[2] - F[2], L2 = vx * vx + vy * vy + vz * vz;
+        if (L2 < tol * tol) continue;   // the two colors are too alike to tell apart here; keep the map's answer
+        const px = lt[0] - F[0], py = lt[1] - F[1], pz = lt[2] - F[2];
+        let a = (px * vx + py * vy + pz * vz) / L2; a = a < 0 ? 0 : a > 1 ? 1 : a;
+        const rx = px - a * vx, ry = py - a * vy, rz = pz - a * vz, resid = Math.sqrt(rx * rx + ry * ry + rz * rz);
+        const conf = Math.pow(2, -((resid / tol) ** 2));   // how well the color fits a mix of those two
+        full[gi] = full[gi] * (1 - conf) + a * conf;
+      }
+    }
+  }
+  // 7. contrast: how sharply the soft map turns into erased / kept
+  const width = 0.04 + (1 - CUT.contrast / 100) * 0.9, lo = 0.5 - width / 2;
+  let count = 0;
+  for (let gi = 0; gi < N; gi++){
+    let v = (full[gi] - lo) / width; v = v < 0 ? 0 : v > 1 ? 1 : v;
+    const o = gi * 4; if (src[o + 3] < 16) v = 1;
+    if (hints){ const hv = hints[gi]; if (hv === 1) v = 0; else if (hv === 2) v = 1; }
+    const a = (v * 255 + 0.5) | 0; out[gi] = a; if (a) count++;
+  }
+  return count;
+}
+
+// ---------- hint brushes (mark subject / mark background) ----------
+function hintsOf(){ if (!AL) return null; if (!AL.hints || AL.hints.length !== W * H) AL.hints = new Uint8Array(W * H); return AL.hints; }
+let hintStroke = null;
+function hintDab(ix, iy, v){
+  const hs = hintsOf(); if (!hs) return;
+  const r = Math.max(1, CUT.hintSize / 2 / (S.rel === 'screen' ? S.zoom : 1));
+  const x0 = Math.max(0, Math.floor(ix - r)), y0 = Math.max(0, Math.floor(iy - r)), x1 = Math.min(W - 1, Math.ceil(ix + r)), y1 = Math.min(H - 1, Math.ceil(iy + r));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){ const dx = x + 0.5 - ix, dy = y + 0.5 - iy; if (dx * dx + dy * dy <= r * r) hs[y * W + x] = v; }
+}
+function hintDown(e, p){
+  if (!W) return true; const [ix, iy] = toImg(p);
+  const v = S.tool === 'hintKeep' ? 1 : 2;
+  hintStroke = { v: e.altKey ? 0 : (e.button === 2 ? (v === 1 ? 2 : 1) : v), last: [ix, iy] };
+  hintDab(ix, iy, hintStroke.v); requestOverlay(); return true;
+}
+function hintMove(e, p){
+  if (!hintStroke) return false; const [ix, iy] = toImg(p), [lx, ly] = hintStroke.last;
+  const d = Math.hypot(ix - lx, iy - ly), st = Math.max(1, CUT.hintSize / 6 / (S.rel === 'screen' ? S.zoom : 1)), k = Math.ceil(d / st);
+  for (let i = 1; i <= k; i++) hintDab(lx + (ix - lx) * i / k, ly + (iy - ly) * i / k, hintStroke.v);
+  hintStroke.last = [ix, iy]; requestOverlay(); return true;
+}
+function hintUp(){ if (!hintStroke) return false; hintStroke = null; scheduleAutoPreview(); return true; }
+function clearHints(){ if (AL && AL.hints){ AL.hints = null; requestOverlay(); scheduleAutoPreview(); sbFlash('Hints cleared.'); } }
+function drawHintCursor(){
+  const hv = S.hover; if (!hv || pan || S.space || (S.tool !== 'hintKeep' && S.tool !== 'hintDrop')) return;
+  const rr = CUT.hintSize / 2 * (S.rel === 'screen' ? 1 : S.zoom);
+  vctx.save(); vctx.beginPath(); vctx.arc(hv.x, hv.y, Math.max(1, rr), 0, Math.PI * 2);
+  vctx.lineWidth = 3; vctx.strokeStyle = 'rgba(0,0,0,.5)'; vctx.stroke(); vctx.lineWidth = 1.5; vctx.strokeStyle = S.tool === 'hintKeep' ? '#36d55a' : '#eb28be'; vctx.stroke(); vctx.restore();
+}
+
+// ---------- the page ----------
+PAGE_INFO.auto = ['Remove background', 'auto'];
+TOOL_PAGE.hintKeep = 'auto'; TOOL_PAGE.hintDrop = 'auto';
+function cutBind(id, key, fmt, after){
+  const el = $('#' + id), out = $('#' + id + 'Out'); if (!el) return;
+  el.value = CUT[key]; if (out) out.textContent = fmt(CUT[key]);
+  el.addEventListener('input', () => { CUT[key] = +el.value; if (out) out.textContent = fmt(CUT[key]); saveCut(); cutModels = null; if (after) after(); scheduleAutoPreview(); });
+}
+CUT.atol = S.atol;
+$('#atol').addEventListener('input', () => { CUT.atol = S.atol; cutModels = null; });
+cutBind('aEdge', 'edge', v => v + '%'); cutBind('aK', 'k', v => v === 1 ? '1 color' : v + ' colors'); cutBind('aBorder', 'border', v => v + '%');
+cutBind('aDetail', 'detail', v => v + ' px'); cutBind('aSoft', 'soft', v => v + '%'); cutBind('aHoles', 'holes', v => v === 0 ? 'Keep all' : 'up to ' + v + '%');
+cutBind('aIters', 'iters', v => v === 0 ? 'Quick' : v + (v === 1 ? ' pass' : ' passes')); cutBind('aContrast', 'contrast', v => v + '%');
+cutBind('aHintSize', 'hintSize', v => v + ' px', () => requestDraw());
+$('#aContig').checked = CUT.contig; $('#aContig').addEventListener('change', e => { CUT.contig = e.target.checked; saveCut(); scheduleAutoPreview(); });
+$('#aShowHints').checked = CUT.showHints; $('#aShowHints').addEventListener('change', e => { CUT.showHints = e.target.checked; saveCut(); requestOverlay(); });
+segSet('#aMethod', 'v', CUT.method);
+segBind('#aMethod', 'v', v => { CUT.method = v; saveCut(); $$('[data-am]').forEach(el => el.hidden = !el.dataset.am.split(' ').includes(v)); scheduleAutoPreview(); });
+$$('[data-am]').forEach(el => el.hidden = !el.dataset.am.split(' ').includes(CUT.method));
+$('#aHintKeep').addEventListener('click', () => setTool('hintKeep'));
+$('#aHintDrop').addEventListener('click', () => setTool('hintDrop'));
+$('#aHintClear').addEventListener('click', clearHints);
+$('#aPreset').addEventListener('change', e => {
+  const v = e.target.value; if (!v) return;
+  const P = {
+    plain: { atol: 22, edge: 55, k: 2, border: 4, detail: 3, soft: 25, holes: 3, iters: 1, contrast: 50 },
+    busy: { atol: 30, edge: 45, k: 5, border: 6, detail: 2, soft: 15, holes: 2, iters: 3, contrast: 60 },
+    hair: { atol: 26, edge: 40, k: 3, border: 4, detail: 6, soft: 10, holes: 1, iters: 2, contrast: 25 },
+    product: { atol: 18, edge: 65, k: 2, border: 3, detail: 2, soft: 30, holes: 8, iters: 1, contrast: 75 },
+    logo: { atol: 12, edge: 80, k: 1, border: 2, detail: 1, soft: 40, holes: 20, iters: 0, contrast: 95 }
+  }[v];
+  Object.assign(CUT, P); S.atol = P.atol; $('#atol').value = P.atol; $('#atolOut').textContent = P.atol + '%';
+  [['aEdge', 'edge'], ['aK', 'k'], ['aBorder', 'border'], ['aDetail', 'detail'], ['aSoft', 'soft'], ['aHoles', 'holes'], ['aIters', 'iters'], ['aContrast', 'contrast']].forEach(([id, k]) => { $('#' + id).value = CUT[k]; $('#' + id).dispatchEvent(new Event('input')); });
+  e.target.value = ''; sbFlash('Preset applied. Turn on the preview to see the result before removing.');
+});
+// perceptual color matching for the brush, wand and classic remover
+S.labMatch = !!store.get('labMatch', false);
+$('#labMatch').checked = S.labMatch; $('#labMatch').addEventListener('change', e => { S.labMatch = e.target.checked; store.set('labMatch', S.labMatch); });
+S.edgeWide = !!store.get('edgeWide', false);
+$('#edgeWide').checked = S.edgeWide; $('#edgeWide').addEventListener('change', e => { S.edgeWide = e.target.checked; store.set('edgeWide', S.edgeWide); resetEdges(); });
+
+// ===================== mini bar: tools and sizes while the interface is hidden =====================
+// A small floating strip on the left of the canvas in canvas view: the drawing tools, the eraser and
+// restore brush, a size slider, an opacity slider for the drawing tools, and the primary color.
+const MINI_TOOLS = [['erase', 'eraser', 'Eraser'], ['restore', 'restore', 'Restore brush'], ['pencil', 'pencil', 'Pencil'], ['pen', 'pen', 'Pen'], ['brush', 'brush', 'Brush'], ['marker', 'marker', 'Marker'], ['air', 'airbrush', 'Airbrush'], ['fill', 'fill', 'Paint bucket'], ['move', 'move', 'Move']];
+var MINI = { on: store.get('miniOn', true), open: store.get('miniOpen', true), drag: null };
+const mini = document.createElement('div'); mini.id = 'miniBar'; mini.className = 'minibar raised'; mini.hidden = true;
+mini.innerHTML = '<button type="button" class="mn-toggle" id="mnToggle" data-tip="Collapse or expand">▾</button>' +
+  '<div class="mn-body">' +
+  '<div class="mn-tools">' + MINI_TOOLS.map(([t, ic, name]) => '<button type="button" class="mn-tool" data-mtool="' + t + '" data-tip="' + name + '" aria-pressed="false"><i class="ic" data-ic="' + ic + '"></i></button>').join('') + '</div>' +
+  '<div class="mn-sliders">' +
+  '<div class="mn-sl" id="mnSize" data-tip="Size"><div class="mn-track"><div class="mn-fill"></div><div class="mn-thumb"></div></div><div class="mn-val" id="mnSizeVal">24</div></div>' +
+  '<div class="mn-sl" id="mnOp" data-tip="Opacity"><div class="mn-track"><div class="mn-fill"></div><div class="mn-thumb"></div></div><div class="mn-val" id="mnOpVal">100</div></div>' +
+  '</div>' +
+  '<button type="button" class="mn-color" id="mnColor" data-tip="Primary color (tap to change)"></button>' +
+  '<div class="mn-undo"><button type="button" class="mn-tool" id="mnUndo" data-tip="Undo"><i class="ic" data-ic="undo"></i></button><button type="button" class="mn-tool" id="mnRedo" data-tip="Redo"><i class="ic" data-ic="redo"></i></button></div>' +
+  '</div>';
+$('#stage').appendChild(mini);
+mini.addEventListener('pointerdown', e => e.stopPropagation());
+mini.addEventListener('contextmenu', e => e.preventDefault());
+$$('#miniBar .mn-tool[data-mtool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.mtool)));
+$('#mnUndo').addEventListener('click', undo); $('#mnRedo').addEventListener('click', redo);
+$('#mnColor').addEventListener('click', () => openColorDlg(1));
+$('#mnToggle').addEventListener('click', () => { MINI.open = !MINI.open; store.set('miniOpen', MINI.open); miniSync(); });
+// which number the size slider edits depends on the tool
+function miniSizeInfo(){
+  const t = S.tool;
+  if (t === 'erase' || t === 'restore') return { min: 2, max: 500, get: () => S.size, set: v => setSize(v), op: null };
+  if (DRAW_TOOLS.includes(t)) return { min: 1, max: 200, get: () => S.draw[t].size, set: v => setDrawSize(v), op: { get: () => S.draw[t].opacity, set: v => { S.draw[t].opacity = v; $('#dOpacity').value = v; $('#dOpacity').dispatchEvent(new Event('input')); } } };
+  if (SHAPE_TOOLS.includes(t)) return { min: 1, max: 60, get: () => S.shape.width, set: v => setDrawSize(v), op: { get: () => S.shape.opacity, set: v => { S.shape.opacity = v; $('#shOpacity').value = v; $('#shOpacity').dispatchEvent(new Event('input')); } } };
+  if (t === 'hintKeep' || t === 'hintDrop') return { min: 4, max: 200, get: () => CUT.hintSize, set: v => { CUT.hintSize = v; $('#aHintSize').value = v; $('#aHintSize').dispatchEvent(new Event('input')); }, op: null };
+  if (t === 'fill') return { min: 0, max: 100, get: () => S.fTol, set: v => { $('#fTol').value = v; $('#fTol').dispatchEvent(new Event('input')); }, op: { get: () => S.fOpacity, set: v => { $('#fOpacity').value = v; $('#fOpacity').dispatchEvent(new Event('input')); } }, label: 'tol' };
+  return null;
+}
+// sliders run on a log scale so small sizes are easy to hit
+const toPos = (v, mn, mx) => mn <= 0 ? (v - mn) / (mx - mn) : Math.log(v / mn) / Math.log(mx / mn);
+const fromPos = (p, mn, mx) => mn <= 0 ? mn + p * (mx - mn) : mn * Math.pow(mx / mn, p);
+function miniSync(){
+  if (!MINI || !DRAW_TOOLS) return;
+  const show = MINI.on && document.documentElement.classList.contains('canvasonly') && W;
+  mini.hidden = !show; if (!show) return;
+  mini.classList.toggle('closed', !MINI.open); $('#mnToggle').textContent = MINI.open ? '▴' : '▾';
+  $$('#miniBar .mn-tool[data-mtool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mtool === S.tool)));
+  const info = miniSizeInfo();
+  const sz = $('#mnSize'), op = $('#mnOp');
+  sz.hidden = !info; op.hidden = !(info && info.op);
+  if (info){
+    const v = info.get(), p = Math.min(1, Math.max(0, toPos(v, info.min, info.max)));
+    sz.querySelector('.mn-fill').style.height = (p * 100) + '%'; sz.querySelector('.mn-thumb').style.bottom = 'calc(' + (p * 100) + '% - 6px)';
+    $('#mnSizeVal').textContent = info.label === 'tol' ? v + '%' : Math.round(v);
+    sz.dataset.tip = info.label === 'tol' ? 'Tolerance' : 'Size';
+    if (info.op){ const ov = info.op.get(), q = ov / 100; op.querySelector('.mn-fill').style.height = (q * 100) + '%'; op.querySelector('.mn-thumb').style.bottom = 'calc(' + (q * 100) + '% - 6px)'; $('#mnOpVal').textContent = Math.round(ov) + '%'; }
+  }
+  $('#mnColor').style.setProperty('--c', cssc(S.c1));
+  $('#mnUndo').disabled = !undoStack.length; $('#mnRedo').disabled = !redoStack.length;
+}
+function miniDrag(el, apply){
+  const track = el.querySelector('.mn-track');
+  const at = e => { const r = track.getBoundingClientRect(); return Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height)); };
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId); apply(at(e));
+    const mv = ev => apply(at(ev)), up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  });
+}
+miniDrag($('#mnSize'), p => { const info = miniSizeInfo(); if (!info) return; info.set(Math.round(fromPos(p, info.min, info.max))); miniSync(); });
+miniDrag($('#mnOp'), p => { const info = miniSizeInfo(); if (!info || !info.op) return; info.op.set(Math.round(p * 100)); miniSync(); });
+// menu entry
+{
+  const vm = MENUS.viewm, at = vm.findIndex(it => it && it.c === 'canvasView');
+  vm.splice(at + 1, 0, { l: 'Tool strip in canvas view', c: 'miniBar', ck: () => MINI.on });
+}
+function miniCmd(c){ if (c === 'miniBar'){ MINI.on = !MINI.on; store.set('miniOn', MINI.on); miniSync(); return true; } return false; }
 
 // ---------- boot ----------
 readTheme(); resize();

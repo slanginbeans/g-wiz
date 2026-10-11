@@ -43,7 +43,11 @@ input[type=text],input[type=number]{user-select:text;-webkit-user-select:text}
 .mtop u{text-decoration:underline}
 .mtop:hover,.mtop.open{background:var(--sel);color:var(--selText)}
 #menus{position:fixed;left:0;top:0;width:0;height:0;z-index:40}
-.menu{position:absolute;top:100%;min-width:220px;background:var(--face);padding:2px;z-index:40}
+.menu{position:absolute;top:100%;min-width:220px;width:max-content;max-width:calc(100vw - 8px);background:var(--face);padding:2px;z-index:40}
+.menu.cols2{column-count:2;column-gap:0;column-rule:1px solid var(--shadow)}
+.menu.cols2 .mi,.menu.cols2 .msep{break-inside:avoid}
+.menu.scroll{overflow-y:auto;overscroll-behavior:contain}
+.mi .lb{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mi{display:grid;grid-template-columns:18px 1fr auto 8px;align-items:center;width:100%;border:0;background:transparent;text-align:left;padding:3px 2px;cursor:default;white-space:nowrap}
 .mi .mk{text-align:center;font-size:10px}
 .mi .sc{padding-left:22px}
@@ -410,6 +414,26 @@ html.touch .mn-val{font-size:12px}
 html.touch .mn-color{width:40px;height:30px}
 html.touch .mn-toggle{height:22px;font-size:13px}
 html.touch .minibar{left:calc(8px + env(safe-area-inset-left))}
+
+/* ---------- fit and recover dialogs ---------- */
+.fitopts{display:grid;gap:6px}
+.fitopt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;padding:6px 8px;background:var(--field);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);cursor:default}
+.fitopt b{display:block;font-weight:bold}
+.fitopt .hint{display:block;margin-top:2px}
+.fitopt input{margin-top:2px}
+.reclist{max-height:min(320px,50vh);overflow-y:auto;background:var(--field);padding:2px}
+.recrow{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 6px;border-bottom:1px dotted #c0c0c0;cursor:default}
+.recrow.sel{background:var(--sel);color:var(--selText)}
+.recrow.sel .hint{color:var(--selText)}
+.recthumb{width:64px;height:48px;display:grid;place-items:center;background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/8px 8px;border:1px solid var(--shadow)}
+.recthumb img{max-width:62px;max-height:46px;display:block}
+.recname{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recdel{width:22px;height:22px;font-size:14px;line-height:1;color:#000;background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+html.touch .recrow{grid-template-columns:84px minmax(0,1fr) auto}
+html.touch .recthumb{width:84px;height:62px}
+html.touch .recthumb img{max-width:82px;max-height:60px}
+html.touch .recdel{width:36px;height:36px}
+html.touch .fitopt input[type=radio]{width:22px;height:22px}
 </style>
 
 <div class="app" id="app">
@@ -1328,7 +1352,7 @@ html.touch .minibar{left:calc(8px + env(safe-area-inset-left))}
       <div class="about">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABbklEQVR4nO2YaRKDIAxGodN76dF6NU+W/nAbZYcEUL430yluKTWPCCoFABgZ3boDFsixX6SvH4mgT+LbugPKyPhdgLTEE60BtI67cHgDWtYAunwZaKPhDUb2QCETYECD32TNvBEcNSCNmgYEMr9TZkAqwxtQYx5gzTzRmmCtQ0bIMrwBkuPMm3mjI4cJqAFVqW7AcTBYA+rMB2CAQMzI532IOrVgeAM6vgG0fc6GBB3fgDpwzgSLxn6rmeHwBnBW2CwDwjPDY4/R4AAGMMRgWe1JzwxdwACGGBcD4sd0LrwmwICCawtXe7nAAFaKDaBGr/T02fMiE2BAxjVNM3+n1AQY4DnWSY6LwTtBH7a7s2X+V7Mfgvz2htUEGGDZ95axfwcG2HC+E6TtQb8si1JKqWmaHrU9z/P+V/AU8OE0oJdM5m7HAgNcB3rJZO52LDDAdaCXTKIGCIMakHT2C0ENSDr7hYywGsRaAAAAALDzBxmcLHXqqIIcAAAAAElFTkSuQmCC" alt="">
         <div>
-          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.4.0</p>
+          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.5.0</p>
           <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
           <p class="hint" id="aboutMode"></p>
         </div>
@@ -1753,6 +1777,7 @@ function setImage(res, name){
   const bytesNeeded = res.frames.length * res.w * res.h * 5;
   if (bytesNeeded > (IS_IOS ? 0.5e9 : 1.6e9) || (IS_IOS && res.w * res.h > MAX_PIXELS)){ toast('That image is too large to edit here (' + res.frames.length + ' frames of ' + res.w + '×' + res.h + ').', 5000); return false; }
   stopPlay();
+  if (typeof autoBeforeSwitch === 'function' && W) autoBeforeSwitch();
   W = res.w; H = res.h; frames = res.frames; delays = res.delays.slice();
   masks = frames.map(() => new Uint8Array(W * H).fill(255));
   S.cur = 0; S.name = name; S.sample = null;
@@ -1894,7 +1919,7 @@ function endOp(){
 }
 function cancelOp(){ if (!op) return; op.fs.forEach((f, i) => masks[f].set(op.snap[i])); const o = op; op = null; if (o.x1 > o.x0) renderRect(o.x0, o.y0, o.x1, o.y1); }
 function entryBytes(e){ if (e.kind === 'layers') return 4096; if (e.paint) return e.data.reduce((s, d) => s + d.length, 0) + e.mdata.reduce((s, d) => s + d.length, 0); return e.geom ? e.frames.reduce((s, d) => s + d.length, 0) + e.masks.reduce((s, d) => s + d.length, 0) : e.data.reduce((s, d) => s + d.length, 0); }
-function pushUndo(e){ onionClear(); if (e.lid === undefined) e.lid = AL ? AL.id : null; undoStack.push(e); undoBytes += entryBytes(e); while (undoStack.length > 80 || (undoBytes > (IS_IOS ? 120e6 : 300e6) && undoStack.length > 1)) undoBytes -= entryBytes(undoStack.shift()); }
+function pushUndo(e){ onionClear(); markDirty(); if (e.lid === undefined) e.lid = AL ? AL.id : null; undoStack.push(e); undoBytes += entryBytes(e); while (undoStack.length > 80 || (undoBytes > (IS_IOS ? 120e6 : 300e6) && undoStack.length > 1)) undoBytes -= entryBytes(undoStack.shift()); }
 function swapEntry(e){ invalidateRefine(); onionClear();
   if (e.kind === 'layers') return swapLayersEntry(e);
   ensureActive(e.lid);
@@ -2465,7 +2490,7 @@ async function loadFile(file, asLayer){
     if (!res){ try { res = await decodeRaster(file); } catch (err) { if (!isTiff) throw err; } }
     if (!res && isTiff) res = decodeTiff(buf);
     if (!res) throw new Error('unreadable');
-    if (asLayer && W) addLayerFromRes(res, base);
+    if (asLayer && W){ busy(false); await addLayerFromRes(res, base); }
     else if (setImage(res, base)) toast('Opened ' + (file.name || 'image') + (res.frames.length > 1 ? ' · ' + res.frames.length + ' frames' : ''));
   } catch (err) {
     toast(err && err.message && err.message.length > 20 ? err.message : 'This browser could not read that file. Try PNG, JPEG, WebP or GIF.', 4500);
@@ -2519,7 +2544,7 @@ window.addEventListener('dragover', e => {
 });
 window.addEventListener('dragleave', e => { if (!e.relatedTarget) hideDrop(); });
 window.addEventListener('dragend', hideDrop);
-window.addEventListener('drop', e => { e.preventDefault(); hideDrop(); const fl = [...(e.dataTransfer?.files || [])]; if (fl.length) (async () => { for (const f of fl) await loadFile(f, !!W); })(); });
+window.addEventListener('drop', e => { e.preventDefault(); hideDrop(); const fl = [...(e.dataTransfer?.files || [])]; if (fl.length) (async () => { FIT.batch = fl.length; FIT.choice = null; try { for (const f of fl) await loadFile(f, !!W); } finally { FIT.batch = 0; FIT.choice = null; } })(); });
 window.addEventListener('paste', e => { const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/')); if (it){ e.preventDefault(); loadFile(it.getAsFile(), !!W); } });
 
 // ---------- edge finishing ----------
@@ -3288,6 +3313,7 @@ function newLayerObj(w, h, fr, dl, name){
 function ensureCanvas(L){ if (L.canvas.width !== L.W || L.canvas.height !== L.H || !L.disp || L.disp.width !== L.W || L.disp.height !== L.H){ L.canvas.width = L.W; L.canvas.height = L.H; L.ctx = L.canvas.getContext('2d'); L.disp = L.ctx.createImageData(L.W, L.H); } }
 // called by setImage(): the freshly opened image becomes a one-layer document
 function initDocFromGlobals(name){
+  if (typeof autoNewDoc === 'function') autoNewDoc();
   if (typeof xfCancel === 'function') xfCancel(true);
   const L = { id: layerSeq++, name: name || 'Background', x: 0, y: 0, W, H, frames, masks, delays, canvas: imgCanvas, ctx: imgCtx, disp, opacity: 1, blend: 'source-over', visible: true, locked: false };
   layers = [L]; AL = L; DocW = W; DocH = H; S.dcur = 0; S.crop = null;
@@ -3494,18 +3520,47 @@ function addLayer(L, below){
   pushLayersUndo(before);
   if (!below) activateLayer(L); else { renderLayersPanel(); requestDraw(); }
 }
-function addLayerFromRes(res, name){
+// a picture that is bigger than the canvas: ask whether to scale it down, enlarge the canvas, or keep it as is
+async function addLayerFromRes(res, name){
   if (!W){ return setImage(res, name); }
   if (res.frames.length * res.w * res.h * 5 > (IS_IOS ? 0.4e9 : 1.2e9) || (IS_IOS && res.w * res.h > MAX_PIXELS)){ toast('That image is too large to add as a layer.', 4000); return false; }
   let L = newLayerObj(res.w, res.h, res.frames, res.delays, name);
-  if ((L.W > DocW || L.H > DocH)){
+  let how = 'fits';
+  if (L.W > DocW || L.H > DocH){ how = await askFit(name, L.W, L.H); if (!how){ sbFlash('Import cancelled.'); return false; } }
+  if (how === 'scale'){
     const s = Math.min(DocW / L.W, DocH / L.H), nw = Math.max(1, Math.round(L.W * s)), nh = Math.max(1, Math.round(L.H * s));
     L.frames = L.frames.map(f => scaleRGBA(f, L.W, L.H, nw, nh, true)); L.masks = L.frames.map(() => new Uint8Array(nw * nh).fill(255)); L.W = nw; L.H = nh; ensureCanvas(L);
-    toast('Added "' + name + '" as a layer, scaled to fit the canvas.');
-  } else toast('Added "' + name + '" as a layer.');
+    toast('Added "' + name + '" as a layer, scaled to ' + nw + ' × ' + nh + ' px to fit the canvas.');
+  } else if (how === 'canvas'){
+    growCanvasFor(L.W, L.H);
+    toast('Added "' + name + '" as a layer; the canvas is now ' + DocW + ' × ' + DocH + ' px.');
+  } else if (how === 'keep') toast('Added "' + name + '" at full size; parts outside the canvas are kept and can be moved into view.');
+  else toast('Added "' + name + '" as a layer.');
   L.x = Math.round((DocW - L.W) / 2); L.y = Math.round((DocH - L.H) / 2);
   addLayer(L);
   return true;
+}
+// enlarge the canvas around the current picture; a blank start canvas simply takes the new size
+function growCanvasFor(w, h){
+  const nw = Math.max(DocW, w), nh = Math.max(DocH, h);
+  if (nw === DocW && nh === DocH) return;
+  saveActive();
+  const blank = isBlankDoc();
+  canvasResize(nw, nh, 0.5, 0.5);
+  if (blank){
+    const L = layers[0], c = blank, f = new Uint8ClampedArray(nw * nh * 4);
+    for (let p = 0; p < f.length; p += 4){ f[p] = c[0]; f[p + 1] = c[1]; f[p + 2] = c[2]; f[p + 3] = c[3]; }
+    L.frames = [f]; L.masks = [new Uint8Array(nw * nh).fill(255)]; L.W = nw; L.H = nh; L.x = 0; L.y = 0; ensureCanvas(L); refreshDoc(true);
+  }
+}
+// a one-layer picture of a single flat color (the blank start canvas): returns that color
+function isBlankDoc(){
+  if (layers.length !== 1) return null;
+  const L = layers[0], fr = lfr(L); if (fr.length !== 1) return null;
+  const f = fr[0], m = L === AL ? masks[0] : L.masks[0], n = f.length;
+  for (let p = 4; p < n; p += 4) if (f[p] !== f[0] || f[p + 1] !== f[1] || f[p + 2] !== f[2] || f[p + 3] !== f[3]) return null;
+  for (let i = 0; i < m.length; i++) if (m[i] !== 255) return null;
+  return [f[0], f[1], f[2], f[3]];
 }
 function blankLayer(name){ const fr = [new Uint8ClampedArray(DocW * DocH * 4)]; return newLayerObj(DocW, DocH, fr, [docDelay(0) || 10], name); }
 function layerNew(){ if (!W) return; addLayer(blankLayer('Layer ' + layerSeq)); sbFlash('Added an empty layer.'); }
@@ -4047,7 +4102,7 @@ $('#xTrim').addEventListener('click', layerTrim);
 $('#xExpand').addEventListener('click', () => { if (!layerExpand()) toast('The layer already covers the canvas.'); });
 rangeBind('kFeather', 'kFeather', v => v + ' px');
 $('#kApply').addEventListener('click', shapeLayer);
-$('#layerIn').addEventListener('change', async e => { const fl = [...e.target.files]; e.target.value = ''; for (const f of fl) await loadFile(f, true); });
+$('#layerIn').addEventListener('change', async e => { const fl = [...e.target.files]; e.target.value = ''; FIT.batch = fl.length; FIT.choice = null; try { for (const f of fl) await loadFile(f, true); } finally { FIT.batch = 0; FIT.choice = null; } });
 function importLayer(){ if (!W){ openFile(); return; } $('#layerIn').click(); }
 // canvas page
 let cvAnchor = [0.5, 0.5];
@@ -4126,6 +4181,7 @@ async function saveProject(){
     if (handle){ const w = await handle.createWritable(); await w.write(bytes); await w.close(); toast('Saved project ' + handle.name + ' · ' + fmtBytes(bytes.length)); }
     else if (downloadsP) await saveBlob(new Blob([zipStore(name, bytes)]), S.name + '-project.zip');
     else await saveBlob(new Blob([bytes]), name);
+    AUTO.savedProject = true; AUTO.dirty = true; AUTO.everEdited = true; autoSave(true).then(() => { AUTO.savedProject = true; });
   } catch (err){ toast('Could not save the project: ' + (err && err.message || err), 5000); }
   finally { busy(false); }
 }
@@ -4270,10 +4326,21 @@ S.draw = Object.assign({
   pencil: { size: 1, opacity: 100, tip: 'round', style: 'round', blend: 'source-over' },
   pen: { size: 4, opacity: 100, smooth: 40, style: 'ink', angle: 45, pressSize: true, pressOp: false, blend: 'source-over' },
   brush: { size: 24, opacity: 100, flow: 35, hard: 40, spacing: 12, smooth: 30, style: 'soft', pressSize: true, pressOp: false, blend: 'source-over' },
-  marker: { size: 18, opacity: 55, tip: 'chisel', style: 'chisel', angle: 45, smooth: 30, pressSize: false, pressOp: false, blend: 'multiply' },
+  marker: { size: 18, opacity: 100, tip: 'chisel', style: 'chisel', angle: 45, smooth: 30, pressSize: false, pressOp: false, blend: 'source-over' },
   air: { size: 40, opacity: 100, flow: 30, density: 40, style: 'fine', pressSize: false, pressOp: true, blend: 'source-over' }
-}, store.get('draw', {}));
-for (const t of ['pencil', 'pen', 'brush', 'marker', 'air']) if (!S.draw[t].style) S.draw[t].style = { pencil: 'round', pen: 'ink', brush: 'soft', marker: S.draw.marker.tip || 'chisel', air: 'fine' }[t];
+}, {});
+// saved settings are merged tool by tool, so settings added in later versions (the pen's nib angle, say) get their defaults
+{
+  const saved = store.get('draw', {}), ver = store.get('drawVer', 1);
+  for (const t of Object.keys(S.draw)){
+    const sv = saved[t] && typeof saved[t] === 'object' ? saved[t] : {};
+    if (t === 'marker' && ver < 2){ delete sv.opacity; delete sv.blend; }   // markers used to default to 55% multiply
+    if (t === 'marker' && !sv.style && sv.tip) sv.style = sv.tip;
+    S.draw[t] = Object.assign({}, S.draw[t], sv);
+    for (const k of ['size', 'opacity', 'angle', 'flow', 'hard', 'spacing', 'density', 'smooth']) if (k in S.draw[t] && !isFinite(S.draw[t][k])) delete S.draw[t][k];
+  }
+  store.set('drawVer', 2); store.set('draw', S.draw);
+}
 const STYLES = {
   pencil: [['round', 'Hard round', 'Solid pixels, round tip.'], ['square', 'Square', 'Solid pixels, square tip.'], ['grainy', 'Grainy', 'Graphite look: some pixels are skipped at random.'], ['sketch', 'Sketch', 'Several light, slightly offset lines, like quick sketching.']],
   pen: [['ink', 'Ink', 'Smooth solid line.'], ['ballpoint', 'Ballpoint', 'A thinner, even line.'], ['calligraphy', 'Calligraphy', 'A flat nib: thick and thin depending on the direction. Set the nib angle below.'], ['felt', 'Felt tip', 'Soft, slightly fuzzy edge.'], ['brushpen', 'Brush pen', 'Thin when you move fast, thick when you slow down.']],
@@ -4303,7 +4370,7 @@ const DRAW_INFO = {
   pencil: ['Pencil', 'Hard, pixel-exact lines with no smoothing. Good for pixel art.'],
   pen: ['Pen', 'Smooth, solid ink lines. Pen pressure changes the width.'],
   brush: ['Brush', 'Soft strokes that build up. Lower the flow for gentle shading.'],
-  marker: ['Marker', 'See-through ink with a chisel tip. Overlaps inside one stroke do not darken.'],
+  marker: ['Marker', 'Bold ink with a chisel or round tip. Overlaps inside one stroke do not darken; lower the opacity or pick Multiply for see-through ink.'],
   air: ['Airbrush', 'Sprays paint while you hold the button down.']
 };
 function loadDrawUI(t){
@@ -5215,8 +5282,21 @@ function showMenu(name){
     m.appendChild(b);
   }
   $('#menus').appendChild(m);
-  const mr = m.getBoundingClientRect(); if (mr.right > innerWidth - 2) m.style.left = Math.max(2, innerWidth - mr.width - 2) + 'px';
+  fitMenu(m, r);
 }
+// keep a menu on screen: as wide as its longest item, two columns when it is too tall, scrolling as a last resort
+function fitMenu(m, r){
+  const room = () => innerHeight - m.getBoundingClientRect().top - 4;
+  const place = () => { const mr = m.getBoundingClientRect(); m.style.left = Math.max(2, Math.min(r.left, innerWidth - mr.width - 2)) + 'px'; };
+  m.classList.remove('cols2'); m.style.maxHeight = ''; place();
+  if (m.getBoundingClientRect().height > room()){
+    m.classList.add('cols2'); place();
+    const mr = m.getBoundingClientRect();
+    if (mr.height > room() || mr.width > innerWidth - 4){ m.classList.remove('cols2'); place(); }
+  }
+  if (m.getBoundingClientRect().height > room()){ m.style.maxHeight = room() + 'px'; m.classList.add('scroll'); }
+}
+window.addEventListener('resize', () => { const m = $('#menus .menu'), top = openMenu && $('.mtop[data-menu="' + openMenu + '"]'); if (m && top) fitMenu(m, top.getBoundingClientRect()); });
 $$('.mtop').forEach(b => {
   b.addEventListener('mousedown', e => { e.preventDefault(); openMenu === b.dataset.menu ? closeMenus() : showMenu(b.dataset.menu); });
   b.addEventListener('mouseenter', () => { if (openMenu && openMenu !== b.dataset.menu) showMenu(b.dataset.menu); });
@@ -5243,7 +5323,7 @@ function closeModal(id){ $('#' + id).hidden = true; }
 $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
 function openSaveOpts(){ if (!W) return; stopPlay(); updateFmtUI(); $('#soTitle').textContent = 'Save As — ' + S.name; openModal('saveOpts'); }
 function anyModal(){ return $$('.modal').some(m => !m.hidden); }
-function runCmd(c){ if (touchCmd(c) || animCmd(c) || miniCmd(c)) return;
+function runCmd(c){ if (touchCmd(c) || animCmd(c) || miniCmd(c) || sessionCmd(c)) return;
   if (c === 'clearHints'){ clearHints(); return; }
   const ci = c.indexOf(':'), k = ci < 0 ? c : c.slice(0, ci), v = ci < 0 ? undefined : c.slice(ci + 1);
   switch (k){
@@ -6728,6 +6808,196 @@ miniDrag($('#mnOp'), p => { const info = miniSizeInfo(); if (!info || !info.op) 
   vm.splice(at + 1, 0, { l: 'Tool strip in canvas view', c: 'miniBar', ck: () => MINI.on });
 }
 function miniCmd(c){ if (c === 'miniBar'){ MINI.on = !MINI.on; store.set('miniOn', MINI.on); miniSync(); return true; } return false; }
+
+// ===================== importing big pictures, and autosave =====================
+
+// ---------- "the picture is bigger than the canvas" ----------
+var FIT = { batch: 0, choice: null, last: store.get('fitChoice', 'scale') };
+const fitDlg = document.createElement('div');
+fitDlg.className = 'modal'; fitDlg.id = 'fitDlg'; fitDlg.hidden = true;
+fitDlg.innerHTML = '<div class="win" role="dialog" aria-modal="true" aria-labelledby="fitTitle" style="width:min(460px,94vw)">' +
+  '<div class="titlebar"><span class="tt" id="fitTitle">The picture is bigger than the canvas</span><button class="tbx" type="button" id="fitX" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>' +
+  '<div class="winbody"><p class="hint" id="fitInfo"></p>' +
+  '<div class="fitopts" role="radiogroup" aria-label="How to fit it">' +
+  '<label class="fitopt"><input type="radio" name="fitHow" value="scale"><span><b>Shrink the picture to fit the canvas</b><span class="hint dim" id="fitScaleTxt"></span></span></label>' +
+  '<label class="fitopt"><input type="radio" name="fitHow" value="canvas"><span><b>Enlarge the canvas to fit the picture</b><span class="hint dim" id="fitCanvasTxt"></span></span></label>' +
+  '<label class="fitopt"><input type="radio" name="fitHow" value="keep"><span><b>Keep both sizes</b><span class="hint dim">The picture keeps its size; the parts outside the canvas are kept and can be moved into view with the Move tool.</span></span></label>' +
+  '</div>' +
+  '<label class="check" id="fitAllRow"><input type="checkbox" id="fitAll"> Do the same for the other pictures</label>' +
+  '<div class="winbtns"><button class="btn" type="button" id="fitCancel">Cancel</button><button class="btn default" type="button" id="fitOk">Add</button></div></div></div>';
+document.body.appendChild(fitDlg);
+let fitResolve = null;
+function askFit(name, w, h){
+  if (FIT.batch > 1 && FIT.choice) return Promise.resolve(FIT.choice);
+  const s = Math.min(DocW / w, DocH / h);
+  $('#fitInfo').textContent = '"' + name + '" is ' + w + ' × ' + h + ' px. The canvas is ' + DocW + ' × ' + DocH + ' px.';
+  $('#fitScaleTxt').textContent = 'Becomes ' + Math.max(1, Math.round(w * s)) + ' × ' + Math.max(1, Math.round(h * s)) + ' px; the canvas stays as it is.';
+  const blank = isBlankDoc();
+  $('#fitCanvasTxt').textContent = 'The canvas becomes ' + Math.max(DocW, w) + ' × ' + Math.max(DocH, h) + ' px' + (blank ? ', filled with the current background.' : '; the other layers stay centered.');
+  $$('#fitDlg input[name=fitHow]').forEach(r => r.checked = r.value === FIT.last);
+  $('#fitAllRow').hidden = !(FIT.batch > 1); $('#fitAll').checked = false;
+  fitDlg.hidden = false; setTimeout(() => $('#fitOk').focus(), 0);
+  return new Promise(res => { fitResolve = res; });
+}
+function closeFit(v){
+  fitDlg.hidden = true; const r = fitResolve; fitResolve = null;
+  if (v){ FIT.last = v; store.set('fitChoice', v); if ($('#fitAll').checked) FIT.choice = v; }
+  if (r) r(v);
+}
+$('#fitOk').addEventListener('click', () => closeFit(($('#fitDlg input[name=fitHow]:checked') || {}).value || 'scale'));
+$('#fitCancel').addEventListener('click', () => closeFit(null));
+$('#fitX').addEventListener('click', () => closeFit(null));
+fitDlg.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#fitOk').click(); } else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeFit(null); } });
+$$('#fitDlg .fitopt').forEach(l => l.addEventListener('dblclick', () => $('#fitOk').click()));
+
+// ---------- autosave ----------
+// The whole picture (every layer, frame and edit) is kept in the browser's own storage on this device, a few
+// seconds after each change and whenever the app is hidden or closed. The last three pictures are kept.
+var AUTO = { on: store.get('autosave', true), dirty: false, everEdited: false, timer: 0, first: 0, saving: false, docId: null, lastSave: 0, took: 0, savedProject: false };
+const newDocId = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function idbOpen(){
+  return new Promise((res, rej) => {
+    if (!window.indexedDB){ rej(new Error('no storage')); return; }
+    const r = indexedDB.open('gwiz', 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('autosave')) r.result.createObjectStore('autosave', { keyPath: 'id' }); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbDo(mode, fn){
+  const db = await idbOpen();
+  try {
+    return await new Promise((res, rej) => {
+      const tx = db.transaction('autosave', mode), st = tx.objectStore('autosave'); let out;
+      const req = fn(st); if (req) req.onsuccess = () => { out = req.result; };
+      tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    });
+  } finally { db.close(); }
+}
+const idbAll = () => idbDo('readonly', st => st.getAll()).then(a => (a || []).sort((x, y) => y.time - x.time));
+const idbPut = rec => idbDo('readwrite', st => st.put(rec));
+const idbDel = id => idbDo('readwrite', st => st.delete(id));
+const idbGet = id => idbDo('readonly', st => st.get(id));
+// called just before another picture replaces this one: unsaved changes are kept first
+function autoBeforeSwitch(){ if (AUTO.on && AUTO.dirty && AUTO.everEdited && W && !AUTO.saving) autoSave(true); }
+function autoNewDoc(){ AUTO.docId = newDocId(); AUTO.dirty = false; AUTO.everEdited = false; AUTO.savedProject = false; clearTimeout(AUTO.timer); AUTO.first = 0; }
+function markDirty(){
+  if (!W) return;
+  AUTO.dirty = true; AUTO.everEdited = true; AUTO.savedProject = false;
+  if (!AUTO.on) return;
+  const now = Date.now(); if (!AUTO.first) AUTO.first = now;
+  // a few seconds after the last change, but never more than half a minute after the first unsaved one
+  const wait = Math.max(2500, Math.min(AUTO.took * 3, 20000));
+  clearTimeout(AUTO.timer);
+  AUTO.timer = setTimeout(autoSave, Math.max(500, Math.min(wait, AUTO.first + 30000 + wait - now)));
+}
+function autoThumb(){
+  const rgba = composeDoc(S.dcur, false), c = toCanvas(rgba, DocW, DocH), s = Math.min(1, 160 / Math.max(DocW, DocH));
+  const t = document.createElement('canvas'); t.width = Math.max(1, Math.round(DocW * s)); t.height = Math.max(1, Math.round(DocH * s));
+  const g = t.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, t.width, t.height);
+  return t.toDataURL('image/png');
+}
+async function autoSave(force){
+  clearTimeout(AUTO.timer);
+  if (!AUTO.on || !W || !AUTO.dirty || !AUTO.everEdited || AUTO.saving) return;
+  // wait for the stroke or operation in progress to finish
+  if (!force && (DS.active || stroke || op || (typeof hintStroke !== 'undefined' && hintStroke) || (XF && XF.drag))){ AUTO.timer = setTimeout(autoSave, 1500); return; }
+  AUTO.saving = true; const t0 = performance.now();
+  try {
+    AUTO.dirty = false;
+    // everything about the picture is read before the first wait, so a document that is being replaced is captured whole
+    const rec = { id: AUTO.docId || (AUTO.docId = newDocId()), name: S.name || 'untitled', time: Date.now(), w: DocW, h: DocH, layers: layers.length, frames: docFrames(), thumb: autoThumb(), bytes: null, saved: AUTO.savedProject, seen: false };
+    const bytesP = projectBytes();
+    const bytes = await bytesP;
+    if (bytes.length > (IS_IOS ? 250e6 : 600e6)){ sbFlash('This picture is too large to autosave. Save it as a project (Ctrl+Shift+S).'); return; }
+    rec.bytes = bytes;
+    await idbPut(rec);
+    const all = await idbAll();
+    for (const r of all.slice(3)) await idbDel(r.id);
+    AUTO.lastSave = rec.time; AUTO.first = 0;
+  } catch (err){
+    AUTO.dirty = true;
+    if (!AUTO.warned){ AUTO.warned = true; sbFlash('Autosave is not available here: ' + (err && err.message || err), 6000); }
+  } finally {
+    AUTO.took = performance.now() - t0; AUTO.saving = false;
+    if (AUTO.dirty && AUTO.on) markDirty();
+  }
+}
+// save straight away when the app is hidden, switched away from or closed
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && AUTO.dirty) autoSave(true); });
+window.addEventListener('pagehide', () => { if (AUTO.dirty) autoSave(true); });
+// layer settings that do not go through undo still count as changes
+['#lBlend', '#lOpac', '#lName', '#lVis', '#lLock'].forEach(id => $(id).addEventListener('change', markDirty));
+$('#layerList').addEventListener('click', e => { if (e.target.closest('.lbtn')) markDirty(); });
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e){}
+
+// ---------- recovering ----------
+const recDlg = document.createElement('div');
+recDlg.className = 'modal'; recDlg.id = 'recDlg'; recDlg.hidden = true;
+recDlg.innerHTML = '<div class="win" role="dialog" aria-modal="true" aria-labelledby="recTitle" style="width:min(520px,94vw)">' +
+  '<div class="titlebar"><span class="tt" id="recTitle">Pick up where you left off?</span><button class="tbx" type="button" id="recX" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>' +
+  '<div class="winbody"><p class="hint" id="recInfo">G-WIZ saved your work automatically. Choose a picture to open it again.</p>' +
+  '<div class="reclist sunken" id="recList" role="listbox"></div>' +
+  '<div class="winbtns"><button class="btn" type="button" id="recDelAll">Delete all</button><span class="spacer"></span><button class="btn" type="button" id="recSkip">Start fresh</button><button class="btn default" type="button" id="recOpen">Open</button></div></div></div>';
+document.body.appendChild(recDlg);
+let recSel = null, recItems = [];
+const ago = t => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : new Date(t).toLocaleDateString(); };
+function renderRecList(){
+  const box = $('#recList'); box.innerHTML = '';
+  for (const r of recItems){
+    const row = document.createElement('div'); row.className = 'recrow' + (r.id === recSel ? ' sel' : ''); row.setAttribute('role', 'option'); row.tabIndex = 0;
+    row.innerHTML = '<div class="recthumb"><img alt=""></div><div class="recmeta"><div class="recname"></div><div class="hint dim"></div></div><button class="lbtn recdel" type="button" data-tip="Delete this autosave">×</button>';
+    row.querySelector('img').src = r.thumb || ''; row.querySelector('.recname').textContent = r.name;
+    row.querySelector('.hint').textContent = r.w + ' × ' + r.h + ' px · ' + r.layers + (r.layers === 1 ? ' layer' : ' layers') + (r.frames > 1 ? ' · ' + r.frames + ' frames' : '') + ' · ' + ago(r.time) + ' · ' + fmtBytes(r.bytes ? r.bytes.length : 0) + (r.saved ? ' · saved as a project' : '');
+    row.addEventListener('click', () => { recSel = r.id; renderRecList(); });
+    row.addEventListener('dblclick', () => { recSel = r.id; $('#recOpen').click(); });
+    row.querySelector('.recdel').addEventListener('click', async ev => { ev.stopPropagation(); await idbDel(r.id); recItems = recItems.filter(x => x.id !== r.id); if (recSel === r.id) recSel = recItems[0] ? recItems[0].id : null; if (!recItems.length) recDlg.hidden = true; else renderRecList(); });
+    box.appendChild(row);
+  }
+  $('#recOpen').disabled = !recSel;
+}
+async function showRecover(startup){
+  let all = [];
+  try { all = await idbAll(); } catch (e){ if (!startup) toast('Autosave is not available in this browser.'); return; }
+  if (startup) all = all.filter(r => !r.seen && !r.saved && r.id !== AUTO.docId);
+  else all = all.filter(r => r.id !== AUTO.docId || !AUTO.dirty);
+  if (!all.length){ if (!startup) toast('There is no autosaved work.'); return; }
+  recItems = all; recSel = all[0].id;
+  $('#recTitle').textContent = startup ? 'Pick up where you left off?' : 'Recover autosaved work';
+  $('#recInfo').textContent = startup ? 'G-WIZ saved your work automatically before it was closed. Choose a picture to open it again.' : 'The last pictures you worked on, saved automatically on this device.';
+  renderRecList(); recDlg.hidden = false; setTimeout(() => $('#recOpen').focus(), 0);
+}
+async function markSeen(){ try { for (const r of recItems){ const full = await idbGet(r.id); if (full){ full.seen = true; await idbPut(full); } } } catch (e){} }
+$('#recOpen').addEventListener('click', async () => {
+  const id = recSel; if (!id) return; recDlg.hidden = true;
+  busy(true);
+  try {
+    const r = await idbGet(id); if (!r){ toast('That autosave is gone.'); return; }
+    if (AUTO.dirty) await autoSave(true);
+    await openProject(r.bytes, r.name);
+    AUTO.docId = r.id; AUTO.dirty = false; AUTO.everEdited = true; AUTO.savedProject = !!r.saved; S.name = r.name; document.title = r.name + ' - G-WIZ';
+    toast('Opened "' + r.name + '" from ' + ago(r.time) + '.');
+    await markSeen();
+  } catch (err){ toast('Could not open the autosave: ' + (err && err.message || err), 5000); }
+  finally { busy(false); }
+});
+$('#recSkip').addEventListener('click', async () => { recDlg.hidden = true; await markSeen(); sbFlash('Your autosaved work is still in File > Recover autosaved work.'); });
+$('#recX').addEventListener('click', () => $('#recSkip').click());
+$('#recDelAll').addEventListener('click', async () => { for (const r of recItems) await idbDel(r.id); recItems = []; recDlg.hidden = true; sbFlash('Deleted the autosaved work.'); });
+
+// ---------- menu entries ----------
+{
+  const fm = MENUS.file, at = fm.findIndex(it => it && it.c === 'saveProject');
+  fm.splice(at + 1, 0,
+    { l: 'Recover autosaved work…', c: 'recover' },
+    { l: 'Autosave', c: 'autosave', ck: () => AUTO.on });
+}
+function sessionCmd(c){
+  if (c === 'recover'){ showRecover(false); return true; }
+  if (c === 'autosave'){ AUTO.on = !AUTO.on; store.set('autosave', AUTO.on); sbFlash(AUTO.on ? 'Autosave is on: your work is kept on this device as you go.' : 'Autosave is off.'); if (AUTO.on && AUTO.dirty) markDirty(); return true; }
+  return false;
+}
+// first look for unfinished work once the app has started
+setTimeout(() => showRecover(true), 400);
 
 // ---------- boot ----------
 readTheme(); resize();

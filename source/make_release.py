@@ -7,14 +7,14 @@
                                          ready to commit and push to GitHub Pages
     python3 make_release.py --no-exe     skip the Windows exe and zip (no Go needed)
 
-The version is set in one place: VERSION in ui-build/build.py. This script copies it into the
+The version is set in one place: VERSION in build.py. This script copies it into the
 launcher, the exe resources, the README and the iPad guide.
 """
 import os, re, shutil, subprocess, sys, zipfile
 
 SRC = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(SRC)
-UI, LAUNCHER, RELEASE, WEB, DIST = (os.path.join(SRC, d) for d in ('ui-build', 'launcher', 'release', 'web', 'dist'))
+LAUNCHER, RELEASE, WEB, DIST = (os.path.join(SRC, d) for d in ('launcher', 'release', 'web', 'dist'))
 SKIP_DIRS = {'__pycache__', 'out', 'dist', 'web'}
 SKIP_FILES = {'G-WIZ.exe'}
 
@@ -58,7 +58,7 @@ def main():
     a = set(sys.argv[1:])
     unknown = a - {'--test', '--publish', '--no-exe'}
     if unknown: sys.exit('Unknown option: ' + ' '.join(sorted(unknown)) + '\n' + __doc__)
-    version = re.search(r"^VERSION = '([\d.]+)'", open(os.path.join(UI, 'build.py'), encoding='utf-8').read(), re.M).group(1)
+    version = re.search(r"^VERSION = '([\d.]+)'", open(os.path.join(SRC, 'build.py'), encoding='utf-8').read(), re.M).group(1)
     print(f'G-WIZ {version}')
 
     step('Setting the version everywhere')
@@ -69,8 +69,8 @@ def main():
     sub_file(os.path.join(RELEASE, 'Read me first.txt'), title, rf'\g<1>(version {version})', 1)
 
     step('Building the app page and the web/iPad app')
-    run([sys.executable, 'build.py'], UI)
-    run([sys.executable, 'mkres.py'], UI)
+    run([sys.executable, 'build.py'], SRC)
+    run([sys.executable, os.path.join('tools', 'mkres.py')], SRC)
 
     exe = None
     if '--no-exe' not in a:

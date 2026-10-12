@@ -1,0 +1,26 @@
+/* Layout: classic Windows 95 / Paint shell — menu bar, icon toolbar, toolbox + tool options on the left,
+   gray workspace with the image and a frame dock, contextual options pane on the right, status bar. */
+:root{
+  color-scheme: light;
+  --face:#c0c0c0; --hi:#ffffff; --lite:#dfdfdf; --shadow:#808080; --dark:#000000;
+  --navy:#000080; --title2:#1084d0; --sel:#000080; --selText:#ffffff; --text:#000000; --dis:#808080;
+  --work:#808080; --field:#ffffff; --tip:#ffffe1;
+  --check-a:#ffffff; --check-b:#c6c6c6; --accent:#e00000;
+  --ui: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", Geneva, Verdana, sans-serif;
+  --mono: "Lucida Console", Consolas, "Courier New", monospace;
+}
+html,body{height:100%}
+body{margin:0;background:var(--face);color:var(--text);font:11px/1.3 var(--ui);overflow:hidden;user-select:none;-webkit-user-select:none;cursor:default}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+input[type=text],input[type=number]{user-select:text;-webkit-user-select:text}
+:focus{outline:none}
+:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+
+/* bevels */
+.raised{box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.sunken{box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark),inset -2px -2px var(--lite)}
+.thin-sunken{box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr)}

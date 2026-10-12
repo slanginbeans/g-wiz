@@ -1,9 +1,10 @@
-# Builds rsrc_windows_amd64.syso: a COFF object with the app icon, a manifest and version info.
+# Builds launcher/rsrc_windows_amd64.syso: a COFF object with the app icon, a manifest and version info,
+# which Go links into G-WIZ.exe. make_release.py runs it before building the exe.
 import struct, io, os, re
 from PIL import Image
-os.chdir(os.path.dirname(os.path.abspath(__file__)))   # works from any folder
+os.chdir(os.path.dirname(os.path.abspath(__file__)))   # works from any folder; paths below are from tools/
 # the version comes from build.py, so it is set in one place
-VERSION = tuple(int(x) for x in re.search(r"^VERSION = '([\d.]+)'", open('build.py', encoding='utf-8').read(), re.M).group(1).split('.')) + (0,)
+VERSION = tuple(int(x) for x in re.search(r"^VERSION = '([\d.]+)'", open(os.path.join('..', 'build.py'), encoding='utf-8').read(), re.M).group(1).split('.')) + (0,)
 
 def dib(img):
     img = img.convert('RGBA'); w, h = img.size; px = img.load()
@@ -23,7 +24,8 @@ def dib(img):
 def png(img):
     b = io.BytesIO(); img.save(b, 'PNG'); return b.getvalue()
 
-icons = [(16, dib(Image.open('icon16.png'))), (32, dib(Image.open('icon32.png'))), (48, dib(Image.open('icon48.png'))), (256, png(Image.open('icon256.png')))]
+img = lambda n: Image.open(os.path.join('..', 'app', 'images', f'icon{n}.png'))
+icons = [(16, dib(img(16))), (32, dib(img(32))), (48, dib(img(48))), (256, png(img(256)))]
 grp = struct.pack('<HHH', 0, 1, len(icons))
 for i, (s, data) in enumerate(icons):
     grp += struct.pack('<BBBBHHIH', 0 if s >= 256 else s, 0 if s >= 256 else s, 0, 0, 1, 32, len(data), i + 1)

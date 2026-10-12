@@ -5,12 +5,19 @@ web app that GitHub Pages serves at https://slanginbeans.github.io/g-wiz/.
 
 ## What is where
 
-| Folder | Contents |
+| Path | Contents |
 | --- | --- |
-| `ui-build/` | The app itself. `build.py` turns it into one self-contained HTML page. |
-| `launcher/` | The Windows program (Go). It embeds the HTML page and opens it in an Edge app window. |
-| `release/` | Files shipped to users: `README.txt` and `Update G-WIZ.bat` (Windows), `Read me first.txt` (iPad). |
+| `app/index.html` | The page: all markup (menus, toolbars, option pages, dialogs). |
+| `app/styles/` | The styles, by area. |
+| `app/scripts/` | The program (see the file map below). |
+| `app/icons.txt` | Toolbar and menu icons as 16×16 pixel art, one letter per pixel. |
+| `app/images/` | The app icon in every size (made by `tools/appicon.py`). |
+| `app/sw.js` | Service worker for the offline web app. |
+| `build.py` | Puts the page together. Holds `VERSION` and the order of the scripts. |
+| `launcher/` | The Windows program (Go). It embeds the page and opens it in an Edge app window. |
+| `release/` | Files shipped to users: `README.txt`, `Update G-WIZ.bat` (Windows), `Read me first.txt` (iPad). |
 | `tests/` | Automatic regression tests and the manual `iPad test checklist.txt`. |
+| `tools/` | `appicon.py` (draws the app icon), `mkres.py` (icon and version info for the exe). |
 | `make_release.py` | Builds everything and makes the two zips. |
 
 Build output (ignored by git): `web/` (the iPad/web app), `launcher/index.html`, `launcher/G-WIZ.exe`,
@@ -25,30 +32,88 @@ Build output (ignored by git): `web/` (the iPad/web app), `launcher/index.html`,
 ## Building
 
 ```
-python3 ui-build/build.py        # -> launcher/index.html (desktop/browser) and web/ (iPad/web app)
+python3 build.py      # -> launcher/index.html (desktop/browser) and web/ (iPad/web app)
 ```
 
 Open `launcher/index.html` in a browser to try it. `?sample` at the end of the address opens the sample picture.
 
-## How the app is put together
+`build.py` does no patching: the page is `app/index.html` with the styles and the scripts put in where it
+says `__STYLES__`, `__CODECS__` and `__APP__`, plus the version and icons. What you see in a file is
+exactly what runs. The build stops if a script is missing from its list, a file is not in the list, or a
+function is defined twice.
 
-`ui-build/base_app.html` is the original single-page app (version 1.0). `build.py`:
+## How the program is put together
 
-1. takes its script and applies a list of exact text replacements with `rep(old, new, count)`. Each one must
-   match exactly `count` times or the build stops, so a patch can never silently miss;
-2. inserts the feature modules, in this order, just before `// ---------- boot ----------`:
-   `ui_layers.js, ui_draw.js, ui_extra.js, ui_touch.js, ui_anim.js, ui_cutout.js, ui_mini.js, ui_session.js, ui_pixel.js`;
-3. adds the toolbar icons (`icons.py`, `icons2.py`: 16×16 pixel art as text) and the page markup and
-   styles (`ui_markup.html`);
-4. writes the desktop page, and the web app with its service worker (`sw_template.js`), manifest and icons.
+All scripts run in **one shared scope**, one after another, in the order listed in `SCRIPTS` in
+`build.py`; the build puts them inside one `(() => { 'use strict'; … })()`. So:
 
-All modules share one scope. A global that another module may touch before its own module has run must be
-declared with `var`, not `const`/`let` (e.g. `var PIX`, `var AUTO`, `var DS`), or the browser throws a
-"cannot access before initialization" error at start-up. Function declarations are fine anywhere.
+- Any file can use what another file defines; nothing is imported or exported.
+- **Order matters for code that runs at load time.** A file that runs code on load (adds menu items,
+  binds buttons, sets defaults) can only use what earlier files set up. Calls inside functions that run
+  later (on a click, a timer) can use anything.
+- A global that an earlier file may touch before the file that declares it has run must be declared with
+  `var`, not `const`/`let` (e.g. `var PIX`, `var AUTO`, `var DS`). Otherwise the browser stops with
+  "cannot access before initialization".
+- Function declarations are available everywhere. Each name may be defined only once (the build checks).
 
-Menu commands go through `runCmd(c)`; each module has a `xxxCmd(c)` that returns `true` when it handled
-the command. Tool option pages are `<div class="page" data-page="name">` in `ui_markup.html`, listed in
-`PAGE_INFO`, and opened with `showPage(name)`.
+**core/** is the original background eraser and GIF editor. **features/** came later and build on it:
+layers, drawing, the window and menus, touch, animation, smart cutout, autosave, pixel art. **boot.js**
+starts the app and is last.
+
+| File | What it does |
+| --- | --- |
+| `codecs.js` | GIF and TIFF decoding and encoding (its own script tag). |
+| `core/setup.js` | `$`/`$$` helpers, the shared state `S`, the image globals, UI helpers, theme colors. |
+| `core/image.js` | Loading an image into the editor, frames, masks, rendering. |
+| `core/edge-maps.js` | Edge detection used by the eraser's edge-aware mode. |
+| `core/color.js` | Sampling colors and color-difference amounts for the eraser. |
+| `core/undo.js` | Undo and redo of pixel and mask edits. |
+| `core/eraser.js` | The eraser and restore brushes. |
+| `core/wand.js` | Magic wand. |
+| `core/frames.js` | Copying masks between frames, the old film strip. |
+| `core/view.js` | Zoom, pan, drawing the canvas. |
+| `core/pointer.js`, `core/keyboard.js` | Mouse/pen input on the canvas; keyboard shortcuts. |
+| `core/controls.js` | Wiring of the original controls; `setTool`. |
+| `core/playback.js`, `core/scrubber.js` | Playing animations; the frame slider. |
+| `core/loading.js` | Opening files. |
+| `core/edge-finishing.js` | Edge finishing (shrink, soften, defringe) and the final combined picture. |
+| `core/quick-fixes.js` | Classic automatic background removal. |
+| `core/crop-rotate.js` | Rotating, flipping and resampling frames; committing size changes. |
+| `core/motion-finder.js` | Canvas overlays (removal preview), motion finder, remove specks. |
+| `core/saving.js` | Saving PNG, GIF, WebP, TIFF. |
+| `core/sample.js` | The sample cactus picture. |
+| `features/layers.js` | Layers: the document model, compositing, layer undo, adding and ordering layers. |
+| `features/canvas-operations.js` | Canvas size, resize, crop, rotate and flip for the whole picture. |
+| `features/transform.js` | Move tool: move, scale, rotate, skew, distort a layer. |
+| `features/layers-panel.js` | The Layers panel, importing a picture as a layer, File > New. |
+| `features/projects.js` | `.gwiz` project files. |
+| `features/colors.js` | Primary/secondary colors, palettes, Edit Colors dialog. |
+| `features/drawing-tools.js` | Pencil, pen, brush, marker, airbrush, shapes, paint bucket, pressure curve. |
+| `features/picker-text.js` | Color picker; Text tool. |
+| `features/adjustments-effects.js` | Adjust colors and Effects pages. |
+| `features/tool-routing.js` | Sends canvas input to the right tool; the brush outline cursor. |
+| `features/shell.js` | Pixel icons, status bar, tooltips, option pages, tool options box. |
+| `features/menus.js` | Menus and the `runCmd` command dispatcher. |
+| `features/canvas-tools.js` | On-canvas crop, track and magnifier. |
+| `features/stabilize.js` | Stabilize (camera shake). |
+| `features/desktop-bridge.js` | Opening files from and exiting the desktop program. |
+| `features/touch.js` | Touch mode, Apple Pencil, finger gestures, canvas view, share sheet, offline updates. |
+| `features/animation.js` | Animation mode: frames, onion skin, tweens. |
+| `features/smart-cutout.js` | Smart background removal. |
+| `features/mini-bar.js` | Tool strip in canvas view. |
+| `features/session.js` | "Picture bigger than the canvas" dialog, autosave, recovery, storage protection. |
+| `features/pixel-art.js` | Pixel art mode. |
+
+Common patterns:
+
+- **Menus**: entries live in `MENUS` (`features/menus.js`); a feature adds its own with `MENUS.xxx.push(…)`.
+  Commands go through `runCmd(c)`, which first asks each feature's `xxxCmd(c)` (returns `true` if it
+  handled the command), then the built-in `switch`.
+- **Option pages**: `<div class="page" data-page="name">` in `index.html`, a toolbar button with
+  `data-page-btn="name"`, an entry in `PAGE_INFO`, opened with `showPage(name)`.
+- **Icons**: add a block to `icons.txt` (`icon name` and 16 rows of 16 letters), use it as
+  `<i class="ic" data-ic="name"></i>`.
+- **Settings that persist**: `store.get(key, default)` / `store.set(key, value)` (localStorage, `gwiz.` prefix).
 
 ## Testing
 
@@ -64,14 +129,14 @@ Every test also fails if the app raises a script error. Reports and screenshots 
 `GWIZ_URL=https://slanginbeans.github.io/g-wiz/ python3 tests/run_tests.py` tests the published copy.
 
 To add a test, put a script in `tests/cases/` that prints its findings and ends with `print('errors', errs)`,
-then add a line for it to `EXPECT`.
+then add a line for it to `EXPECT`. Tests that depend on gesture timing go in `SERIAL`.
 
 Emulation cannot check the real Pencil, real gestures, Safari's storage rules or speed on the device,
 so after each release also go through `tests/iPad test checklist.txt` on a real iPad.
 
 ## Making a release
 
-1. Set `VERSION` in `ui-build/build.py` (the only place; `make_release.py` copies it everywhere else).
+1. Set `VERSION` in `build.py` (the only place; `make_release.py` copies it everywhere else).
 2. Add a "New in x.y" section to `release/README.txt` and, if it matters on the iPad, to
    `release/Read me first.txt`.
 3. `python3 make_release.py --test --publish` builds, tests, makes `dist/G-WIZ-x.y.z-windows.zip` and

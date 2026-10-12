@@ -1,5 +1,8 @@
+# Draws the app icon (a 32x32 pixel-art wizard hat with stars) and writes it in every size to app/images/.
+# Edit the art below and run this script to change the icon; build.py and tools/mkres.py use the files.
+import os
 from PIL import Image
-# 32x32 pixel-art app icon: wizard hat with stars over a checkerboard "transparent" canvas.
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'app', 'images'))
 P={'.':None,'k':(0,0,0,255),'w':(255,255,255,255),'g':(128,128,128,255),'s':(192,192,192,255),'n':(0,0,128,255),
    'b':(0,0,255,255),'y':(255,255,0,255),'o':(255,176,32,255),'r':(255,0,0,255),'f':(255,0,255,255),'c':(0,255,255,255)}
 art = """

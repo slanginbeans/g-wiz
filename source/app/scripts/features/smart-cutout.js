@@ -8,8 +8,10 @@
 //      guided filter so the decision follows the picture's real edges;
 //   4. background must connect to the border (edges block leaks into the subject), enclosed gaps up to a chosen
 //      size are cleared, and the soft map is refined once more at full resolution so hair and fur keep soft edges.
-const CUT = Object.assign({ method: 'smart', k: 3, border: 4, detail: 3, soft: 25, holes: 3, contig: true, iters: 2, edge: 55, contrast: 50, showHints: true, hintSize: 40 }, store.get('cut', {}));
+const CUT = Object.assign({ method: 'ai', trust: 85, k: 3, border: 4, detail: 3, soft: 25, holes: 3, contig: true, iters: 2, edge: 55, contrast: 50, showHints: true, hintSize: 40 }, store.get('cut', {}));
 const saveCut = () => store.set('cut', CUT);
+// 1.7: the AI method is new and better on photos, so it becomes the choice once, also for earlier users
+if ((CUT.v || 0) < 2){ CUT.method = 'ai'; CUT.trust = 85; CUT.v = 2; saveCut(); }
 
 // ---------- color helpers ----------
 const SRGB_LIN = new Float32Array(256);
@@ -110,7 +112,8 @@ function nearestDist(lab, i, model, out){
 
 // ---------- the smart remover ----------
 let cutModels = null;   // models from the last run, reused as a warm start for the next frame
-function smartAmt(f, out){
+// With useAI, the AI subject map (features/ai-model.js) says what the subject is, instead of the border colors.
+function smartAmt(f, out, useAI){
   const N = W * H, src = frames[f], hints = AL && AL.hints;
   const tol = 3 + CUT.atol * 0.55;                                     // Lab distance that still counts as "the background color"
   const sc = Math.min(1, 480 / Math.max(W, H)), w = Math.max(2, Math.round(W * sc)), h = Math.max(2, Math.round(H * sc)), n = w * h;
@@ -126,6 +129,8 @@ function smartAmt(f, out){
       rgb2lab(Math.round(r / cnt), Math.round(g / cnt), Math.round(b / cnt), lab, i * 3); alpha[i] = a / cnt; hint[i] = hv;
     }
   }
+  // the AI's subject map at the working size: 1 = subject, 0 = background
+  const prior = useAI ? aiPrior(f, w, h) : null;
   // 2. which border colors are really background? Group the border pixels; a group counts when it reaches a
   //    corner, runs along at least two sides, or covers a large share of the border. A subject that touches one
   //    side (a person cut off at the waist) is left alone that way.
@@ -133,11 +138,12 @@ function smartAmt(f, out){
   const isBorder = i => { const x = i % w, y = (i / w) | 0; return x < bw || y < bw || x >= w - bw || y >= h - bw; };
   const sideOf = i => { const x = i % w, y = (i / w) | 0; return y < bw ? 0 : x >= w - bw ? 1 : y >= h - bw ? 2 : 3; };
   const isCorner = i => { const x = i % w, y = (i / w) | 0; return (x < cornerR || x >= w - cornerR) && (y < cornerR || y >= h - cornerR); };
-  const borderIdx = [], keepIdx = [], dropIdx = [];
+  const borderIdx = [], keepIdx = [], dropIdx = [], aiSeed = [];
   for (let i = 0; i < n; i++){
     if (hint[i] === 1){ keepIdx.push(i); continue; }
     if (hint[i] === 2){ dropIdx.push(i); continue; }
     if (alpha[i] >= 16 && isBorder(i)) borderIdx.push(i);
+    if (prior && alpha[i] >= 16 && prior[i] < 0.08) aiSeed.push(i);   // what the AI is sure is background
   }
   // colors painted with the "keep" hint can never be background, wherever else they appear
   const keepModel = keepIdx.length >= 4 ? kmeans(lab, keepIdx, 3, null) : null;
@@ -161,7 +167,7 @@ function smartAmt(f, out){
     if (!ok.some(v => v)) ok.fill(1);
     borderIdx.forEach((i, k) => { if (ok[assign[k]] && !nearKeep(i)) bgSeed.push(i); });
   }
-  if (!bgSeed.length){ out.fill(0); return 0; }
+  if (!bgSeed.length && !aiSeed.length){ out.fill(0); return 0; }
   // 3. flood from those seeds through gently changing color (so gradients and shadows are followed), stopping at
   //    edges: that region is what the background model learns from
   const reach0 = new Uint8Array(n), seedOf = new Int32Array(n), tolL = tol * 0.8, innerL = tolL * 0.5;
@@ -199,17 +205,42 @@ function smartAmt(f, out){
       }
     }
   }
+  // 3b. with the AI: its background, and how plain the background is. On a plain background the border flood
+  //     reaches nearly all of what the AI calls background, and then the flood is trusted as much as the AI
+  //     (each rescues what the other misses: the AI a subject part the size of a shirt in the wall's color, the
+  //     flood a shape the AI does not see as part of the subject). On a busy background the flood stops at
+  //     every edge or leaks into the subject, and the AI decides.
+  let reachA = null, plain = 0;
+  if (prior){
+    reachA = new Uint8Array(n); let nA = 0, both = 0;
+    for (let i = 0; i < n; i++){ reachA[i] = alpha[i] < 16 || (prior[i] < 0.5 && hint[i] !== 1) ? 1 : 0; if (reachA[i] && alpha[i] >= 16){ nA++; if (reach0[i]) both++; } }
+    // plain = the flood reaches most of it AND it has few edges (a wall, a backdrop, a sky; not a forest)
+    let busyN = 0; for (let i = 0; i < n; i++) if (reachA[i] && alpha[i] >= 16 && edge[i] >= thr * 0.5) busyN++;
+    const cover = nA ? both / nA : 0, edgy = nA ? busyN / nA : 1;
+    plain = Math.min(1, Math.max(0, (cover - 0.75) / 0.15)) * Math.min(1, Math.max(0, (0.2 - edgy) / 0.08));
+    AIM.plain = plain;
+  }
+  // what the colour models learn background from: on a plain background only where the AI and the flood agree
+  let reachB = reach0;
+  if (reachA){ reachB = reachA; if (plain > 0.5){ reachB = new Uint8Array(n); for (let i = 0; i < n; i++) reachB[i] = reachA[i] & reach0[i]; } }
+  const seeds = prior ? dropIdx.concat(plain > 0.5 ? aiSeed.filter(i => reach0[i]) : aiSeed) : bgSeed;
   // 4. background color model from the flooded region, subject model from the rest, refined together
-  const bgIdx0 = []; for (let i = 0; i < n; i++) if (reach0[i] && alpha[i] >= 16) bgIdx0.push(i);
-  let bg = kmeans(lab, bgIdx0.length > 20 ? bgIdx0 : bgSeed, CUT.k + 1, cutModels && cutModels.bg && cutModels.bg.cen.length === CUT.k + 1 ? cutModels.bg.cen : null);
+  const bgIdx0 = []; for (let i = 0; i < n; i++) if (reachB[i] && alpha[i] >= 16) bgIdx0.push(i);
+  let bg = kmeans(lab, bgIdx0.length > 20 ? bgIdx0 : seeds, CUT.k + 1, cutModels && cutModels.bg && cutModels.bg.cen.length === CUT.k + 1 ? cutModels.bg.cen : null);
   const dBg = new Float32Array(n), dFg = new Float32Array(n), p = new Float32Array(n);
   for (let i = 0; i < n; i++) dBg[i] = nearestDist(lab, i, bg);
   let fg = null;
+  // how much the AI counts against the colors ("Trust the AI")
+  const aiT = CUT.trust / 100, aiW_A = 0.5 + 2 * aiT, aiW_C = 1.5 - aiT;
   for (let it = 0; it <= CUT.iters; it++){
-    const fgIdx = keepIdx.slice(), bgIdx = bgSeed.slice();
+    const fgIdx = keepIdx.slice(), bgIdx = seeds.slice();
     for (let i = 0; i < n; i++){
       if (hint[i] || alpha[i] < 16) continue;
-      if (it === 0){ if (nearKeep(i) || (!reach0[i] && dBg[i] > tol * 0.9)) fgIdx.push(i); else if (reach0[i]) bgIdx.push(i); }
+      if (it === 0 && prior){
+        const floodFg = plain > 0.5 && !reach0[i] && dBg[i] > tol * 0.9;   // on a plain background: what the flood left and does not look like it
+        if (prior[i] > 0.6 || nearKeep(i) || floodFg) fgIdx.push(i); else if (prior[i] < 0.4 && reachB[i]) bgIdx.push(i);
+      }
+      else if (it === 0){ if (nearKeep(i) || (!reach0[i] && dBg[i] > tol * 0.9)) fgIdx.push(i); else if (reach0[i]) bgIdx.push(i); }
       else { if (p[i] < 0.5 || nearKeep(i)) fgIdx.push(i); else bgIdx.push(i); }
     }
     if (fgIdx.length < 20) fg = null;
@@ -218,19 +249,31 @@ function smartAmt(f, out){
       // a subject color that is really a background color is decided by where it is, not by the color models
       const near = c => bg.cen.some(d => Math.sqrt((c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2) < tol * 0.9);
       const nearK = c => keepModel && keepModel.cen.some(d => Math.sqrt((c[0] - d[0]) ** 2 + (c[1] - d[1]) ** 2 + (c[2] - d[2]) ** 2) < tol * 0.9);
-      const keep = fg.cen.map(c => !near(c) || nearK(c));
+      // (with the AI, location is known: a subject colour that also occurs in the background stays, and then simply
+      // gives no colour evidence either way)
+      const keep = fg.cen.map(c => prior || !near(c) || nearK(c));
       fg.cen = fg.cen.filter((c, k) => keep[k]); fg.spread = fg.spread.filter((c, k) => keep[k]);
       if (!fg.cen.length) fg = null;
     }
     if (it > 0 || bgIdx.length !== bgIdx0.length){ bg = kmeans(lab, bgIdx, CUT.k + 1, bg.cen); for (let i = 0; i < n; i++) dBg[i] = nearestDist(lab, i, bg); }
     for (let i = 0; i < n; i++){
       const pb = Math.pow(2, -((dBg[i] / tol) ** 2));
+      if (fg) dFg[i] = nearestDist(lab, i, fg);
+      const pf = fg ? Math.pow(2, -((dFg[i] / tol) ** 2)) : 0;
+      if (prior){
+        // the AI's answer and the colors' answer are added as evidence (log-odds). Where the colors cannot tell
+        // subject from background they say nothing and the AI decides; at the boundary, clear colors refine it.
+        const pa = Math.min(0.98, Math.max(0.02, 1 - prior[i])), pc = fg ? (pb + 1e-6) / (pb + pf + 2e-6) : Math.min(0.98, Math.max(0.02, pb));
+        // colour evidence only counts as much as one of the two models explains the colour at all
+        const lc = Math.max(-4, Math.min(4, Math.log(pc / (1 - pc)))) * Math.min(1, Math.max(pb, pf) * 2);
+        // on a plain background the colour models are reliable, so they count for more
+        p[i] = 1 / (1 + Math.exp(-(aiW_A * (1 - 0.7 * plain) * Math.log(pa / (1 - pa)) + (aiW_C + 2 * plain) * lc)));
+        continue;
+      }
       if (!fg){ p[i] = pb; continue; }
-      dFg[i] = nearestDist(lab, i, fg);
-      const pf = Math.pow(2, -((dFg[i] / tol) ** 2));
       // a pixel the flood reached gets a nudge toward background, one it could not reach a nudge toward subject
-      const prior = reach0[i] ? 2.5 : 0.4;
-      p[i] = (pb * prior + 1e-6) / (pb * prior + pf + 2e-6);
+      const nudge = reach0[i] ? 2.5 : 0.4;
+      p[i] = (pb * nudge + 1e-6) / (pb * nudge + pf + 2e-6);
     }
   }
   cutModels = { bg, fg };
@@ -242,7 +285,7 @@ function smartAmt(f, out){
   for (let i = 0; i < n; i++){ if (alpha[i] < 16 || hint[i] === 2) q[i] = 1; else if (hint[i] === 1) q[i] = 0; else q[i] = Math.min(1, Math.max(0, q[i])); }
   // 5. background has to connect to the border; edges block the way into the subject
   const reach = new Uint8Array(n);
-  if (CUT.contig){
+  if (CUT.contig && !prior){   // the AI already knows which background-colored areas belong to the subject
     let qu = new Int32Array(n), qh = 0, qt = 0;
     for (let i = 0; i < n; i++) if ((isBorder(i) && q[i] >= 0.5) || hint[i] === 2 || alpha[i] < 16){ reach[i] = 1; qu[qt++] = i; }
     while (qh < qt){
@@ -294,7 +337,13 @@ function smartAmt(f, out){
     const inBand = new Uint8Array(n);
     { const Lc = new Float32Array(n), L2 = new Float32Array(n); for (let i = 0; i < n; i++){ Lc[i] = lab[i * 3]; L2[i] = Lc[i] * Lc[i]; }
       const nrm = boxNorm(w, h, 2), mL = boxF(Lc, w, h, 2, nrm), mL2 = boxF(L2, w, h, 2, nrm), far = Math.max(bandR * 6, 25);
-      for (let i = 0; i < n; i++){ const sd = Math.sqrt(Math.max(0, mL2[i] - mL[i] * mL[i])); inBand[i] = dS[i] <= bandR || (sd > 6 && q[i] < 0.5 && dS[i] <= far) ? 1 : 0; } }
+      for (let i = 0; i < n; i++){
+        const sd = Math.sqrt(Math.max(0, mL2[i] - mL[i] * mL[i]));
+        // with the AI, only where the AI itself is unsure (its soft rim around hair and fur): inside the subject,
+        // dark stripes or windows that share the background's colors must not be unmixed away
+        const usual = dS[i] <= bandR || (sd > 6 && q[i] < 0.5 && dS[i] <= far), aiRim = prior && dS[i] <= bandR * 2 && prior[i] > 0.04 && prior[i] < 0.96;
+        inBand[i] = (prior ? aiRim || (plain > 0.5 && usual) : usual) ? 1 : 0;
+      } }
     const lt = new Float32Array(3), bgC = bg.cen, fgC = fg.cen;
     for (let y = 0; y < H; y++){
       const sy = Math.min(h - 1, Math.floor(y * sc));
@@ -309,7 +358,8 @@ function smartAmt(f, out){
         const px = lt[0] - F[0], py = lt[1] - F[1], pz = lt[2] - F[2];
         let a = (px * vx + py * vy + pz * vz) / L2; a = a < 0 ? 0 : a > 1 ? 1 : a;
         const rx = px - a * vx, ry = py - a * vy, rz = pz - a * vz, resid = Math.sqrt(rx * rx + ry * ry + rz * rz);
-        const conf = Math.pow(2, -((resid / tol) ** 2));   // how well the color fits a mix of those two
+        let conf = Math.pow(2, -((resid / tol) ** 2));   // how well the color fits a mix of those two
+        if (prior){ const pr = prior[sy * w + sx], u = 1 - Math.abs(2 * pr - 1); conf *= plain + (1 - plain) * Math.min(1, Math.max(0, (u - 0.1) / 0.5)); }
         full[gi] = full[gi] * (1 - conf) + a * conf;
       }
     }
@@ -370,6 +420,7 @@ cutBind('aEdge', 'edge', v => v + '%'); cutBind('aK', 'k', v => v === 1 ? '1 col
 cutBind('aDetail', 'detail', v => v + ' px'); cutBind('aSoft', 'soft', v => v + '%'); cutBind('aHoles', 'holes', v => v === 0 ? 'Keep all' : 'up to ' + v + '%');
 cutBind('aIters', 'iters', v => v === 0 ? 'Quick' : v + (v === 1 ? ' pass' : ' passes')); cutBind('aContrast', 'contrast', v => v + '%');
 cutBind('aHintSize', 'hintSize', v => v + ' px', () => requestDraw());
+cutBind('aTrust', 'trust', v => v + '%');
 $('#aContig').checked = CUT.contig; $('#aContig').addEventListener('change', e => { CUT.contig = e.target.checked; saveCut(); scheduleAutoPreview(); });
 $('#aShowHints').checked = CUT.showHints; $('#aShowHints').addEventListener('change', e => { CUT.showHints = e.target.checked; saveCut(); requestOverlay(); });
 segSet('#aMethod', 'v', CUT.method);

@@ -3,7 +3,7 @@
 function autoAmt(f, out){
   const N = W * H, seed = new Int32Array(N), vis = new Uint8Array(N);
   let q = new Int32Array(1 << 16), qh = 0, qt = 0;
-  if (CUT.method === 'smart') return smartAmt(f, out);
+  if (CUT.method === 'smart' || CUT.method === 'ai') return smartAmt(f, out, CUT.method === 'ai');
   const tol = 6 + S.atol * 1.6, inner = tol * 0.5, span = tol - inner, thr = edgeThr(CUT.edge);
   const src = frames[f], edge = ensureEdges(f, 0, 0, W, H);
   out.fill(0);
@@ -46,6 +46,7 @@ function autoAmt(f, out){
 async function autoRemove(){
   if (!W) return; stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
   try {
+    if (CUT.method === 'ai' && !(await aiReady(targetFrames()))) return;
     const N = W * H, amt8 = new Uint8Array(N);
     let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
     beginOp();

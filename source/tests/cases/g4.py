@@ -14,7 +14,7 @@ async def main():
     await pg.mouse.move(r[0]+r[2]*0.25,r[1]+r[3]*0.2); await pg.mouse.down(); await pg.mouse.move(r[0]+r[2]*0.5,r[1]+r[3]*0.25,steps=12); await pg.mouse.up()
     print('undo enabled after stroke:', not await pg.is_disabled('#undoBtn'))
     # auto remove with preview
-    await pg.click('[data-page-btn="auto"]'); await pg.check('#aPrev'); await pg.wait_for_timeout(600); print('auto preview:',await pg.inner_text('#aPrevStat'))
+    await pg.click('[data-page-btn="auto"]'); await pg.click('#aMethod [data-v="smart"]'); await pg.check('#aPrev'); await pg.wait_for_timeout(600); print('auto preview:',await pg.inner_text('#aPrevStat'))
     await pg.click('#autoBtn'); await pg.wait_for_timeout(900); print('sb:',await pg.inner_text('#sbHelp'))
     await pg.uncheck('#aPrev')
     await pg.click('[data-page-btn="specks"]'); await pg.click('#speckBtn'); await pg.wait_for_timeout(500); print('sb:',await pg.inner_text('#sbHelp'))

@@ -12,12 +12,13 @@ web app that GitHub Pages serves at https://slanginbeans.github.io/g-wiz/.
 | `app/scripts/` | The program (see the file map below). |
 | `app/icons.txt` | Toolbar and menu icons as 16×16 pixel art, one letter per pixel. |
 | `app/images/` | The app icon in every size (made by `tools/appicon.py`). |
+| `app/models/` | The AI subject model (`u2netp.bin`), its license and where it comes from. |
 | `app/sw.js` | Service worker for the offline web app. |
 | `build.py` | Puts the page together. Holds `VERSION` and the order of the scripts. |
 | `launcher/` | The Windows program (Go). It embeds the page and opens it in an Edge app window. |
 | `release/` | Files shipped to users: `README.txt`, `Update G-WIZ.bat` (Windows), `Read me first.txt` (iPad). |
 | `tests/` | Automatic regression tests and the manual `iPad test checklist.txt`. |
-| `tools/` | `appicon.py` (draws the app icon), `mkres.py` (icon and version info for the exe). |
+| `tools/` | `appicon.py` (draws the app icon), `mkres.py` (icon and version info for the exe), `convert_model.py` (makes `app/models/u2netp.bin` from the ONNX model, and is the NumPy reference the AI test checks against). |
 | `make_release.py` | Builds everything and makes the two zips. |
 
 Build output (ignored by git): `web/` (the iPad/web app), `launcher/index.html`, `launcher/G-WIZ.exe`,
@@ -38,7 +39,8 @@ python3 build.py      # -> launcher/index.html (desktop/browser) and web/ (iPad/
 Open `launcher/index.html` in a browser to try it. `?sample` at the end of the address opens the sample picture.
 
 `build.py` does no patching: the page is `app/index.html` with the styles and the scripts put in where it
-says `__STYLES__`, `__CODECS__` and `__APP__`, plus the version and icons. What you see in a file is
+says `__STYLES__`, `__CODECS__` and `__APP__`, plus the version, the icons (`<icons>` in the list) and the AI model
+file as text (`<model>`, about 3 MB). What you see in a file is
 exactly what runs. The build stops if a script is missing from its list, a file is not in the list, or a
 function is defined twice.
 
@@ -99,7 +101,8 @@ starts the app and is last.
 | `features/desktop-bridge.js` | Opening files from and exiting the desktop program. |
 | `features/touch.js` | Touch mode, Apple Pencil, finger gestures, canvas view, share sheet, offline updates. |
 | `features/animation.js` | Animation mode: frames, onion skin, tweens. |
-| `features/smart-cutout.js` | Smart background removal. |
+| `features/ai-model.js` | The AI subject model's runtime: WebGL2 shaders, a JavaScript fallback, caching per frame. |
+| `features/smart-cutout.js` | Smart and AI background removal (`smartAmt`; with the AI's subject map as a prior), hint brushes. |
 | `features/mini-bar.js` | Tool strip in canvas view. |
 | `features/session.js` | "Picture bigger than the canvas" dialog, autosave, recovery, storage protection. |
 | `features/pixel-art.js` | Pixel art mode. |

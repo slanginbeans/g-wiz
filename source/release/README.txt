@@ -1,4 +1,4 @@
-G-WIZ — Graphics Wizard  (version 1.6.1)
+G-WIZ — Graphics Wizard  (version 1.7.0)
 =========================================
 
 Starting G-WIZ
@@ -85,6 +85,30 @@ Colors
   your own Custom colors. Edit colors (or double-click a well) opens a full color
   picker with RGB, HSV, hex and opacity.
 
+New in 1.7: AI background removal
+---------------------------------
+  Remove background has a new AI method, now the default. A small AI model
+  that is part of G-WIZ finds the main subject (a person, an animal, a car,
+  an object), and the cut then follows the picture's real edges and keeps
+  soft hair and fur. It runs on this computer, works offline and sends
+  nothing anywhere. On photos with busy backgrounds it gets the subject right
+  far more often than the Smart method.
+  - The line under the method buttons says how long finding the subject took
+    and whether the graphics chip was used. With the graphics chip it is
+    quick; without it (old graphics drivers) it can take half a minute.
+  - "Trust the AI" (Detection): high keeps what the AI calls the subject even
+    where its colors look like the background; low lets clear color
+    differences decide more of the outline.
+  - On a plain background (a wall, a backdrop, a sky) the AI also uses the
+    border colors the way Smart does, so shapes it does not recognize are
+    kept too.
+  - The hint brushes work as before: paint "Mark subject" over a part the AI
+    missed, or "Mark background" over a part it kept, and remove again.
+  - Smart and Classic are still there. Smart is often the more exact choice
+    for logos, drawings and shapes on a plain background.
+  - The AI model is U²-Net-P by Xuebin Qin et al., under the Apache License
+    2.0 (source\app\models has the license and details). It adds about 3 MB.
+
 New in 1.6.1
 ------------
   - File > Recover autosaved work shows whether your autosaves are protected
@@ -146,7 +170,7 @@ New in 1.5
 
 Removing a background (1.4)
 ---------------------------
-  Remove background has a Smart method (default): it learns the background
+  Remove background has a Smart method (the default until 1.7): it learns the background
   colors from the border, works out what the subject looks like, cuts along
   the picture's real edges and keeps soft edges on hair. Presets, hint brushes
   (Mark subject / Mark background, also in the toolbox), and sliders for
@@ -188,7 +212,7 @@ Touch screens
   Tap with two fingers to undo, three fingers to redo; pinch to zoom. With a pen,
   View > "Pencil draws, fingers pan" keeps your hand from drawing.
   An iPad version that installs from a web address and then works offline comes
-  as a separate download (G-WIZ-iPad-1.6.1.zip).
+  as a separate download (G-WIZ-iPad-1.7.0.zip).
 
 Also new in 1.1
 ---------------

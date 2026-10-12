@@ -12,7 +12,7 @@ styles and scripts put in, in the order listed here. All scripts share one scope
 import base64, hashlib, io, json, os, re
 from PIL import Image
 
-VERSION = '1.6.1'
+VERSION = '1.7.0'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, 'app')
@@ -38,7 +38,9 @@ SCRIPTS = [
     'features/shell.js', 'features/menus.js', 'features/canvas-tools.js', 'features/stabilize.js',
     'features/desktop-bridge.js',
     # later features
-    'features/touch.js', 'features/animation.js', 'features/smart-cutout.js', 'features/mini-bar.js',
+    'features/touch.js', 'features/animation.js',
+    '<model>',   # AI_MODEL_B64: app/models/u2netp.bin (the AI subject model, see app/models/README.md)
+    'features/ai-model.js', 'features/smart-cutout.js', 'features/mini-bar.js',
     'features/session.js', 'features/pixel-art.js',
     'boot.js',
 ]
@@ -63,13 +65,19 @@ def icons_js():
     return 'const ICON_PAL = ' + json.dumps(pal) + ';\nconst ICONS = ' + json.dumps({k: '\n'.join(v) for k, v in icons.items()}) + ';'
 
 
+def model_js():
+    """The AI model file, carried inside the page so it works offline everywhere (about 3 MB as text)."""
+    return "const AI_MODEL_B64 = '" + base64.b64encode(open(os.path.join(APP, 'models', 'u2netp.bin'), 'rb').read()).decode() + "';"
+
+
 def data_png(img):
     b = io.BytesIO(); img.save(b, 'PNG'); return 'data:image/png;base64,' + base64.b64encode(b.getvalue()).decode()
 
 
 def build_page():
     # every script is separated from the next by one blank line, inside one function scope
-    app = "\n(() => {\n'use strict';\n" + '\n'.join(icons_js() if s == '<icons>' else read('scripts/' + s) for s in SCRIPTS) + '})();\n'
+    gen = {'<icons>': icons_js, '<model>': model_js}
+    app = "\n(() => {\n'use strict';\n" + '\n'.join(gen[s]() if s in gen else read('scripts/' + s) for s in SCRIPTS) + '})();\n'
     icon = Image.open(os.path.join(APP, 'images', 'icon32.png'))
     page = read('index.html').replace('__STYLES__', '\n'.join(read('styles/' + s) for s in STYLES))
     page = page.replace('__FAVICON__', data_png(icon)).replace('__ICON64__', data_png(icon.resize((64, 64), Image.NEAREST))).replace('__VERSION__', VERSION)
@@ -118,14 +126,14 @@ def build_web(html):
 
 
 def main():
-    missing = [s for s in SCRIPTS if s != '<icons>' and not os.path.exists(os.path.join(APP, 'scripts', s))]
+    missing = [s for s in SCRIPTS if not s.startswith('<') and not os.path.exists(os.path.join(APP, 'scripts', s))]
     unlisted = sorted(set(os.path.relpath(os.path.join(r, f), os.path.join(APP, 'scripts')).replace(os.sep, '/')
                           for r, _, fs in os.walk(os.path.join(APP, 'scripts')) for f in fs if f.endswith('.js')) - set(SCRIPTS) - {'codecs.js'})
     if missing or unlisted: raise SystemExit(f'Script list out of date. Missing files: {missing}. Files not in SCRIPTS: {unlisted}')
     # all scripts share one scope, where a second definition of a function silently replaces the first
     seen = {}
     for sc in SCRIPTS:
-        if sc == '<icons>': continue
+        if sc.startswith('<'): continue
         for name in re.findall(r'^(?:async )?function\s+([\w$]+)', read('scripts/' + sc), re.M):
             if name in seen: raise SystemExit(f'function {name}() is defined in both {seen[name]} and {sc}')
             seen[name] = sc

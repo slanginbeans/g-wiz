@@ -511,20 +511,23 @@ __STYLES__</style>
         <div class="page" data-page="auto" hidden>
           <fieldset><legend>Remove background</legend>
             <div class="seg full" role="group" aria-label="Method" id="aMethod">
-              <button data-v="smart" aria-pressed="true" data-help="Builds color models of the background and the subject, follows real edges and keeps soft edges on hair and fur.">Smart</button>
+              <button data-v="ai" aria-pressed="true" data-help="A small AI model built into G-WIZ finds the main subject, then the cut follows the picture's real edges. Runs on this device; nothing is uploaded.">AI</button>
+              <button data-v="smart" aria-pressed="false" data-help="Builds color models of the background and the subject, follows real edges and keeps soft edges on hair and fur.">Smart</button>
               <button data-v="classic" aria-pressed="false" data-help="Floods inward from the border, erasing colors close to the border colors.">Classic</button>
             </div>
-            <p class="hint" data-am="smart">Learns the background colors from the border, works out what the subject looks like, and cuts along the picture's real edges. Mark the subject or the background with the hint brushes when it guesses wrong.</p>
+            <p class="hint" data-am="ai">An AI model built into G-WIZ finds the main subject (a person, an animal, an object) and the cut then follows the picture's real edges, keeping soft hair and fur. It runs on this device and works offline. Mark the subject or the background with the hint brushes when it misses a part.</p>
+            <p class="hint dim" id="aAiStat" data-am="ai"></p>
+            <p class="hint" data-am="smart">Learns the background colors from the border, works out what the subject looks like, and cuts along the picture's real edges. Often the more exact choice for logos, drawings and shapes on a plain background. Mark the subject or the background with the hint brushes when it guesses wrong.</p>
             <p class="hint" data-am="classic">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges.</p>
             <div class="row"><label for="aPreset">Preset</label>
               <select id="aPreset"><option value="">Choose a starting point…</option><option value="plain">Plain background (studio, wall, sky)</option><option value="busy">Busy or uneven background</option><option value="hair">Hair, fur, soft edges</option><option value="product">Product photo, crisp edges</option><option value="logo">Logo or drawing, flat colors</option></select></div>
             <div class="row"><div class="row-h"><label for="atol">Background tolerance</label><output id="atolOut"></output></div><input type="range" id="atol" min="1" max="100" value="22" data-help="How different a color can be from the background colors and still be erased."></div>
-            <div class="row"><div class="row-h"><label for="aEdge">Stop at edges</label><output id="aEdgeOut"></output></div><input type="range" id="aEdge" min="0" max="100" value="55" data-help="Higher values let fainter edges stop the background from leaking into the subject."></div>
+            <div class="row" data-am="smart classic"><div class="row-h"><label for="aEdge">Stop at edges</label><output id="aEdgeOut"></output></div><input type="range" id="aEdge" min="0" max="100" value="55" data-help="Higher values let fainter edges stop the background from leaking into the subject."></div>
             <label class="check"><input type="checkbox" id="aPrev"> Preview before applying</label>
             <p class="val" id="aPrevStat" hidden></p>
             <div class="winbtns"><button class="btn default" id="autoBtn"><i class="ic" data-ic="auto"></i>Remove</button></div>
           </fieldset>
-          <fieldset data-am="smart"><legend>Hints</legend>
+          <fieldset data-am="smart ai"><legend>Hints</legend>
             <p class="hint dim">Paint over parts that were cut wrongly. Green marks the subject, magenta marks background. Right button paints the other color, Alt erases a hint.</p>
             <div class="inline">
               <button class="btn" id="aHintKeep" data-help="Paint over parts of the subject that must stay."><i class="ic" data-ic="hintkeep"></i>Mark subject</button>
@@ -533,14 +536,15 @@ __STYLES__</style>
             <div class="row"><div class="row-h"><label for="aHintSize">Hint brush size</label><output id="aHintSizeOut"></output></div><input type="range" id="aHintSize" min="4" max="200" value="40"></div>
             <div class="inline"><label class="check"><input type="checkbox" id="aShowHints" checked> Show hints</label><span class="spacer"></span><button class="btn" id="aHintClear">Clear hints</button></div>
           </fieldset>
-          <fieldset data-am="smart"><legend>Detection</legend>
+          <fieldset data-am="smart ai"><legend>Detection</legend>
+            <div class="row" data-am="ai"><div class="row-h"><label for="aTrust">Trust the AI</label><output id="aTrustOut"></output></div><input type="range" id="aTrust" min="0" max="100" value="85" data-help="High values keep what the AI calls the subject even where its colors look like the background. Low values let clear color differences decide more of the outline."></div>
             <div class="row"><div class="row-h"><label for="aK">Background colors</label><output id="aKOut"></output></div><input type="range" id="aK" min="1" max="6" value="3" data-help="How many different colors the background is made of. Raise it for gradients, shadows and busy backgrounds."></div>
-            <div class="row"><div class="row-h"><label for="aBorder">Sample border width</label><output id="aBorderOut"></output></div><input type="range" id="aBorder" min="1" max="20" value="4" data-help="How much of the edge of the picture is read as background. Lower it when the subject touches the border."></div>
+            <div class="row" data-am="smart"><div class="row-h"><label for="aBorder">Sample border width</label><output id="aBorderOut"></output></div><input type="range" id="aBorder" min="1" max="20" value="4" data-help="How much of the edge of the picture is read as background. Lower it when the subject touches the border."></div>
             <div class="row"><div class="row-h"><label for="aIters">Refinement passes</label><output id="aItersOut"></output></div><input type="range" id="aIters" min="0" max="4" value="2" data-help="Extra passes re-learn the subject and background colors from the current result. More passes help when they look alike, but take longer."></div>
-            <label class="check" data-help="Only background that connects to the border is removed. Turn off to also clear matching colors inside the subject."><input type="checkbox" id="aContig" checked> Background must connect to the border</label>
-            <div class="row"><div class="row-h"><label for="aHoles">Clear enclosed gaps</label><output id="aHolesOut"></output></div><input type="range" id="aHoles" min="0" max="30" value="3" data-help="Background-colored gaps surrounded by the subject (between an arm and the body, say) are cleared when they are smaller than this share of the picture."></div>
+            <label class="check" data-am="smart" data-help="Only background that connects to the border is removed. Turn off to also clear matching colors inside the subject."><input type="checkbox" id="aContig" checked> Background must connect to the border</label>
+            <div class="row" data-am="smart"><div class="row-h"><label for="aHoles">Clear enclosed gaps</label><output id="aHolesOut"></output></div><input type="range" id="aHoles" min="0" max="30" value="3" data-help="Background-colored gaps surrounded by the subject (between an arm and the body, say) are cleared when they are smaller than this share of the picture."></div>
           </fieldset>
-          <fieldset data-am="smart"><legend>Edges</legend>
+          <fieldset data-am="smart ai"><legend>Edges</legend>
             <div class="row"><div class="row-h"><label for="aDetail">Edge detail</label><output id="aDetailOut"></output></div><input type="range" id="aDetail" min="1" max="12" value="3" data-help="How far around an edge the picture is studied. Larger values catch wisps of hair; smaller values keep crisp outlines."></div>
             <div class="row"><div class="row-h"><label for="aSoft">Edge softness</label><output id="aSoftOut"></output></div><input type="range" id="aSoft" min="0" max="100" value="25" data-help="Low values stick tightly to color changes, high values smooth the decision over a wider area."></div>
             <div class="row"><div class="row-h"><label for="aContrast">Edge contrast</label><output id="aContrastOut"></output></div><input type="range" id="aContrast" min="0" max="100" value="50" data-help="Low values keep semi-transparent edges, high values make every pixel fully kept or fully erased."></div>
@@ -987,6 +991,7 @@ __STYLES__</style>
           <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version __VERSION__</p>
           <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
           <p class="hint" id="aboutMode"></p>
+          <p class="hint dim">AI background removal uses U²-Net-P by Xuebin Qin et al. (Apache License 2.0), running on this device.</p>
         </div>
       </div>
       <div class="winbtns"><button class="btn default" data-close="aboutDlg">OK</button></div>

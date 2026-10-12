@@ -1,4 +1,4 @@
-G-WIZ for iPad  (version 1.6.1)
+G-WIZ for iPad  (version 1.7.0)
 ===============================
 
 G-WIZ installs on an iPad from a web address. After one visit with internet,
@@ -161,9 +161,26 @@ New in 1.5
   - Fixed: the calligraphy pen drew nothing if G-WIZ had been used before.
   - Long menus no longer run off the screen; they switch to two columns.
 
+AI background removal (version 1.7)
+-----------------------------------
+  Remove background has a new "AI" method, now the default. An AI model that
+  is part of G-WIZ finds the main subject (a person, an animal, an object),
+  then the cut follows the picture's real edges and keeps soft hair and fur.
+  It runs on the iPad itself, offline; nothing is uploaded.
+  - The line under the method buttons shows how long finding the subject
+    took. The first time after opening G-WIZ takes a little longer while
+    the model is prepared.
+  - "Trust the AI" (under Detection): high keeps what the AI calls the
+    subject even where it looks like the background; low lets clear color
+    differences decide more of the outline.
+  - When it misses a part, paint over it with "Mark subject" (green); when
+    it keeps background, use "Mark background" (magenta). Then Remove again.
+  - For logos, drawings and shapes on a plain background, "Smart" is often
+    the more exact choice.
+
 Removing a background (version 1.4)
 -----------------------------------
-  Remove background now has two methods. "Smart" (the default) learns the
+  Remove background has two more methods. "Smart" (the default until 1.7) learns the
   background colors from the border, works out what the subject looks like,
   cuts along the picture's real edges and keeps soft edges on hair and fur.
   "Classic" is the old flood from the border.

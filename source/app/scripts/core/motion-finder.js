@@ -4,10 +4,15 @@ let autoPrevData = null, autoPrevT = 0;
 function scheduleAutoPreview(){
   clearTimeout(autoPrevT);
   if (!S.autoPrev){ if (autoPrevData){ autoPrevData = null; requestOverlay(); } $('#aPrevStat').hidden = true; return; }
-  autoPrevT = setTimeout(() => {
+  autoPrevT = setTimeout(async () => {
     if (!W || !S.autoPrev || stroke || S.playing) return;
-    const N = W * H, d = new Uint8Array(N), m = masks[S.cur];
     const st0 = $('#aPrevStat'); st0.hidden = false; st0.textContent = 'Working…';
+    if (CUT.method === 'ai'){
+      const f0 = S.cur, L0 = AL;
+      if (!(await aiReady([f0], t => { st0.textContent = t; }))) return;
+      if (!W || !S.autoPrev || S.cur !== f0 || AL !== L0) return;   // something changed while it worked
+    }
+    const N = W * H, d = new Uint8Array(N), m = masks[S.cur];
     autoAmt(S.cur, d);
     // only show pixels this would actually change
     let n = 0; for (let i = 0; i < N; i++){ if (d[i] && m[i] > 255 - d[i]) n++; else d[i] = 0; }
@@ -15,7 +20,7 @@ function scheduleAutoPreview(){
     const st = $('#aPrevStat'); st.hidden = false;
     st.textContent = n ? 'Would erase ' + (n * 100 / N).toFixed(1) + '% of ' + (frames.length > 1 ? 'this frame' : 'the picture') + ', shown in red.' : 'Nothing left to remove at this tolerance.';
     requestOverlay();
-  }, CUT.method === 'smart' ? 260 : 140);
+  }, CUT.method !== 'classic' ? 260 : 140);
 }
 function requestOverlay(){ if (!ovRaf) ovRaf = requestAnimationFrame(() => { ovRaf = 0; renderOverlay(); }); }
 function renderOverlay(){

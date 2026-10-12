@@ -1,0 +1,71 @@
+G-WIZ — real iPad test checklist
+================================
+
+The automatic tests run G-WIZ in a simulated iPad. They cannot check the Apple
+Pencil, real finger gestures, Safari's storage rules or how fast a real iPad is.
+This list covers those. It takes about 10 minutes. Do it after each new version
+reaches the iPad (after the "new version downloaded" banner and a restart).
+
+Tick each line. If something is wrong, note the step number, what you expected and
+what happened, and a screenshot if you can.
+
+Version: ________   iPad model: ________________   iPadOS: ________   Date: ________
+
+
+1. Install, update and offline
+  [ ] 1.1  Open G-WIZ from its Home Screen icon. Help > About shows the new version.
+  [ ] 1.2  Turn on Airplane Mode, close G-WIZ fully (swipe it away), open it again.
+           It starts normally.
+  [ ] 1.3  File > Recover autosaved work. The line at the bottom starts with
+           "Protected". (If it says "Not protected", note it: autosaves are then at
+           risk when the iPad is low on space.) Close the dialog.
+  [ ] 1.4  Turn Airplane Mode off again.
+
+2. Apple Pencil
+  [ ] 2.1  Brush: press lightly, then hard. The line gets thicker with pressure.
+  [ ] 2.2  Rest your hand on the screen while drawing. The hand leaves no marks.
+  [ ] 2.3  Double-tap the screen with the Pencil tip. Only the picture stays
+           (canvas view). Double-tap again. The interface comes back.
+  [ ] 2.4  In canvas view, the tool strip on the left changes tool and size.
+  [ ] 2.5  Draw fast curves. The line keeps up and is smooth, without gaps.
+
+3. Fingers
+  [ ] 3.1  Pinch to zoom and drag with two fingers to move. Nothing gets drawn.
+  [ ] 3.2  Tap with two fingers: the last stroke is undone.
+           Tap with three fingers: it comes back.
+  [ ] 3.3  Tap with four fingers: canvas view switches on and off.
+  [ ] 3.4  Turn the iPad to portrait and back. The layout adjusts. The tool
+           options and the colors can be reached in both.
+
+4. Files and Photos
+  [ ] 4.1  File > Open, choose a photo from Photos. It opens.
+  [ ] 4.2  Layer > Import as layer, choose a large photo. The "bigger than the
+           canvas" question appears. Pick "Shrink the picture to fit".
+  [ ] 4.3  Save as PNG, then tap Save… and "Save Image". The picture is in Photos.
+  [ ] 4.4  File > Save project, then "Save to Files". Open that .gwiz file again
+           with File > Open. All layers come back.
+
+5. Autosave
+  [ ] 5.1  Draw something, wait 10 seconds, then close G-WIZ fully (swipe it away).
+  [ ] 5.2  Open G-WIZ. It asks "Pick up where you left off?". Open the picture.
+           The drawing is there.
+
+6. Background removal and animation
+  [ ] 6.1  Help > Open the sample picture, then Remove background with the preview
+           on. The preview appears within a few seconds and the result is clean.
+  [ ] 6.2  Turn on Animation mode, add 3 frames, draw on each, press play.
+           It plays smoothly. Save as GIF and check it in Photos or Files.
+
+7. Pixel art
+  [ ] 7.1  Pixel art page: pick "Game Boy" size and the Game Boy palette, tap
+           "New pixel canvas". The canvas is big and crisp, not blurry.
+  [ ] 7.2  Draw a diagonal line with the pencil. It is one pixel thin, with
+           no doubled corners. The preview window in the corner shows it.
+  [ ] 7.3  Help > Open the sample picture, Pixel art mode on, NES palette,
+           4-bit, Error diffusion, Reduce colors. It finishes within a few seconds.
+
+8. Keyboard (only if you use one)
+  [ ] 8.1  Cmd+Z / Cmd+Y (or Ctrl) undo and redo. P (pencil), Y (brush) and
+           B (eraser) switch tools. Tab toggles canvas view.
+
+Notes:

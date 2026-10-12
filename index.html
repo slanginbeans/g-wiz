@@ -1423,7 +1423,7 @@ html:not(.pixelmode) .px-only{display:none}
       <div class="about">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABbklEQVR4nO2YaRKDIAxGodN76dF6NU+W/nAbZYcEUL430yluKTWPCCoFABgZ3boDFsixX6SvH4mgT+LbugPKyPhdgLTEE60BtI67cHgDWtYAunwZaKPhDUb2QCETYECD32TNvBEcNSCNmgYEMr9TZkAqwxtQYx5gzTzRmmCtQ0bIMrwBkuPMm3mjI4cJqAFVqW7AcTBYA+rMB2CAQMzI532IOrVgeAM6vgG0fc6GBB3fgDpwzgSLxn6rmeHwBnBW2CwDwjPDY4/R4AAGMMRgWe1JzwxdwACGGBcD4sd0LrwmwICCawtXe7nAAFaKDaBGr/T02fMiE2BAxjVNM3+n1AQY4DnWSY6LwTtBH7a7s2X+V7Mfgvz2htUEGGDZ95axfwcG2HC+E6TtQb8si1JKqWmaHrU9z/P+V/AU8OE0oJdM5m7HAgNcB3rJZO52LDDAdaCXTKIGCIMakHT2C0ENSDr7hYywGsRaAAAAALDzBxmcLHXqqIIcAAAAAElFTkSuQmCC" alt="">
         <div>
-          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.6.0</p>
+          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version 1.6.1</p>
           <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
           <p class="hint" id="aboutMode"></p>
         </div>
@@ -6932,7 +6932,7 @@ $$('#fitDlg .fitopt').forEach(l => l.addEventListener('dblclick', () => $('#fitO
 // ---------- autosave ----------
 // The whole picture (every layer, frame and edit) is kept in the browser's own storage on this device, a few
 // seconds after each change and whenever the app is hidden or closed. The last three pictures are kept.
-var AUTO = { on: store.get('autosave', true), dirty: false, everEdited: false, timer: 0, first: 0, saving: false, docId: null, lastSave: 0, took: 0, savedProject: false };
+var AUTO = { on: store.get('autosave', true), failN: 0, askedAfterSave: false, dirty: false, everEdited: false, timer: 0, first: 0, saving: false, docId: null, lastSave: 0, took: 0, savedProject: false };
 const newDocId = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function idbOpen(){
   return new Promise((res, rej) => {
@@ -6990,17 +6990,52 @@ async function autoSave(force){
     const bytes = await bytesP;
     if (bytes.length > (IS_IOS ? 250e6 : 600e6)){ sbFlash('This picture is too large to autosave. Save it as a project (Ctrl+Shift+S).'); return; }
     rec.bytes = bytes;
-    await idbPut(rec);
+    await putWithRoom(rec);
     const all = await idbAll();
     for (const r of all.slice(3)) await idbDel(r.id);
-    AUTO.lastSave = rec.time; AUTO.first = 0;
+    AUTO.lastSave = rec.time; AUTO.first = 0; AUTO.failN = 0; AUTO.warned = false;
+    // once there is work worth keeping, ask again for storage the browser will not clear on its own
+    if (!AUTO.askedAfterSave){ AUTO.askedAfterSave = true; askPersist(); }
   } catch (err){
-    AUTO.dirty = true;
-    if (!AUTO.warned){ AUTO.warned = true; sbFlash('Autosave is not available here: ' + (err && err.message || err), 6000); }
+    AUTO.dirty = true; AUTO.failN++;
+    if (isQuota(err)) sbFlash('Autosave stopped: this device has no storage space left for G-WIZ. Save your work as a project (File > Save project) to keep it.', 9000);
+    else if (!AUTO.warned){ AUTO.warned = true; sbFlash('Autosave is not available here: ' + (err && err.message || err), 6000); }
   } finally {
     AUTO.took = performance.now() - t0; AUTO.saving = false;
-    if (AUTO.dirty && AUTO.on) markDirty();
+    // after a failure, wait longer before each new try (30 s, 1 min, 2 min … up to 5 min)
+    if (AUTO.dirty && AUTO.on){ if (AUTO.failN){ clearTimeout(AUTO.timer); AUTO.timer = setTimeout(autoSave, Math.min(300000, 30000 * 2 ** (AUTO.failN - 1))); } else markDirty(); }
   }
+}
+const isQuota = err => !!err && (err.name === 'QuotaExceededError' || err.code === 22 || /quota|space/i.test(err.message || ''));
+// when storage is full, older autosaves of other pictures are removed to make room for the current one
+async function putWithRoom(rec){
+  try { await idbPut(rec); }
+  catch (err){
+    if (!isQuota(err)) throw err;
+    const others = (await idbAll()).filter(r => r.id !== rec.id);
+    if (!others.length) throw err;
+    for (const r of others) await idbDel(r.id);
+    await idbPut(rec);
+    sbFlash('Storage was full, so G-WIZ removed ' + others.length + (others.length === 1 ? ' older autosave' : ' older autosaves') + ' to keep this picture.', 7000);
+  }
+}
+// ---------- storage the browser will not clear ----------
+// Browsers may clear a site's saved data when the device runs low on space. Persistent storage protects it;
+// Safari grants it mostly to apps opened from the Home Screen.
+async function askPersist(){
+  try { const st = navigator.storage; if (st && st.persist && !(st.persisted && await st.persisted())) return await st.persist(); } catch (e){}
+  return false;
+}
+const isStandalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e){ return false; } };
+async function storageText(){
+  const st = navigator.storage; let persisted = null, est = null;
+  try { if (st && st.persisted) persisted = await st.persisted(); } catch (e){}
+  try { if (st && st.estimate) est = await st.estimate(); } catch (e){}
+  const use = est && est.usage != null ? ' G-WIZ uses ' + fmtBytes(est.usage) + (est.quota ? ' of the ' + fmtBytes(est.quota) + ' it may use.' : '.') : '';
+  if (persisted) return 'Protected: the browser will not clear your autosaves to free up space.' + use;
+  if (persisted === null) return 'This browser does not say whether autosaves are protected. Save important work as a project.' + use;
+  if (IS_IOS && !isStandalone()) return 'Not protected: Safari may clear autosaves when the iPad runs low on space. Opening G-WIZ from its Home Screen icon usually protects them. Save important work as a project.' + use;
+  return 'Not protected: the browser may clear autosaves when the device runs low on space. Save important work as a project.' + use;
 }
 // save straight away when the app is hidden, switched away from or closed
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && AUTO.dirty) autoSave(true); });
@@ -7008,7 +7043,7 @@ window.addEventListener('pagehide', () => { if (AUTO.dirty) autoSave(true); });
 // layer settings that do not go through undo still count as changes
 ['#lBlend', '#lOpac', '#lName', '#lVis', '#lLock'].forEach(id => $(id).addEventListener('change', markDirty));
 $('#layerList').addEventListener('click', e => { if (e.target.closest('.lbtn')) markDirty(); });
-try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e){}
+askPersist();
 
 // ---------- recovering ----------
 const recDlg = document.createElement('div');
@@ -7017,6 +7052,7 @@ recDlg.innerHTML = '<div class="win" role="dialog" aria-modal="true" aria-labell
   '<div class="titlebar"><span class="tt" id="recTitle">Pick up where you left off?</span><button class="tbx" type="button" id="recX" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>' +
   '<div class="winbody"><p class="hint" id="recInfo">G-WIZ saved your work automatically. Choose a picture to open it again.</p>' +
   '<div class="reclist sunken" id="recList" role="listbox"></div>' +
+  '<p class="hint dim" id="recStore"></p>' +
   '<div class="winbtns"><button class="btn" type="button" id="recDelAll">Delete all</button><span class="spacer"></span><button class="btn" type="button" id="recSkip">Start fresh</button><button class="btn default" type="button" id="recOpen">Open</button></div></div></div>';
 document.body.appendChild(recDlg);
 let recSel = null, recItems = [];
@@ -7030,7 +7066,7 @@ function renderRecList(){
     row.querySelector('.hint').textContent = r.w + ' × ' + r.h + ' px · ' + r.layers + (r.layers === 1 ? ' layer' : ' layers') + (r.frames > 1 ? ' · ' + r.frames + ' frames' : '') + ' · ' + ago(r.time) + ' · ' + fmtBytes(r.bytes ? r.bytes.length : 0) + (r.saved ? ' · saved as a project' : '');
     row.addEventListener('click', () => { recSel = r.id; renderRecList(); });
     row.addEventListener('dblclick', () => { recSel = r.id; $('#recOpen').click(); });
-    row.querySelector('.recdel').addEventListener('click', async ev => { ev.stopPropagation(); await idbDel(r.id); recItems = recItems.filter(x => x.id !== r.id); if (recSel === r.id) recSel = recItems[0] ? recItems[0].id : null; if (!recItems.length) recDlg.hidden = true; else renderRecList(); });
+    row.querySelector('.recdel').addEventListener('click', async ev => { ev.stopPropagation(); await idbDel(r.id); recItems = recItems.filter(x => x.id !== r.id); if (recSel === r.id) recSel = recItems[0] ? recItems[0].id : null; renderRecList(); $('#recDelAll').disabled = !recItems.length; });
     box.appendChild(row);
   }
   $('#recOpen').disabled = !recSel;
@@ -7040,11 +7076,14 @@ async function showRecover(startup){
   try { all = await idbAll(); } catch (e){ if (!startup) toast('Autosave is not available in this browser.'); return; }
   if (startup) all = all.filter(r => !r.seen && !r.saved && r.id !== AUTO.docId);
   else all = all.filter(r => r.id !== AUTO.docId || !AUTO.dirty);
-  if (!all.length){ if (!startup) toast('There is no autosaved work.'); return; }
-  recItems = all; recSel = all[0].id;
+  if (!all.length && startup) return;
+  recItems = all; recSel = all.length ? all[0].id : null;
   $('#recTitle').textContent = startup ? 'Pick up where you left off?' : 'Recover autosaved work';
+  $('#recSkip').textContent = startup ? 'Start fresh' : 'Close';
   $('#recInfo').textContent = startup ? 'G-WIZ saved your work automatically before it was closed. Choose a picture to open it again.' : 'The last pictures you worked on, saved automatically on this device.';
-  renderRecList(); recDlg.hidden = false; setTimeout(() => $('#recOpen').focus(), 0);
+  if (!all.length) $('#recInfo').textContent = 'There is no autosaved work yet. G-WIZ saves your picture on this device a few seconds after each change.';
+  renderRecList(); $('#recDelAll').disabled = !all.length; recDlg.hidden = false; setTimeout(() => $('#recOpen').focus(), 0);
+  $('#recStore').textContent = ''; storageText().then(t => { $('#recStore').textContent = t; });
 }
 async function markSeen(){ try { for (const r of recItems){ const full = await idbGet(r.id); if (full){ full.seen = true; await idbPut(full); } } } catch (e){} }
 $('#recOpen').addEventListener('click', async () => {
@@ -7060,7 +7099,7 @@ $('#recOpen').addEventListener('click', async () => {
   } catch (err){ toast('Could not open the autosave: ' + (err && err.message || err), 5000); }
   finally { busy(false); }
 });
-$('#recSkip').addEventListener('click', async () => { recDlg.hidden = true; await markSeen(); sbFlash('Your autosaved work is still in File > Recover autosaved work.'); });
+$('#recSkip').addEventListener('click', async () => { recDlg.hidden = true; if (!recItems.length) return; await markSeen(); sbFlash('Your autosaved work is still in File > Recover autosaved work.'); });
 $('#recX').addEventListener('click', () => $('#recSkip').click());
 $('#recDelAll').addEventListener('click', async () => { for (const r of recItems) await idbDel(r.id); recItems = []; recDlg.hidden = true; sbFlash('Deleted the autosaved work.'); });
 

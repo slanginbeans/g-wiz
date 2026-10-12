@@ -1,7 +1,7 @@
 // G-WIZ offline support. The first visit stores a copy of the app on the device; after that it opens
 // from that copy, with or without internet. The page itself checks the website for a newer index.html
 // and offers a restart when one has been downloaded; the other files are refreshed quietly here.
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 const CACHE = 'gwiz-app';
 const FILES = ['index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png'];
 const abs = f => new URL(f, self.registration.scope).href;

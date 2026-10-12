@@ -1,0 +1,234 @@
+G-WIZ — Graphics Wizard  (version 1.6.1)
+=========================================
+
+Starting G-WIZ
+--------------
+Double-click G-WIZ.exe. Nothing needs to be installed.
+
+G-WIZ opens in its own window. It uses the Microsoft Edge engine that is part of
+Windows 10 and 11, in app mode: no tabs, no address bar, no browser toolbars.
+The program closes itself when you close its window (or choose File > Exit).
+
+To open an image straight away, drag it onto G-WIZ.exe, or right-click an image,
+choose "Open with" > "Choose another app" and pick G-WIZ.exe.
+
+First run: Windows may show "Windows protected your PC" because the program is
+not code-signed. Click "More info", then "Run anyway". This happens only once.
+
+Open and Save use the normal Windows file dialogs.
+
+Where things are
+----------------
+  Menu bar        File, Edit, View, Image, Layer, Animation, Tools, Colors, Help
+  Toolbar         New, Open, Import as layer, Save, Save project, Undo/Redo, zoom,
+                  view modes, Remove background, Remove specks, Edge finishing,
+                  Opacity, Adjust colors, Effects, Layer transform, Canvas size,
+                  rotate and flip, Animation frames, Motion finder, Stabilize, Help
+  Toolbox (left)  Move/transform (M), Crop (C), Eraser (E or B), Restore brush (R),
+                  Magic wand (W), Paint bucket (G), Color picker (I), Magnifier (Z),
+                  Pencil (P), Brush (Y), Pen (N), Marker (K), Airbrush (J), Text (A),
+                  Line (L), Rectangle (U), Ellipse (O), Rounded rectangle,
+                  Track box (T), Pan (H)
+                  The box under the toolbox holds quick presets for the selected tool.
+  Layers (right)  Layer list with show/hide, lock, blend mode and opacity
+  Options (right) Settings for the selected tool or feature
+  Color box       Primary and secondary color (bottom left), the palette, recent
+                  colors, preset color schemes and Edit colors
+  Frame strip     Appears at the bottom for animations: play, step, scrub, thumbnails
+  Status bar      Help for whatever is under the mouse, cursor position, size, zoom, frame
+
+Hover over any button for its name; the status bar explains what it does.
+Press F1 for keyboard shortcuts.
+
+Layers
+------
+  - File > Import as layer (Ctrl+Shift+O) adds one or more images as new layers.
+    Dropping or pasting an image while a picture is open also adds it as a layer.
+    Animated GIFs can be layers too; the picture animates as long as its longest layer.
+  - Click a layer to select it. Every tool (eraser, wand, drawing, adjustments,
+    effects, motion finder, stabilize) works on the selected layer only.
+  - Drag layers in the list to reorder them; double-click a name to rename it.
+  - Move tool (M): drag to move, drag corners to resize (Shift keeps proportions),
+    drag edges to stretch, drag the round handle (or outside the box) to rotate,
+    Ctrl+corner to distort, Ctrl+edge to skew. Enter applies, Esc cancels,
+    arrow keys nudge. "Auto pick" selects whatever layer you click on.
+  - Layer > Layer size and shape: exact position, size, rotation and skew, center,
+    fit or fill the canvas, trim to visible pixels, and cut the layer to a shape
+    (ellipse, circle, rounded rectangle, star, heart, triangle, hexagon, diamond).
+  - Blend modes (Multiply, Screen, Overlay and more) and per-layer opacity.
+  - Merge down, Flatten, Duplicate, Delete. Undo covers all of it.
+  - Image > Canvas size adds or removes canvas around the layers; Image > Resize
+    scales everything; Crop and Rotate can work on the whole picture or one layer.
+  - Save project (Ctrl+Shift+S) keeps the layers, masks and frames in a .gwiz file
+    that File > Open reopens. Saving as PNG, GIF, WebP or TIFF combines the layers.
+
+Drawing
+-------
+  Pencil (hard pixels), Pen (smooth even lines), Brush (soft, builds up),
+  Marker (see-through, chisel or round tip) and Airbrush. Each keeps its own size,
+  opacity, hardness, spacing, smoothing and blend settings; brush and pen respond
+  to pen pressure. Left button paints the primary color, right button the
+  secondary. [ and ] change the size, Alt+click picks a color, "Keep transparent areas clear"
+  paints only where the layer already has pixels.
+  Shapes: line (with arrowheads), rectangle, ellipse and rounded rectangle, as
+  outline, fill or both, with line width, dash pattern and corner style. Shift
+  draws squares, circles and 45° lines.
+  Paint bucket fills by tolerance (optionally looking at all layers); Text adds a
+  new text layer with font, size, bold/italic/underline, outline and shadow.
+
+Colors
+------
+  Click a swatch for the primary color, right-click for the secondary, X swaps
+  them and D resets to black and white. The scheme list switches between preset
+  palettes (Classic Paint, Pastel, Earth tones, Neon, Grayscale, Skin tones,
+  Retro 8-bit, Game Boy, Material, Ocean, Sunset, Forest, Candy, Vintage) and
+  your own Custom colors. Edit colors (or double-click a well) opens a full color
+  picker with RGB, HSV, hex and opacity.
+
+New in 1.6.1
+------------
+  - File > Recover autosaved work shows whether your autosaves are protected
+    from being cleared when the device runs low on space, and how much space
+    G-WIZ uses. G-WIZ asks the browser for this protection.
+  - If storage fills up, G-WIZ removes older autosaves of other pictures to
+    keep the current one, and says so. If it still cannot save, it tells you
+    once and tries again later instead of every few seconds.
+
+Pixel art mode (new in 1.6)
+--------------------------
+  Image > Pixel art mode, or the green sprite button on the toolbar, opens the
+  Pixel art page. Pixel art mode works on its own or together with animation
+  mode.
+  - Screen size: pick a retro screen or sprite size (Game Boy 160 x 144, NES
+    256 x 240, SNES, Genesis, Master System, Game Boy Advance, Atari 2600,
+    ZX Spectrum, Commodore 64, Amstrad CPC, MSX, Apple II, Amiga, Macintosh,
+    CGA/EGA/VGA modes, PICO-8, TIC-80, and sprite and tile sizes from 8 x 8
+    to 256 x 256). "New pixel canvas" starts a picture at that size (clear, or
+    filled with the first, last or white color); "Scale picture" resizes the
+    picture with hard pixels; "Change canvas" changes the canvas around it.
+    The same sizes are in File > New.
+  - Palettes: PICO-8, Game Boy (green), Game Boy Pocket (gray), Virtual Boy,
+    NES, Commodore 64, ZX Spectrum, CGA/EGA, both CGA 4-color palettes,
+    Apple II, MSX, Amstrad CPC, Sega Master System, Teletext/BBC Micro,
+    Macintosh 1-bit, DawnBringer 16 and 32, and Sweetie 16. They are also in
+    the Colors menu and the scheme list under the canvas.
+  - Color depth: 1-bit (2 colors), 2-bit (4), 3-bit (8), 4-bit (16),
+    6-bit (64), 8-bit (256, RGB 3-3-2), and 9-, 12-, 15- and 16-bit RGB,
+    which limit how finely each color channel can be set. Colors you pick
+    snap to the palette and depth.
+  - Reduce colors maps the selected layer (every frame, if you like) onto the
+    palette and depth, with no dithering, 2 x 2 or 4 x 4 ordered dithering,
+    or Floyd-Steinberg error diffusion. When the depth allows fewer colors
+    than the palette has, G-WIZ picks the palette colors that suit the
+    picture best. A counter shows how many colors the frame uses and warns
+    in red when it goes over the limit or off the palette. "Swap primary
+    color for secondary" recolors every pixel of one exact color.
+  - Drawing: every tool draws solid, hard-edged pixels in palette colors; a
+    pixel-perfect 1-pixel pencil (no doubled corners); mirror drawing left-right,
+    top-bottom or both; a pixel grid from 300% zoom and an optional 8/16/32/64
+    tile grid. The zoom steps in whole numbers.
+  - A preview window shows the whole picture at its real size, optionally with
+    CRT scanlines and stretched to a 4:3 TV shape.
+  - Export scale saves PNG, GIF, WebP and TIFF enlarged 2, 3, 4, 6 or 8 times
+    with crisp pixels.
+
+New in 1.5
+----------
+  - Autosave: your picture is kept on this computer a few seconds after each
+    change and when G-WIZ is closed. If it closed with work not saved as a
+    project, the next start offers to open it again. File > Recover autosaved
+    work lists the last three pictures; File > Autosave turns it off.
+  - Adding a picture bigger than the canvas asks whether to shrink the picture,
+    enlarge the canvas, or keep both sizes.
+  - Markers are fully opaque by default.
+  - Fixed: the calligraphy pen drew nothing if G-WIZ had been used before.
+  - Long menus no longer run off the screen.
+
+Removing a background (1.4)
+---------------------------
+  Remove background has a Smart method (default): it learns the background
+  colors from the border, works out what the subject looks like, cuts along
+  the picture's real edges and keeps soft edges on hair. Presets, hint brushes
+  (Mark subject / Mark background, also in the toolbox), and sliders for
+  tolerance, edges, background colors, border width, refinement passes,
+  enclosed gaps, edge detail, softness and contrast. Turn on the preview to
+  see the result before applying. Classic is the old border flood.
+  The Eraser's Detection settings gain "Perceptual color matching" and
+  "Ignore fine texture and noise in edges".
+
+Drawing (1.4)
+-------------
+  Each drawing tool has a Style list (pencil: hard round, square, grainy,
+  sketch; pen: ink, ballpoint, calligraphy, felt tip, brush pen; brush: soft,
+  hard, bristle, chalk, splatter, watercolor; marker: chisel, round,
+  highlighter, dry; airbrush: fine, coarse, soft, spatter, stipple), a pen
+  pressure curve editor with presets, and a tool strip with size and opacity
+  sliders in canvas view (Tab).
+
+Animation mode
+--------------
+  Animation > Animation mode (or the film-strip toolbar button) shows every
+  frame in the strip, with New frame, Duplicate, Delete and move buttons,
+  onion skins (frames before in red, after in green; choose how many and how
+  strong) and Motion tween, which moves, scales, turns or fades the selected
+  layer smoothly between two frames. Save as GIF to export.
+  G-WIZ starts on a blank white picture; Help > Open the sample picture loads
+  the cactus.
+
+Canvas view and panels
+----------------------
+  Tab (or View > Canvas view, or the picture button on the toolbar) hides
+  everything but the picture; Tab or the "Show interface" button brings the
+  interface back. Click the Layers title bar to minimize the Layers panel.
+
+Touch screens
+-------------
+  On a touch-screen PC, View > Touch mode makes every control finger-sized and adds
+  an on-screen key bar (Undo, Redo, Shift, Alt, Ctrl, 2nd color, Fit, Panels).
+  Tap with two fingers to undo, three fingers to redo; pinch to zoom. With a pen,
+  View > "Pencil draws, fingers pan" keeps your hand from drawing.
+  An iPad version that installs from a web address and then works offline comes
+  as a separate download (G-WIZ-iPad-1.6.1.zip).
+
+Also new in 1.1
+---------------
+  File > New for a blank picture, Image > Adjust colors (brightness, contrast,
+  saturation, hue, temperature, gamma, grayscale/sepia/invert/posterize, auto
+  contrast) with live preview, Image > Effects (blur, sharpen, pixelate, sticker
+  outline, drop shadow), copy layer or whole picture to the clipboard.
+
+Stabilize (animations)
+----------------------
+  1. Click the Stabilize button (crosshair) on the toolbar.
+  2. Optional: pick the Track box tool (T) and drag a box around something that
+     should stay still, then choose "Track box".
+  3. Click "Analyze shake". The graph shows the measured movement.
+  4. "Keep camera moves" at 0 locks the picture; higher values remove only jitter.
+  5. Choose what happens to edges uncovered by the shift, then Apply. Undo reverses it.
+
+Updating G-WIZ
+--------------
+Run "Update G-WIZ.bat" in this folder.
+  - Drag a newer G-WIZ zip onto it, or just double-click it: it finds the newest
+    G-WIZ-*-windows.zip in this folder, your Downloads folder or your Desktop.
+  - If the releases are hosted online, put the zip's direct download address on
+    one line in a file named update-url.txt next to the updater; it will then
+    download the update itself.
+It shows the installed and new versions, asks before installing, asks you to
+close G-WIZ if it is open, keeps the old version in backup\<version>, and offers
+to start the new one. If copying fails it puts the previous version back.
+
+Removing G-WIZ
+--------------
+Delete this folder. G-WIZ also keeps its window settings in
+  %LOCALAPPDATA%\G-WIZ
+which you can delete too.
+
+Other files in this folder
+--------------------------
+  G-WIZ browser edition.html   The same program as a single web page, for use
+                               in any modern browser on any computer.
+  source\                      Source code, the same as in the GitHub repository
+                               (github.com/slanginbeans/g-wiz, folder "source").
+                               source\DEVELOPING.md explains how to build, test and
+                               make a release (Python 3 + Pillow; Go 1.21+ for the exe).

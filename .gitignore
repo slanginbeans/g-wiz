@@ -1,0 +1,9 @@
+# build output (see source/DEVELOPING.md)
+source/web/
+source/dist/
+source/tests/out/
+source/launcher/index.html
+source/launcher/G-WIZ.exe
+source/launcher/rsrc_windows_amd64.syso
+__pycache__/
+*.pyc

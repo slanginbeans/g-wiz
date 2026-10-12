@@ -1,0 +1,1427 @@
+<title>G-WIZ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!--__PWA_HEAD__-->
+<link rel="icon" href="__FAVICON__">
+<style>
+/* Layout: classic Windows 95 / Paint shell — menu bar, icon toolbar, toolbox + tool options on the left,
+   gray workspace with the image and a frame dock, contextual options pane on the right, status bar. */
+:root{
+  color-scheme: light;
+  --face:#c0c0c0; --hi:#ffffff; --lite:#dfdfdf; --shadow:#808080; --dark:#000000;
+  --navy:#000080; --title2:#1084d0; --sel:#000080; --selText:#ffffff; --text:#000000; --dis:#808080;
+  --work:#808080; --field:#ffffff; --tip:#ffffe1;
+  --check-a:#ffffff; --check-b:#c6c6c6; --accent:#e00000;
+  --ui: Tahoma, "MS Sans Serif", "Microsoft Sans Serif", Geneva, Verdana, sans-serif;
+  --mono: "Lucida Console", Consolas, "Courier New", monospace;
+}
+html,body{height:100%}
+body{margin:0;background:var(--face);color:var(--text);font:11px/1.3 var(--ui);overflow:hidden;user-select:none;-webkit-user-select:none;cursor:default}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+input[type=text],input[type=number]{user-select:text;-webkit-user-select:text}
+:focus{outline:none}
+:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+
+/* bevels */
+.raised{box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.sunken{box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark),inset -2px -2px var(--lite)}
+.thin-sunken{box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr)}
+
+/* ---- menu bar ---- */
+.menubar{display:flex;align-items:center;gap:0;padding:1px 2px;border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);position:relative;z-index:30}
+.mtop{padding:3px 7px;border:0;background:transparent;cursor:default}
+.mtop u{text-decoration:underline}
+.mtop:hover,.mtop.open{background:var(--sel);color:var(--selText)}
+#menus{position:fixed;left:0;top:0;width:0;height:0;z-index:40}
+.menu{position:absolute;top:100%;min-width:220px;width:max-content;max-width:calc(100vw - 8px);background:var(--face);padding:2px;z-index:40}
+.menu.cols2{column-count:2;column-gap:0;column-rule:1px solid var(--shadow)}
+.menu.cols2 .mi,.menu.cols2 .msep{break-inside:avoid}
+.menu.scroll{overflow-y:auto;overscroll-behavior:contain}
+.mi .lb{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mi{display:grid;grid-template-columns:18px 1fr auto 8px;align-items:center;width:100%;border:0;background:transparent;text-align:left;padding:3px 2px;cursor:default;white-space:nowrap}
+.mi .mk{text-align:center;font-size:10px}
+.mi .sc{padding-left:22px}
+.mi:hover:not(:disabled),.mi.hot{background:var(--sel);color:var(--selText)}
+.mi:disabled{color:var(--dis);text-shadow:1px 1px 0 var(--hi)}
+.mi:disabled:hover{background:transparent}
+.msep{height:2px;margin:3px 2px;border-top:1px solid var(--shadow);border-bottom:1px solid var(--hi)}
+
+/* ---- toolbar ---- */
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:2px 3px;border-top:1px solid var(--hi);border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi)}
+.tgrip{width:3px;height:20px;margin:0 3px 0 1px;box-shadow:inset -1px -1px var(--shadow),inset 1px 1px var(--hi)}
+.tsep{width:2px;height:20px;margin:0 3px;border-left:1px solid var(--shadow);border-right:1px solid var(--hi)}
+.tb{width:24px;height:22px;display:grid;place-items:center;border:0;background:transparent;padding:0;position:relative}
+.tb:hover:not(:disabled){box-shadow:inset -1px -1px var(--shadow),inset 1px 1px var(--hi)}
+.tb:active:not(:disabled),.tb[aria-pressed="true"]{box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+.tb[aria-pressed="true"]{background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px}
+.tb[aria-pressed="true"] .ic,.tb:active:not(:disabled) .ic{transform:translate(1px,1px)}
+.tb.wide{width:auto;padding:0 6px;gap:4px;display:inline-flex}
+.zoombox{height:20px;min-width:52px;padding:0 4px;display:grid;place-items:center;background:var(--field);font:11px var(--mono);border:0}
+.zoombox:hover{cursor:pointer}
+.ic{display:inline-block;width:16px;height:16px;flex:none;background-image:var(--i);background-repeat:no-repeat;background-size:16px 16px;image-rendering:pixelated}
+:disabled .ic,.disabled .ic{background-image:var(--d)}
+
+/* ---- main area ---- */
+.main{display:grid;grid-template-columns:auto minmax(0,1fr) 262px;min-height:0}
+.leftdock{display:flex;flex-direction:column;gap:6px;padding:4px 3px;border-right:1px solid var(--shadow);box-shadow:1px 0 0 var(--hi)}
+.toolbox{display:grid;grid-template-columns:repeat(2,26px);gap:0}
+.tbsep{grid-column:1 / -1;height:4px}
+.tool{width:26px;height:26px;display:grid;place-items:center;border:0;padding:0;background:var(--face)}
+.tool{box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.tool[aria-pressed="true"]{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow),inset -2px -2px var(--lite);
+  background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px}
+.tool[aria-pressed="true"] .ic{transform:translate(1px,1px)}
+.toolopts{width:52px;min-height:64px;padding:4px 3px;display:grid;gap:3px;align-content:start;justify-items:center;background:var(--face)}
+.to-btn{width:44px;height:18px;border:0;background:transparent;display:grid;place-items:center;padding:0;font:10px var(--ui)}
+.to-btn[aria-pressed="true"]{background:var(--sel);color:var(--selText)}
+.to-btn .dot{background:currentColor;border-radius:50%}
+.to-lbl{font-size:10px;color:var(--text);text-align:center}
+
+.workspace{display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0;min-height:0;background:var(--work)}
+.stage{position:relative;overflow:hidden;min-width:0;min-height:0;touch-action:none;background:var(--work);margin:0}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{display:none}
+.drop{position:absolute;inset:12px;border:2px dashed var(--hi);display:grid;place-items:center;color:var(--hi);font-weight:bold;font-size:14px;pointer-events:none;background:rgba(0,0,128,.25)}
+.busy{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--tip);border:1px solid var(--dark);padding:3px 10px}
+
+/* frame dock (animations) */
+.framedock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;padding:4px 6px;background:var(--face);border-top:1px solid var(--hi);box-shadow:0 -1px 0 var(--shadow)}
+.fd-btns{display:flex;gap:1px}
+.fd-track{position:relative;display:grid;gap:3px;min-width:0}
+.fd-slider{position:relative;display:grid;align-items:center}
+.fd-slider canvas{position:absolute;left:0;right:0;bottom:-2px;height:6px;width:100%;pointer-events:none}
+.tl-num{font:11px var(--mono);min-width:70px;text-align:right}
+.strip{display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;padding:3px;background:var(--field);height:68px;align-items:center}
+.thumb{position:relative;flex:none;padding:0;border:2px solid transparent;cursor:default;line-height:0;background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/8px 8px}
+.thumb canvas{display:block;height:52px;width:auto}
+.thumb[aria-current="true"]{border-color:var(--sel)}
+.tnum{position:absolute;left:2px;bottom:2px;font:10px/1 var(--mono);background:var(--sel);color:#fff;padding:1px 3px}
+.tdot,.tdot-key{width:7px;height:7px;background:#ff0000;border:1px solid #000}
+.tdot{position:absolute;top:3px;right:3px}
+.tdot-key{display:inline-block;vertical-align:-1px;margin-right:3px}
+
+/* right options pane */
+.rightdock{display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;border-left:1px solid var(--hi);box-shadow:-1px 0 0 var(--shadow)}
+.panehead{display:flex;align-items:center;gap:6px;margin:3px 3px 0;padding:3px 6px;background:linear-gradient(90deg,var(--navy),var(--title2));color:#fff;font-weight:bold}
+.pages{overflow-y:auto;min-height:0;padding:4px 6px 10px}
+.page{display:grid;gap:8px}
+fieldset{margin:0;padding:8px 8px 9px;border:0;display:grid;gap:7px;min-width:0;
+  box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--hi),inset -2px -2px var(--shadow);position:relative;padding-top:12px;margin-top:6px}
+legend{position:absolute;top:-7px;left:6px;padding:0 3px;background:var(--face)}
+.row{display:grid;gap:3px}
+.row-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+output,.val{font:11px var(--mono);color:var(--text)}
+.hint{margin:0;color:#202020;line-height:1.35;font-size:11px}
+.hint.dim{color:#404040}
+.inline{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.inline .spacer,.spacer{flex:1}
+.inline2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.curvebox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px;align-items:end}
+.curvebox canvas{background:#fff;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark);touch-action:none}
+.twgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.twgrid .num:nth-child(-n+2){grid-column:span 3}
+.twgrid .num:nth-child(n+3){grid-column:span 2}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.num{display:grid;gap:2px;min-width:0}
+.sub{font-weight:bold}
+
+/* push buttons */
+.btn{min-width:75px;height:23px;padding:0 10px;border:0;background:var(--face);display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.btn:active:not(:disabled){box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow),inset -2px -2px var(--lite);padding-top:2px;padding-left:12px}
+.btn:disabled{color:var(--dis);text-shadow:1px 1px 0 var(--hi)}
+.btn.default{outline:1px solid var(--dark);outline-offset:0}
+.btn.wide{width:100%}
+.btn.ghost{}
+.btn.primary{font-weight:bold}
+.btn.icon{min-width:0;width:26px;padding:0}
+.btn .ic{margin-left:-2px}
+
+/* toggle groups (old segmented controls) */
+.seg{display:flex;gap:0;flex-wrap:wrap}
+.seg.full button{flex:1}
+.seg button{height:22px;padding:0 6px;border:0;background:var(--face);white-space:nowrap;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.seg button[aria-pressed="true"]{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow),inset -2px -2px var(--lite);
+  background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px;font-weight:bold}
+
+/* fields */
+select,input[type=text],input[type=number]{height:21px;border:0;background:var(--field);padding:0 4px;width:100%;min-width:0;
+  box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark),inset -2px -2px var(--lite)}
+select{appearance:none;-webkit-appearance:none;padding-right:20px;
+  background:var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='17'%3E%3Crect width='16' height='17' fill='%23c0c0c0'/%3E%3Cpath d='M0 0h15v1H1v15H0z' fill='%23fff'/%3E%3Cpath d='M15 0h1v17H0v-1h15z' fill='%23000'/%3E%3Cpath d='M14 1h1v15H1v-1h13z' fill='%23808080'/%3E%3Cpath d='M4 7h7l-3.5 4z' fill='%23000'/%3E%3C/svg%3E") no-repeat right 2px center}
+input[type=number]{font-family:var(--mono)}
+.degbox{display:inline-flex;align-items:center;gap:3px}
+.degbox input{width:64px;text-align:right}
+input[type=checkbox]{appearance:none;-webkit-appearance:none;width:13px;height:13px;margin:0;flex:none;background:var(--field);
+  box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark),inset -2px -2px var(--lite)}
+input[type=checkbox]:checked{background:var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13'%3E%3Cpath d='M3 5h1v1h1v1h1V6h1V5h1V4h1V3h1v3h-1v1H9v1H8v1H7v1H6V9H5V8H4V7H3z' fill='%23000'/%3E%3C/svg%3E") no-repeat}
+.check{display:flex;align-items:center;gap:6px;cursor:default}
+/* trackbars */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--field);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:20px;margin-top:-8px;background:var(--face);
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+input[type=range]::-moz-range-track{height:4px;background:var(--field);border:1px solid var(--shadow)}
+input[type=range]::-moz-range-thumb{width:11px;height:20px;border-radius:0;background:var(--face);border:1px solid var(--dark)}
+input[type=color]{width:24px;height:22px;padding:0;border:0;background:none}
+/* scrollbars */
+::-webkit-scrollbar{width:16px;height:16px;background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px}
+::-webkit-scrollbar-thumb{background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--lite),inset -2px -2px var(--shadow),inset 2px 2px var(--hi)}
+::-webkit-scrollbar-button:single-button{display:block;width:16px;height:16px;background-color:var(--face);background-repeat:no-repeat;background-position:center;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--lite),inset -2px -2px var(--shadow),inset 2px 2px var(--hi)}
+::-webkit-scrollbar-button:single-button:vertical:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M3 0h1v1h1v1h1v1h1v1H0V3h1V2h1V1h1z'/%3E%3C/svg%3E")}
+::-webkit-scrollbar-button:single-button:vertical:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E")}
+::-webkit-scrollbar-button:single-button:horizontal:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7'%3E%3Cpath d='M3 0h1v7H3V6H2V5H1V4H0V3h1V2h1V1h1z'/%3E%3C/svg%3E")}
+::-webkit-scrollbar-button:single-button:horizontal:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7'%3E%3Cpath d='M0 0h1v1h1v1h1v1h1v1H3v1H2v1H1v1H0z'/%3E%3C/svg%3E")}
+::-webkit-scrollbar-corner{background:var(--face)}
+
+/* layers dock */
+.layerdock{display:grid;gap:3px;padding:0 3px 4px;border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi)}
+.lyr-props{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:4px;padding:0 2px}
+.lyr-props select{height:20px}
+.lyr-list{height:168px;overflow-y:auto;background:var(--field);padding:2px}
+.lyr{display:grid;grid-template-columns:18px 34px minmax(0,1fr) 16px;align-items:center;gap:4px;height:34px;padding:1px 3px;cursor:default;border-bottom:1px dotted #c0c0c0}
+.lyr.sel{background:var(--sel);color:var(--selText)}
+.lyr .lthumb{width:32px;height:28px;border:1px solid var(--shadow);background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/6px 6px;display:grid;place-items:center;overflow:hidden}
+.lyr .lthumb canvas{max-width:30px;max-height:26px;display:block}
+.lyr .lname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lyr .lname input{height:18px;font:inherit;width:100%;color:#000}
+.lyr .lsub{font-size:10px;opacity:.8}
+.lyr .lbtn{width:16px;height:16px;border:0;padding:0;background:transparent;display:grid;place-items:center}
+.lyr .lbtn.off .ic{opacity:.15}
+.lyr.dragover{box-shadow:inset 0 2px 0 #ff0000}
+.lyr-tools{display:flex;gap:1px;flex-wrap:wrap}
+/* palette bar */
+.palettebar{display:flex;align-items:center;gap:6px;padding:3px 4px;border-top:1px solid var(--hi);box-shadow:0 -1px 0 var(--shadow)}
+.wells{position:relative;width:38px;height:34px;flex:none}
+.well{position:absolute;width:22px;height:22px;border:0;padding:0;
+  box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark),inset -2px -2px var(--lite);
+  background-image:linear-gradient(var(--c),var(--c)),repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%);background-size:auto,6px 6px;background-clip:content-box,content-box;padding:2px}
+.well.w1{left:0;top:0;z-index:2}
+.well.w2{left:13px;top:11px;z-index:1}
+.swapc{position:absolute;right:-2px;top:-3px;width:12px;height:12px;border:0;padding:0;background:transparent;font-size:10px;line-height:12px}
+.palgrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,16px);gap:1px;min-width:0;overflow:hidden}
+.sw{width:16px;height:16px;border:0;padding:0;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);background:var(--c)}
+.sw:hover{outline:1px solid #000}
+.palside{display:flex;align-items:center;gap:4px;margin-left:auto}
+.palside select{width:150px}
+.recent{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,10px);gap:1px}
+.recent .sw{width:10px;height:10px}
+/* text editing overlay */
+.textedit{position:absolute;z-index:5;min-width:40px;min-height:20px;padding:0;margin:0;border:1px dashed #000080;outline:1px dashed #fff;outline-offset:-2px;background:rgba(255,255,255,.06);resize:none;overflow:hidden;white-space:pre;line-height:1.15;user-select:text;-webkit-user-select:text}
+/* edit colors dialog */
+.cpick{display:grid;grid-template-columns:auto auto auto;gap:8px;align-items:start}
+.cpick canvas{display:block;cursor:crosshair;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+.cvals{display:grid;grid-template-columns:auto 52px;gap:3px 6px;align-items:center}
+.cvals input{height:20px}
+.cprev{display:grid;grid-template-columns:1fr 1fr;height:30px;border:1px solid #000}
+.cprev span{background-image:linear-gradient(var(--c),var(--c)),repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%);background-size:auto,8px 8px}
+.custom{display:grid;grid-template-columns:repeat(16,16px);gap:2px}
+.anchor{display:grid;grid-template-columns:repeat(3,22px);gap:2px}
+.anchor button{width:22px;height:22px;border:0;padding:0;background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+.anchor button[aria-pressed="true"]{background:var(--sel)}
+
+/* status bar */
+.statusbar{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px 76px 92px;gap:2px;padding:2px 2px;border-top:1px solid var(--hi)}
+.statusbar > div{height:20px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+.statusbar .sb-help b{font-weight:normal}
+
+/* tooltip + toast */
+.tip{position:fixed;z-index:100;background:var(--tip);border:1px solid var(--dark);padding:2px 4px;pointer-events:none;max-width:300px;white-space:normal;box-shadow:1px 1px 0 rgba(0,0,0,.2)}
+.tip .k{color:#404040;margin-left:6px}
+.toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;background:var(--tip);color:#000;border:1px solid #000;padding:4px 10px;max-width:calc(100% - 32px);box-shadow:2px 2px 0 rgba(0,0,0,.25)}
+
+/* classic windows (dialogs) */
+.modal{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;background:transparent}
+.win{background:var(--face);padding:3px;min-width:280px;max-width:min(560px,100%);max-height:calc(100vh - 32px);display:grid;grid-template-rows:auto minmax(0,1fr);
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--lite),inset -2px -2px var(--shadow),inset 2px 2px var(--hi),3px 3px 0 rgba(0,0,0,.25)}
+.titlebar{display:flex;align-items:center;gap:4px;height:18px;padding:0 2px 0 3px;background:linear-gradient(90deg,var(--navy),var(--title2));color:#fff;font-weight:bold}
+.titlebar .tt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbx{width:16px;height:14px;border:0;padding:0;background:var(--face);display:grid;place-items:center;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.tbx:active{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow)}
+.tbx svg{width:8px;height:7px}
+.winbody{padding:10px 10px 10px;display:grid;gap:9px;overflow-y:auto;min-height:0}
+.winbtns{display:flex;justify-content:flex-end;gap:6px;margin-top:2px}
+.dlg h2{margin:0}
+.namebox{display:flex;align-items:center;gap:4px}
+.namebox input{flex:1}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0}
+.keys dt{font-family:var(--mono)}
+.keys dd{margin:0}
+.about{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.about img{width:64px;height:64px;image-rendering:pixelated}
+.graph{width:100%;height:96px;background:var(--field);display:block}
+.legend-line{display:inline-block;width:14px;height:2px;vertical-align:3px;margin-right:3px}
+.est{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gifopts,.gifanim{display:grid;gap:7px}
+.heatkey{display:inline-block;width:40px;height:8px;margin-left:4px;vertical-align:0;background:linear-gradient(90deg,#2a6df4,#18c2b0,#f2d03b,#f0503a);border:1px solid #000}
+
+/* ---------- on-screen key bar, update notice ---------- */
+.touchbar{position:absolute;top:6px;right:6px;z-index:5;display:flex;align-items:center;gap:2px;padding:3px;background:var(--face)}
+.tk{min-width:44px;height:40px;padding:0 8px;border:0;background:var(--face);display:inline-flex;align-items:center;justify-content:center;gap:4px;font-weight:bold;touch-action:manipulation;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.tk[aria-pressed="true"]{background:var(--sel);color:var(--selText);box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow)}
+.tk:active{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow)}
+.tk .ic{width:24px;height:24px;background-size:24px 24px}
+.tk-sec{display:inline-block;width:12px;height:12px;border:1px solid #000;background:var(--c2,#fff)}
+.tk-sep{width:2px;height:30px;margin:0 3px;border-left:1px solid var(--shadow);border-right:1px solid var(--hi)}
+.updbar{position:fixed;left:50%;bottom:calc(40px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--tip);max-width:94vw;flex-wrap:wrap}
+html.nodock .rightdock{display:none}
+html.nodock .main{grid-template-columns:auto minmax(0,1fr)!important}
+
+/* ---------- touch mode: finger-sized controls ---------- */
+html.touch,html.touch body{overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html.touch body{font-size:13px}
+html.touch .app{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+html.touch button,html.touch select,html.touch input,html.touch .mtop{touch-action:manipulation}
+html.touch .mtop{padding:9px 12px}
+html.touch .menu{min-width:280px}
+html.touch .mi{padding:10px 4px;grid-template-columns:26px 1fr auto 8px}
+html.touch .toolbar{gap:3px;padding:3px 4px}
+html.touch .tb{width:42px;height:40px}
+html.touch .tb .ic,html.touch .tool .ic{width:32px;height:32px;background-size:32px 32px}
+html.touch .tb.wide{height:40px}
+html.touch .tgrip,html.touch .tsep{height:34px}
+html.touch .zoombox{height:34px;min-width:70px;font-size:13px}
+html.touch .toolbox{grid-template-columns:repeat(2,46px)}
+html.touch .tool{width:46px;height:46px}
+html.touch .toolopts{width:92px}
+html.touch .to-btn{width:84px;height:32px;font-size:12px}
+html.touch .main{grid-template-columns:auto minmax(0,1fr) 312px}
+html.touch .panehead{padding:7px 8px}
+html.touch .pages{padding:6px 8px 16px}
+html.touch .page{gap:10px}
+html.touch fieldset{gap:10px;padding:10px 10px 12px}
+html.touch .hint{font-size:12px}
+html.touch output,html.touch .val{font-size:12px}
+html.touch .btn{height:38px;min-width:84px;padding:0 12px}
+html.touch .btn.icon{width:40px;min-width:0}
+html.touch .seg button{height:38px;padding:0 10px}
+html.touch select,html.touch input[type=text],html.touch input[type=number]{height:34px;font-size:16px}
+html.touch input[type=checkbox]{width:24px;height:24px;background-size:24px 24px}
+html.touch .check{gap:10px;min-height:32px}
+html.touch input[type=range]{height:40px}
+html.touch input[type=range]::-webkit-slider-runnable-track{height:6px}
+html.touch input[type=range]::-webkit-slider-thumb{width:22px;height:34px;margin-top:-14px}
+html.touch .lyr-list{height:220px}
+html.touch .lyr{grid-template-columns:40px 44px minmax(0,1fr) 40px;height:52px}
+html.touch .lyr .lbtn{width:38px;height:38px}
+html.touch .lyr .lbtn .ic,html.touch .lyr-tools .ic{width:24px;height:24px;background-size:24px 24px}
+html.touch .lyr .lthumb{width:42px;height:38px}
+html.touch .lyr .lthumb canvas{max-width:40px;max-height:36px}
+html.touch .lyr-props select{height:34px}
+html.touch .lyr-tools .tb{width:40px;height:38px}
+html.touch .palettebar{gap:8px;padding:4px 6px}
+html.touch .wells{width:58px;height:52px}
+html.touch .well{width:34px;height:34px}
+html.touch .well.w2{left:20px;top:17px}
+html.touch .swapc{width:20px;height:20px;font-size:14px;right:-6px;top:-6px}
+html.touch .palgrid{grid-template-rows:repeat(2,26px);gap:2px}
+html.touch .sw{width:26px;height:26px}
+html.touch .palside select{width:170px}
+html.touch .statusbar > div{height:26px;font-size:12px;padding:4px 6px}
+html.touch .statusbar{grid-template-columns:minmax(0,1fr) 120px 150px 76px 92px}
+html.touch .titlebar{height:30px;font-size:14px}
+html.touch .tbx{width:30px;height:26px}
+html.touch .tbx svg{width:12px;height:10px}
+html.touch .tip{font-size:13px;padding:4px 7px}
+html.touch .framedock .tb{width:44px;height:40px}
+html.touch .strip{height:78px}
+@media (max-width:900px){ html.touch .main{grid-template-columns:auto minmax(0,1fr) 280px} html.touch .statusbar{grid-template-columns:minmax(0,1fr) 110px 130px 70px} html.touch .statusbar > div:nth-child(5){display:none} }
+
+/* ---------- canvas view, minimized Layers panel ---------- */
+html.canvasonly .menubar,html.canvasonly .toolbar,html.canvasonly .leftdock,html.canvasonly .rightdock,html.canvasonly .palettebar,
+html.canvasonly .statusbar,html.canvasonly #timeline,html.canvasonly #touchBar{display:none!important}
+html.canvasonly .app{grid-template-rows:minmax(0,1fr)!important}
+html.canvasonly .main{grid-template-columns:minmax(0,1fr)!important}
+html.canvasonly .workspace{grid-template-rows:minmax(0,1fr)!important}
+.coexit{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));z-index:6;display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border:0;background:rgba(192,192,192,.55);color:#000;opacity:.75;touch-action:manipulation;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+.coexit:hover,.coexit:active{opacity:1;background:var(--face)}
+html.touch .coexit{padding:8px 14px;font-size:14px}
+html.touch .coexit .ic{width:24px;height:24px;background-size:24px 24px}
+.layerdock .panehead{cursor:default}
+.phinfo{margin-left:auto;font-weight:normal;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.phbtn{margin-left:auto;width:18px;height:16px;border:0;padding:0;background:var(--face);color:#000;font:10px/1 var(--ui);display:grid;place-items:center;flex:none;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow)}
+.phinfo + .phbtn{margin-left:6px}
+html.touch .phbtn{width:34px;height:28px;font-size:16px}
+html.layersmin .layerdock > :not(.panehead){display:none!important}
+
+/* ---------- fitting small and landscape screens ---------- */
+@supports (height:100dvh){ .app{height:100dvh} }
+.leftdock{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;min-height:0}
+.rightdock{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;grid-template-rows:auto auto minmax(240px,1fr)}
+.pages{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pages.more,.leftdock.more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),rgba(0,0,0,.25));mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),rgba(0,0,0,.25))}
+.palettebar{overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;flex-wrap:nowrap}
+.palettebar > *{flex-shrink:0}
+.palgrid{flex-shrink:0}
+.toast{pointer-events:none}
+html.touch #palRecent .sw:nth-child(n+9){display:none}
+@media (orientation:landscape) and (max-height:900px){
+  html.touch .lyr-list{height:132px}
+  html.touch .lyr{height:44px}
+  html.touch .lyr-tools .tb{width:34px;height:34px}
+  html.touch .strip{height:64px}
+  html.touch .thumb canvas{height:44px}
+}
+/* ---------- animation mode ---------- */
+.framedock{grid-template-columns:auto auto minmax(0,1fr) auto}
+html:not(.animmode) .framedock{grid-template-columns:auto minmax(0,1fr) auto}
+html:not(.animmode) .fd-anim{display:none}
+.fd-anim{display:flex;align-items:center;gap:1px}
+.fd-anim .tsep{height:22px}
+html.touch .fd-anim .tsep{height:34px}
+
+/* ---------- mini tool strip (canvas view) ---------- */
+.minibar{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:6;background:var(--face);padding:3px;display:grid;gap:3px;opacity:.92;max-height:calc(100% - 16px);overflow:hidden}
+.minibar:hover{opacity:1}
+.mn-toggle{width:100%;height:14px;border:0;background:var(--face);font-size:9px;line-height:12px;padding:0}
+.minibar.closed .mn-body{display:none}
+.mn-body{display:grid;gap:4px;justify-items:center}
+.mn-tools{display:grid;grid-template-columns:repeat(2,26px);gap:1px}
+.mn-undo{display:grid;grid-template-columns:repeat(2,26px);gap:1px}
+.mn-tool{width:26px;height:26px;border:0;padding:0;background:var(--face);display:grid;place-items:center;box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+.mn-tool[aria-pressed="true"]{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow);background:repeating-conic-gradient(var(--hi) 0 25%,var(--face) 0 50%) 0 0/2px 2px}
+.mn-tool:disabled .ic{opacity:.35}
+.mn-sliders{display:flex;gap:6px;justify-content:center}
+.mn-sl{display:grid;justify-items:center;gap:2px;touch-action:none}
+.mn-track{position:relative;width:12px;height:110px;background:var(--field);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark)}
+.mn-fill{position:absolute;left:3px;right:3px;bottom:3px;background:var(--navy)}
+.mn-thumb{position:absolute;left:-5px;width:22px;height:12px;background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--lite)}
+.mn-val{font:10px var(--mono);min-width:26px;text-align:center}
+.mn-color{width:28px;height:22px;border:0;padding:2px;background-image:linear-gradient(var(--c),var(--c)),repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%);background-size:auto,6px 6px;background-clip:content-box,content-box;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi),inset 2px 2px var(--dark)}
+html.touch .mn-tools,html.touch .mn-undo{grid-template-columns:repeat(2,40px)}
+html.touch .mn-tool{width:40px;height:40px}
+html.touch .mn-tool .ic{width:24px;height:24px;background-size:24px 24px}
+html.touch .mn-track{width:18px;height:150px}
+html.touch .mn-thumb{left:-7px;width:32px;height:18px}
+html.touch .mn-val{font-size:12px}
+html.touch .mn-color{width:40px;height:30px}
+html.touch .mn-toggle{height:22px;font-size:13px}
+html.touch .minibar{left:calc(8px + env(safe-area-inset-left))}
+
+/* ---------- fit and recover dialogs ---------- */
+.fitopts{display:grid;gap:6px}
+.fitopt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;padding:6px 8px;background:var(--field);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);cursor:default}
+.fitopt b{display:block;font-weight:bold}
+.fitopt .hint{display:block;margin-top:2px}
+.fitopt input{margin-top:2px}
+.reclist{max-height:min(320px,50vh);overflow-y:auto;background:var(--field);padding:2px}
+.recrow{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 6px;border-bottom:1px dotted #c0c0c0;cursor:default}
+.recrow.sel{background:var(--sel);color:var(--selText)}
+.recrow.sel .hint{color:var(--selText)}
+.recthumb{width:64px;height:48px;display:grid;place-items:center;background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/8px 8px;border:1px solid var(--shadow)}
+.recthumb img{max-width:62px;max-height:46px;display:block}
+.recname{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recdel{width:22px;height:22px;font-size:14px;line-height:1;color:#000;background:var(--face);box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi)}
+html.touch .recrow{grid-template-columns:84px minmax(0,1fr) auto}
+html.touch .recthumb{width:84px;height:62px}
+html.touch .recthumb img{max-width:82px;max-height:60px}
+html.touch .recdel{width:36px;height:36px}
+html.touch .fitopt input[type=radio]{width:22px;height:22px}
+.pxpreview{position:absolute;right:8px;bottom:8px;z-index:6;background:var(--face);padding:2px;display:grid;gap:2px;max-width:calc(100% - 16px)}
+.pxpreview .titlebar{cursor:default}
+#pvCanvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
+html.touch .pxpreview{right:calc(8px + env(safe-area-inset-right));bottom:calc(8px + env(safe-area-inset-bottom))}
+#pxCount{display:block;padding:3px 0;font-variant-numeric:tabular-nums}
+#pxCount.warn{color:#c00000;font-weight:bold}
+html.pixelmode #view{image-rendering:pixelated}
+html:not(.pixelmode) .px-only{display:none}
+</style>
+
+<div class="app" id="app">
+  <!-- ======================= MENU BAR ======================= -->
+  <div class="menubar" id="menubar" role="menubar">
+    <button class="mtop" data-menu="file"><u>F</u>ile</button>
+    <button class="mtop" data-menu="edit"><u>E</u>dit</button>
+    <button class="mtop" data-menu="viewm"><u>V</u>iew</button>
+    <button class="mtop" data-menu="image"><u>I</u>mage</button>
+    <button class="mtop" data-menu="layerm"><u>L</u>ayer</button>
+    <button class="mtop" data-menu="animm"><u>A</u>nimation</button>
+    <button class="mtop" data-menu="tools"><u>T</u>ools</button>
+    <button class="mtop" data-menu="colorsm"><u>C</u>olors</button>
+    <button class="mtop" data-menu="helpm"><u>H</u>elp</button>
+  </div>
+  <div id="menus"></div>
+
+  <!-- ======================= TOOLBAR ======================= -->
+  <div class="toolbar" role="toolbar" aria-label="Commands">
+    <span class="tgrip"></span>
+    <button class="tb" data-cmd="new" data-tip="New image" data-key="Ctrl+N" data-help="Starts a new, empty canvas of any size."><i class="ic" data-ic="newdoc"></i></button>
+    <button class="tb" id="openBtn" data-tip="Open" data-key="Ctrl+O" data-help="Opens an image or animation: PNG, JPEG, GIF, WebP, AVIF, BMP, SVG, ICO or TIFF."><i class="ic" data-ic="open"></i></button>
+    <button class="tb" id="saveTop" data-tip="Save" data-key="Ctrl+S" data-help="Saves the cut-out as PNG, WebP, TIFF or GIF, with compression and size options."><i class="ic" data-ic="save"></i></button>
+    <button class="tb" data-cmd="importLayer" data-tip="Import as layer" data-key="Ctrl+Shift+O" data-help="Adds one or more images to this picture as new layers."><i class="ic" data-ic="import"></i></button>
+    <button class="tb" data-cmd="saveProject" data-tip="Save project" data-key="Ctrl+Shift+S" data-help="Saves every layer, mask and frame in a G-WIZ project file (.gwiz) you can open again later."><i class="ic" data-ic="project"></i></button>
+    <span class="tsep"></span>
+    <button class="tb" id="undoBtn" data-tip="Undo" data-key="Ctrl+Z" data-help="Reverses the last edit." disabled><i class="ic" data-ic="undo"></i></button>
+    <button class="tb" id="redoBtn" data-tip="Redo" data-key="Ctrl+Y" data-help="Repeats the edit you just undid." disabled><i class="ic" data-ic="redo"></i></button>
+    <span class="tsep"></span>
+    <button class="tb" id="zoomOut" data-tip="Zoom out" data-key="−" data-help="Shows the image smaller."><i class="ic" data-ic="zoomout"></i></button>
+    <button class="zoombox thin-sunken" id="zoomVal" data-tip="Zoom level" data-help="Current zoom. Click to fit the image in the window.">100%</button>
+    <button class="tb" id="zoomIn" data-tip="Zoom in" data-key="+" data-help="Shows the image larger."><i class="ic" data-ic="zoomin"></i></button>
+    <button class="tb" id="zoomFit" data-tip="Fit to window" data-key="0" data-help="Zooms so the whole image fits in the window."><i class="ic" data-ic="fit"></i></button>
+    <button class="tb" id="zoom1" data-tip="Actual pixels" data-key="1" data-help="Shows the image at 100%, one image pixel per screen pixel."><i class="ic" data-ic="actual"></i></button>
+    <span class="tsep"></span>
+    <span id="viewSeg" class="seg-tb" style="display:contents">
+      <button class="tb" data-v="result" aria-pressed="true" data-tip="Result view" data-key="V" data-help="Shows the image with the erased areas see-through."><i class="ic" data-ic="vresult"></i></button>
+      <button class="tb" data-v="overlay" aria-pressed="false" data-tip="Mask view" data-key="V" data-help="Shows erased areas as a red overlay on the full image, so missed spots stand out."><i class="ic" data-ic="vmask"></i></button>
+      <button class="tb" data-v="original" aria-pressed="false" data-tip="Original view" data-key="V" data-help="Shows the untouched image without any erasing."><i class="ic" data-ic="vorig"></i></button>
+    </span>
+    <span class="tsep"></span>
+    <button class="tb" data-page-btn="auto" data-tip="Remove background" data-help="Removes the background automatically, with an optional preview before applying."><i class="ic" data-ic="auto"></i></button>
+    <button class="tb" data-page-btn="specks" data-tip="Remove specks" data-help="Erases small leftover islands that are not connected to the subject."><i class="ic" data-ic="specks"></i></button>
+    <button class="tb" data-page-btn="finish" data-tip="Edge finishing" data-help="Shrinks, softens and cleans the colour fringe on cut-out edges."><i class="ic" data-ic="finish"></i></button>
+    <button class="tb" data-page-btn="opacity" data-tip="Opacity" data-help="Fades the whole picture, every frame included."><i class="ic" data-ic="opacity"></i></button>
+    <button class="tb" data-page-btn="adjust" data-tip="Adjust colors" data-help="Brightness, contrast, saturation, hue and more for the selected layer, with a live preview."><i class="ic" data-ic="adjust"></i></button>
+    <button class="tb" data-page-btn="effects" data-tip="Effects" data-help="Blur, sharpen, pixelate, outline and drop shadow for the selected layer."><i class="ic" data-ic="effects"></i></button>
+    <button class="tb" data-page-btn="xform" data-tip="Layer size and shape" data-help="Moves, resizes, rotates, skews and shapes the selected layer."><i class="ic" data-ic="shape"></i></button>
+    <button class="tb" data-page-btn="canvas" data-tip="Canvas size" data-help="Changes the canvas size or resizes the whole image."><i class="ic" data-ic="canvas"></i></button>
+    <span class="tsep"></span>
+    <button class="tb" id="tbRotL" data-tip="Rotate left 90°" data-help="Turns the image a quarter turn counter-clockwise."><i class="ic" data-ic="rotl"></i></button>
+    <button class="tb" id="tbRotR" data-tip="Rotate right 90°" data-help="Turns the image a quarter turn clockwise."><i class="ic" data-ic="rotr"></i></button>
+    <button class="tb" id="tbFlipH" data-tip="Flip horizontal" data-help="Mirrors the image left to right."><i class="ic" data-ic="fliph"></i></button>
+    <button class="tb" id="tbFlipV" data-tip="Flip vertical" data-help="Mirrors the image top to bottom."><i class="ic" data-ic="flipv"></i></button>
+    <button class="tb" data-page-btn="rotate" data-tip="Rotate by angle…" data-help="Rotates by any angle with a live preview and straightening grid."><i class="ic" data-ic="options"></i></button>
+    <span class="tsep"></span>
+    <button class="tb" data-page-btn="pixel" data-tip="Pixel art" data-help="Pixel art mode: retro screen sizes, retro palettes, color-depth limits, a pixel grid, mirror drawing and a live preview."><i class="ic" data-ic="pixel"></i></button>
+    <button class="tb" data-page-btn="animate" data-tip="Animation" data-help="Animation mode: add and remove frames, onion skins and motion tweens."><i class="ic" data-ic="animate"></i></button>
+    <button class="tb anim-only" data-page-btn="anim" data-tip="Animation frames" data-help="Plays, steps through and copies masks between animation frames."><i class="ic" data-ic="anim"></i></button>
+    <button class="tb anim-only" data-page-btn="motion" data-tip="Motion finder" data-help="Finds the still and moving parts of an animation, then erases or restores them."><i class="ic" data-ic="motion"></i></button>
+    <button class="tb anim-only" data-page-btn="stab" data-tip="Stabilize" data-help="Detects camera shake between frames and steadies the animation."><i class="ic" data-ic="stab"></i></button>
+    <span class="tsep"></span>
+    <button class="tb" data-cmd="help" data-tip="Keyboard shortcuts" data-key="F1" data-help="Lists the keyboard and mouse shortcuts."><i class="ic" data-ic="help"></i></button>
+  </div>
+
+  <!-- ======================= MAIN ======================= -->
+  <div class="main">
+    <div class="leftdock">
+      <div class="toolbox" role="toolbar" aria-label="Tools">
+        <button class="tool" data-tool="move" aria-pressed="false" data-tip="Move and transform" data-key="M" data-help="Drag the selected layer to move it. Drag corner handles to resize (Shift keeps proportions), the round handle to rotate, Ctrl+edge to skew, Ctrl+corner to distort. Enter applies."><i class="ic" data-ic="move"></i></button>
+        <button class="tool" data-tool="crop" aria-pressed="false" data-tip="Crop" data-key="C" data-help="Drag a box on the canvas to crop to. Drag its handles to resize, inside it to move, then Apply or Enter."><i class="ic" data-ic="crop"></i></button>
+        <button class="tool" data-tool="erase" aria-pressed="true" data-tip="Eraser" data-key="B" data-help="Erases the background. Detection stops at edges and matches the sampled color. Alt+drag restores, Shift+drag forces."><i class="ic" data-ic="eraser"></i></button>
+        <button class="tool" data-tool="restore" aria-pressed="false" data-tip="Restore brush" data-key="R" data-help="Paints the original pixels back where you erased too much."><i class="ic" data-ic="restore"></i></button>
+      <button class="tool" data-tool="hintKeep" data-tip="Mark subject" data-help="Paint over parts the background remover must keep. Used by Remove background (Smart)."><i class="ic" data-ic="hintkeep"></i></button>
+      <button class="tool" data-tool="hintDrop" data-tip="Mark background" data-help="Paint over parts the background remover must erase. Used by Remove background (Smart)."><i class="ic" data-ic="hintdrop"></i></button>
+        <button class="tool" data-tool="wand" aria-pressed="false" data-tip="Magic wand" data-key="W" data-help="Click to erase a connected area of similar color. Alt+click restores, Shift+click ignores edges."><i class="ic" data-ic="wand"></i></button>
+        <button class="tool" data-tool="fill" aria-pressed="false" data-tip="Fill with color" data-key="G" data-help="Click to fill an area of similar color. Left-click uses the primary color, right-click the secondary."><i class="ic" data-ic="fill"></i></button>
+        <button class="tool" data-tool="picker" aria-pressed="false" data-tip="Pick color" data-key="I" data-help="Click to pick the primary color from the picture, right-click for the secondary."><i class="ic" data-ic="picker"></i></button>
+        <button class="tool" data-tool="zoom" aria-pressed="false" data-tip="Magnifier" data-key="Z" data-help="Click to zoom in at that spot. Right-click or Alt+click to zoom out."><i class="ic" data-ic="zoomtool"></i></button>
+        <button class="tool" data-tool="pencil" aria-pressed="false" data-tip="Pencil" data-key="P" data-help="Draws hard, pixel-exact lines with no smoothing. Right-click draws in the secondary color."><i class="ic" data-ic="pencil"></i></button>
+        <button class="tool" data-tool="brush" aria-pressed="false" data-tip="Brush" data-key="Y" data-help="Paints soft strokes that build up as you go over them. Pen pressure changes size and flow."><i class="ic" data-ic="brush"></i></button>
+        <button class="tool" data-tool="pen" aria-pressed="false" data-tip="Pen" data-key="N" data-help="Draws smooth, solid ink lines with optional pressure."><i class="ic" data-ic="pen"></i></button>
+        <button class="tool" data-tool="marker" aria-pressed="false" data-tip="Marker" data-key="K" data-help="Semi-transparent marker with a chisel tip. Overlaps inside one stroke do not darken."><i class="ic" data-ic="marker"></i></button>
+        <button class="tool" data-tool="air" aria-pressed="false" data-tip="Airbrush" data-key="J" data-help="Sprays paint while you hold the mouse button down."><i class="ic" data-ic="airbrush"></i></button>
+        <button class="tool" data-tool="text" aria-pressed="false" data-tip="Text" data-key="A" data-help="Click on the canvas and type. The text becomes its own layer."><i class="ic" data-ic="text"></i></button>
+        <button class="tool" data-tool="line" aria-pressed="false" data-tip="Line" data-key="L" data-help="Drag to draw a straight line. Shift snaps to 45°. Can add arrowheads."><i class="ic" data-ic="line"></i></button>
+        <button class="tool" data-tool="rect" aria-pressed="false" data-tip="Rectangle" data-key="U" data-help="Drag to draw a rectangle. Shift makes a square."><i class="ic" data-ic="rect"></i></button>
+        <button class="tool" data-tool="ellipse" aria-pressed="false" data-tip="Ellipse" data-key="O" data-help="Drag to draw an ellipse. Shift makes a circle."><i class="ic" data-ic="ellipse"></i></button>
+        <button class="tool" data-tool="rrect" aria-pressed="false" data-tip="Rounded rectangle" data-help="Drag to draw a rectangle with rounded corners."><i class="ic" data-ic="rrect"></i></button>
+        <button class="tool" data-tool="track" aria-pressed="false" data-tip="Track box" data-key="T" data-help="Drag a box around the part of an animation the Stabilize feature should hold steady."><i class="ic" data-ic="track"></i></button>
+        <button class="tool" data-tool="hand" aria-pressed="false" data-tip="Pan" data-key="H" data-help="Drag to move around the image. Holding Space does the same with any tool."><i class="ic" data-ic="hand"></i></button>
+      </div>
+      <div class="toolopts sunken" id="toolOpts" aria-label="Tool options"></div>
+    </div>
+
+    <div class="workspace" id="workspace">
+      <main class="stage" id="stage">
+        <canvas id="view" aria-label="Image canvas"></canvas>
+        <div class="hud" id="hud"></div>
+        <textarea class="textedit" id="textEdit" hidden spellcheck="false" aria-label="Text"></textarea>
+        <div class="drop" id="drop" hidden>Drop the image to open it</div>
+        <div class="busy" id="busy" hidden>Working…</div>
+      </main>
+      <div class="framedock" id="timeline" hidden>
+        <div class="fd-btns">
+          <button class="tb" id="tlPrev" data-tip="Previous frame" data-key=","><i class="ic" data-ic="prev"></i></button>
+          <button class="tb" id="tlPlay" data-tip="Play / pause"><i class="ic" data-ic="play"></i></button>
+          <button class="tb" id="tlNext" data-tip="Next frame" data-key="."><i class="ic" data-ic="next"></i></button>
+        </div>
+        <div class="fd-track">
+          <div class="fd-slider"><input type="range" id="tlSl" min="0" max="0" value="0" aria-label="Frame" data-tip="Frame scrubber" data-help="Drag, or scroll the mouse wheel over this bar, to move through the frames. Red ticks mark edited frames."><canvas id="tlMarks" aria-hidden="true"></canvas></div>
+          <div class="strip sunken" id="strip" aria-label="Frames"></div>
+        </div>
+        <span class="tl-num" id="tlNum">1 / 1</span>
+      </div>
+    </div>
+
+    <aside class="rightdock">
+      <section class="layerdock" aria-label="Layers">
+        <div class="panehead"><i class="ic" data-ic="layers"></i><span>Layers</span></div>
+        <div class="lyr-props">
+          <label for="lBlend">Mode</label>
+          <select id="lBlend" data-help="How the selected layer mixes with the layers below it.">
+            <option value="source-over">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option>
+            <option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option>
+            <option value="color-dodge">Color dodge</option><option value="color-burn">Color burn</option><option value="hard-light">Hard light</option>
+            <option value="soft-light">Soft light</option><option value="difference">Difference</option><option value="exclusion">Exclusion</option>
+            <option value="hue">Hue</option><option value="saturation">Saturation</option><option value="color">Color</option><option value="luminosity">Luminosity</option>
+          </select>
+          <span></span>
+          <label for="lOpac">Opacity</label>
+          <input type="range" id="lOpac" min="0" max="100" value="100" data-help="Opacity of the selected layer.">
+          <output id="lOpacOut">100%</output>
+        </div>
+        <div class="lyr-list sunken" id="layerList" role="listbox" aria-label="Layers" data-help="Click a layer to select it. Double-click the name to rename. Drag to reorder. Drop images here to add them as layers."></div>
+        <div class="lyr-tools">
+          <button class="tb" data-cmd="layerNew" data-tip="New layer" data-help="Adds an empty transparent layer above the selected one."><i class="ic" data-ic="layernew"></i></button>
+          <button class="tb" data-cmd="importLayer" data-tip="Import image as layer" data-help="Adds images from files as new layers."><i class="ic" data-ic="import"></i></button>
+          <button class="tb" data-cmd="layerDup" data-tip="Duplicate layer" data-help="Copies the selected layer."><i class="ic" data-ic="layerdup"></i></button>
+          <button class="tb" data-cmd="layerDel" data-tip="Delete layer" data-help="Removes the selected layer."><i class="ic" data-ic="layerdel"></i></button>
+          <button class="tb" data-cmd="layerUp" data-tip="Move layer up" data-help="Moves the selected layer one step toward the top."><i class="ic" data-ic="layerup"></i></button>
+          <button class="tb" data-cmd="layerDown" data-tip="Move layer down" data-help="Moves the selected layer one step toward the bottom."><i class="ic" data-ic="layerdown"></i></button>
+          <button class="tb" data-cmd="layerMerge" data-tip="Merge down" data-help="Combines the selected layer with the one below it."><i class="ic" data-ic="merge"></i></button>
+          <button class="tb" data-page-btn="xform" data-tip="Layer size and shape" data-help="Moves, resizes, rotates, skews and shapes the selected layer."><i class="ic" data-ic="shape"></i></button>
+        </div>
+      </section>
+      <div class="panehead"><i class="ic" id="paneIcon" data-ic="eraser"></i><span id="paneTitle">Eraser</span></div>
+      <div class="pages" id="pages">
+
+        <!-- ---------- brush (eraser / restore) ---------- -->
+        <div class="page" data-page="brush">
+          <fieldset><legend id="brushTitle">Eraser</legend>
+            <div class="row">
+              <span>Detection</span>
+              <div class="seg full" role="group" aria-label="Detection mode" id="modeSeg">
+                <button data-m="smart" aria-pressed="true" data-tip="Smart" data-help="Samples the color under the brush center and erases similar colors, stopping at strong edges.">Smart</button>
+                <button data-m="color" aria-pressed="false" data-tip="Color" data-help="Erases colors close to the sampled one anywhere inside the brush.">Color</button>
+                <button data-m="edges" aria-pressed="false" data-tip="Edges" data-help="Erases from the brush center up to the nearest strong edge.">Edges</button>
+                <button data-m="plain" aria-pressed="false" data-tip="Plain" data-help="Erases everything under the brush.">Plain</button>
+              </div>
+              <p class="hint" id="modeHint"></p>
+            </div>
+            <label class="check" data-help="Hold Shift while painting to do this temporarily."><input type="checkbox" id="force"> Force: ignore edges and color (Shift)</label>
+            <label class="check" data-help="Tints the area the current stroke touches until you let go."><input type="checkbox" id="hiStroke"> Highlight the stroke until release</label>
+          </fieldset>
+          <fieldset><legend>Brush</legend>
+            <div class="row"><div class="row-h"><label for="size">Size</label><output id="sizeOut"></output></div><input type="range" id="size" min="2" max="500" value="60" data-help="Brush diameter. [ and ] change it, or Alt+mouse wheel."></div>
+            <div class="row">
+              <span>Size is measured in</span>
+              <div class="seg full" role="group" aria-label="Brush size reference" id="relSeg">
+                <button data-r="screen" aria-pressed="true" data-help="The brush stays the same size on screen, so zooming in erases finer detail.">Screen px</button>
+                <button data-r="image" aria-pressed="false" data-help="The brush covers a fixed number of image pixels and grows on screen as you zoom in.">Image px</button>
+              </div>
+              <p class="hint dim" id="relHint"></p>
+            </div>
+            <div class="row"><div class="row-h"><label for="hard">Hardness</label><output id="hardOut"></output></div><input type="range" id="hard" min="0" max="100" value="75" data-help="How sharp the brush edge is. Lower values feather the edge."></div>
+          </fieldset>
+          <fieldset><legend>Detection settings</legend>
+            <div class="row" data-need="color"><div class="row-h"><label for="tol">Color tolerance</label><output id="tolOut"></output></div><input type="range" id="tol" min="1" max="100" value="28" data-help="How different a color can be from the sampled one and still be erased."></div>
+            <div class="row" data-need="edge"><div class="row-h"><label for="edge">Edge sensitivity</label><output id="edgeOut"></output></div><input type="range" id="edge" min="0" max="100" value="55" data-help="Higher values stop the brush at fainter edges."></div>
+            <div class="row" data-need="color">
+              <span>Sample the color</span>
+              <div class="seg full" role="group" aria-label="Color sampling" id="sampSeg">
+                <button data-s="once" aria-pressed="true" data-help="Takes the color under the brush when the stroke starts.">Once per stroke</button>
+                <button data-s="cont" aria-pressed="false" data-help="Re-samples the color as the brush moves.">Continuously</button>
+              </div>
+            </div>
+            <label class="check" data-help="Compares colors the way the eye does (Lab), so dark and light shades of one color are told apart better."><input type="checkbox" id="labMatch"> Perceptual color matching</label>
+            <label class="check" data-help="Looks at a wider area when finding edges, so grain, noise and fine texture do not count as edges."><input type="checkbox" id="edgeWide"> Ignore fine texture and noise in edges</label>
+          </fieldset>
+        </div>
+
+
+        <!-- ---------- drawing tools ---------- -->
+        <div class="page" data-page="draw" hidden>
+          <fieldset><legend id="drawTitle">Brush</legend>
+            <p class="hint dim" id="drawHint"></p>
+            <div class="row"><label for="dStyle">Style</label><select id="dStyle"></select><p class="hint dim" id="dStyleHint"></p></div>
+            <div class="row"><div class="row-h"><label for="dSize">Size</label><output id="dSizeOut"></output></div><input type="range" id="dSize" min="1" max="200" value="8"></div>
+            <div class="row"><div class="row-h"><label for="dOpacity">Opacity</label><output id="dOpacityOut"></output></div><input type="range" id="dOpacity" min="1" max="100" value="100"></div>
+            <div class="row" data-dt="brush air"><div class="row-h"><label for="dFlow">Flow</label><output id="dFlowOut"></output></div><input type="range" id="dFlow" min="1" max="100" value="35" data-help="How much paint each dab lays down. Low flow builds up gradually."></div>
+            <div class="row" data-dt="brush" id="dHardRow"><div class="row-h"><label for="dHard">Hardness</label><output id="dHardOut"></output></div><input type="range" id="dHard" min="0" max="100" value="40"></div>
+            <div class="row" data-dt="brush"><div class="row-h"><label for="dSpacing">Spacing</label><output id="dSpacingOut"></output></div><input type="range" id="dSpacing" min="2" max="100" value="12" data-help="Distance between dabs, as a share of the brush size."></div>
+            <div class="row" data-dt="air"><div class="row-h"><label for="dDensity">Density</label><output id="dDensityOut"></output></div><input type="range" id="dDensity" min="1" max="100" value="40"></div>
+            <div class="row" data-dt="marker pen" id="dAngleRow"><div class="row-h"><label for="dAngle" id="dAngleLbl">Tip angle</label><output id="dAngleOut"></output></div><input type="range" id="dAngle" min="0" max="180" value="45"></div>
+            <div class="row" data-dt="pen brush marker"><div class="row-h"><label for="dSmooth">Smoothing</label><output id="dSmoothOut"></output></div><input type="range" id="dSmooth" min="0" max="95" value="30" data-help="Steadies the line so shaky hand movements come out smooth."></div>
+          </fieldset>
+          <fieldset data-dt="pen brush marker air"><legend>Pen pressure</legend>
+            <label class="check"><input type="checkbox" id="dPressSize" checked> Pressure changes size</label>
+            <label class="check"><input type="checkbox" id="dPressOp"> Pressure changes opacity</label>
+            <div class="row"><label for="pressPreset">Pressure curve</label>
+              <select id="pressPreset"><option value="linear">Linear</option><option value="light">Light touch (gets big early)</option><option value="vlight">Very light touch</option><option value="firm">Firm (press hard for full size)</option><option value="vfirm">Very firm</option><option value="custom">Custom (drag the red point)</option></select></div>
+            <div class="curvebox"><canvas id="pressCurve" width="160" height="110" data-help="Left to right: how hard you press. Bottom to top: how much of the size is used. Drag the red point to shape the curve."></canvas><div class="curveside"><span class="hint dim">light → hard</span></div></div>
+            <p class="val" id="pressRead"></p>
+            <div class="row"><div class="row-h"><label for="pressMin">Smallest size</label><output id="pressMinOut"></output></div><input type="range" id="pressMin" min="0" max="80" value="15" data-help="Size at the lightest touch, as a share of the full size."></div>
+            <div class="row"><div class="row-h"><label for="pressMinOp">Lowest opacity</label><output id="pressMinOpOut"></output></div><input type="range" id="pressMinOp" min="0" max="80" value="10"></div>
+          </fieldset>
+          <fieldset><legend>Paint</legend>
+            <div class="row"><label for="dBlend">Blend</label>
+              <select id="dBlend"><option value="source-over">Normal</option><option value="multiply">Multiply (like ink)</option><option value="screen">Screen (lighten)</option><option value="overlay">Overlay</option><option value="darken">Darken only</option><option value="lighten">Lighten only</option></select></div>
+            <label class="check" data-help="Paint only where the layer already has pixels, so the paint stays inside the shape."><input type="checkbox" id="dLock"> Keep transparent areas clear</label>
+            <p class="hint dim">Left button paints with the primary color, right button with the secondary color. [ and ] change the size.</p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- shapes ---------- -->
+        <div class="page" data-page="shape" hidden>
+          <fieldset><legend id="shapeTitle">Shape</legend>
+            <div class="row" data-st="rect ellipse rrect">
+              <span>Style</span>
+              <div class="seg full" role="group" aria-label="Shape style" id="shStyle">
+                <button data-v="stroke" aria-pressed="true" data-help="Outline in the primary color.">Outline</button>
+                <button data-v="both" aria-pressed="false" data-help="Outline in the primary color, filled with the secondary color.">Both</button>
+                <button data-v="fill" aria-pressed="false" data-help="Filled with the primary color, no outline.">Fill</button>
+              </div>
+            </div>
+            <div class="row"><div class="row-h"><label for="shWidth">Line width</label><output id="shWidthOut"></output></div><input type="range" id="shWidth" min="1" max="60" value="3"></div>
+            <div class="row"><div class="row-h"><label for="shOpacity">Opacity</label><output id="shOpacityOut"></output></div><input type="range" id="shOpacity" min="1" max="100" value="100"></div>
+            <div class="row"><label for="shDash">Line pattern</label>
+              <select id="shDash"><option value="solid">Solid</option><option value="dash">Dashed</option><option value="dot">Dotted</option><option value="dashdot">Dash-dot</option></select></div>
+            <div class="row" data-st="rrect"><div class="row-h"><label for="shRadius">Corner radius</label><output id="shRadiusOut"></output></div><input type="range" id="shRadius" min="1" max="200" value="18"></div>
+            <div class="row" data-st="line"><label for="shArrow">Arrowheads</label>
+              <select id="shArrow"><option value="none">None</option><option value="end">At the end</option><option value="start">At the start</option><option value="both">Both ends</option></select></div>
+            <div class="row" data-st="line rect"><label for="shCap">Line ends and corners</label>
+              <select id="shCap"><option value="round">Round</option><option value="square">Square</option><option value="butt">Flat</option></select></div>
+            <label class="check"><input type="checkbox" id="shAA" checked> Smooth edges (anti-alias)</label>
+            <p class="hint dim">Shift keeps squares, circles and 45° lines. The shape is drawn onto the selected layer when you let go.</p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- fill ---------- -->
+        <div class="page" data-page="fill" hidden>
+          <fieldset><legend>Fill with color</legend>
+            <div class="row"><div class="row-h"><label for="fTol">Tolerance</label><output id="fTolOut"></output></div><input type="range" id="fTol" min="0" max="100" value="20"></div>
+            <div class="row"><div class="row-h"><label for="fOpacity">Opacity</label><output id="fOpacityOut"></output></div><input type="range" id="fOpacity" min="1" max="100" value="100"></div>
+            <label class="check"><input type="checkbox" id="fContig" checked> Connected area only</label>
+            <label class="check" data-help="Uses the colors you see from every layer to decide where to fill, but paints on the selected layer."><input type="checkbox" id="fAll"> Look at all layers</label>
+            <label class="check"><input type="checkbox" id="fAA" checked> Soft edges</label>
+          </fieldset>
+        </div>
+
+        <!-- ---------- text ---------- -->
+        <div class="page" data-page="text" hidden>
+          <fieldset><legend>Text</legend>
+            <div class="row"><label for="tFont">Font</label>
+              <select id="tFont">
+                <option>Arial</option><option>Arial Black</option><option>Tahoma</option><option>Verdana</option><option>Segoe UI</option><option>Calibri</option><option>Trebuchet MS</option>
+                <option>Times New Roman</option><option>Georgia</option><option>Garamond</option><option>Courier New</option><option>Consolas</option><option>Lucida Console</option>
+                <option>Comic Sans MS</option><option>Impact</option><option>Franklin Gothic Medium</option><option>Palatino Linotype</option><option>Segoe Script</option>
+              </select></div>
+            <div class="inline2">
+              <div class="row"><label for="tSize">Size (px)</label><input type="number" id="tSize" min="4" max="1000" value="48"></div>
+              <div class="row"><label for="tAlign">Alignment</label><select id="tAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+            </div>
+            <div class="inline">
+              <label class="check"><input type="checkbox" id="tBold"> <b>Bold</b></label>
+              <label class="check"><input type="checkbox" id="tItalic"> <i>Italic</i></label>
+              <label class="check"><input type="checkbox" id="tUnder"> <u>Underline</u></label>
+            </div>
+            <div class="row"><div class="row-h"><label for="tOutline">Outline (secondary color)</label><output id="tOutlineOut"></output></div><input type="range" id="tOutline" min="0" max="30" value="0"></div>
+            <div class="row"><div class="row-h"><label for="tShadow">Shadow</label><output id="tShadowOut"></output></div><input type="range" id="tShadow" min="0" max="30" value="0"></div>
+            <p class="hint dim">Click on the canvas and type. Press Ctrl+Enter or click Done to place it. The text becomes its own layer, which you can move and resize.</p>
+            <div class="winbtns"><button class="btn" id="tCancel">Cancel</button><button class="btn default" id="tDone">Done</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- color picker tool ---------- -->
+        <div class="page" data-page="pick" hidden>
+          <fieldset><legend>Pick color</legend>
+            <p class="hint">Click on the picture to make that color the primary color. Right-click sets the secondary color.</p>
+            <label class="check"><input type="checkbox" id="pkAll" checked> Pick from all visible layers</label>
+            <p class="val" id="pkLast"></p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- layer transform & shape ---------- -->
+        <div class="page" data-page="xform" hidden>
+          <fieldset><legend>Selected layer</legend>
+            <div class="row"><label for="lName">Name</label><input type="text" id="lName"></div>
+            <div class="inline">
+              <label class="check"><input type="checkbox" id="lVis" checked> Visible</label>
+              <label class="check" data-help="A locked layer cannot be painted, erased or moved."><input type="checkbox" id="lLock"> Locked</label>
+            </div>
+            <p class="val" id="lInfo"></p>
+          </fieldset>
+          <fieldset><legend>Position and size</legend>
+            <div class="grid4">
+              <label class="num" for="xX"><span>X</span><input type="number" id="xX" step="1"></label>
+              <label class="num" for="xY"><span>Y</span><input type="number" id="xY" step="1"></label>
+              <label class="num" for="xW"><span>Width</span><input type="number" id="xW" min="1" step="1"></label>
+              <label class="num" for="xH"><span>Height</span><input type="number" id="xH" min="1" step="1"></label>
+            </div>
+            <label class="check"><input type="checkbox" id="xKeep" checked> Keep proportions</label>
+            <div class="grid4">
+              <label class="num" for="xRot"><span>Rotate °</span><input type="number" id="xRot" step="0.1" value="0"></label>
+              <label class="num" for="xSkX"><span>Skew H °</span><input type="number" id="xSkX" step="0.5" value="0"></label>
+              <label class="num" for="xSkY"><span>Skew V °</span><input type="number" id="xSkY" step="0.5" value="0"></label>
+              <span></span>
+            </div>
+            <div class="winbtns"><button class="btn" id="xReset">Reset</button><button class="btn default" id="xApply">Apply</button></div>
+            <div class="inline">
+              <button class="btn" id="xCenter">Center</button>
+              <button class="btn" id="xFit" data-help="Scales the layer to fit inside the canvas, keeping proportions.">Fit canvas</button>
+              <button class="btn" id="xFill" data-help="Scales the layer to cover the whole canvas, keeping proportions.">Fill canvas</button>
+              <button class="btn" id="xTrim" data-help="Shrinks the layer to the area that still has visible pixels.">Trim</button>
+              <button class="btn" id="xExpand" data-help="Grows the layer to cover the whole canvas, adding transparent space.">Expand</button>
+            </div>
+            <p class="hint dim">With the Move tool (M), drag on the canvas: handles resize, the round handle rotates, Ctrl+edge skews and Ctrl+corner distorts. Enter applies, Esc cancels.</p>
+          </fieldset>
+          <fieldset><legend>Shape the layer</legend>
+            <div class="row"><label for="kShape">Cut the layer to</label>
+              <select id="kShape"><option value="ellipse">Ellipse</option><option value="circle">Circle</option><option value="rrect">Rounded rectangle</option><option value="star">Star</option><option value="heart">Heart</option><option value="triangle">Triangle</option><option value="hexagon">Hexagon</option><option value="diamond">Diamond</option></select></div>
+            <div class="row"><div class="row-h"><label for="kFeather">Soft edge</label><output id="kFeatherOut"></output></div><input type="range" id="kFeather" min="0" max="40" value="0"></div>
+            <label class="check"><input type="checkbox" id="kInvert"> Cut away the inside instead</label>
+            <div class="winbtns"><button class="btn default" id="kApply">Apply shape</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- adjustments ---------- -->
+        <div class="page" data-page="adjust" hidden>
+          <fieldset><legend>Adjust colors</legend>
+            <div class="row"><div class="row-h"><label for="aBright">Brightness</label><output id="aBrightOut"></output></div><input type="range" id="aBright" min="-100" max="100" value="0"></div>
+            <div class="row"><div class="row-h"><label for="aContrast">Contrast</label><output id="aContrastOut"></output></div><input type="range" id="aContrast" min="-100" max="100" value="0"></div>
+            <div class="row"><div class="row-h"><label for="aSat">Saturation</label><output id="aSatOut"></output></div><input type="range" id="aSat" min="-100" max="100" value="0"></div>
+            <div class="row"><div class="row-h"><label for="aHue">Hue</label><output id="aHueOut"></output></div><input type="range" id="aHue" min="-180" max="180" value="0"></div>
+            <div class="row"><div class="row-h"><label for="aTemp">Warmth</label><output id="aTempOut"></output></div><input type="range" id="aTemp" min="-100" max="100" value="0"></div>
+            <div class="row"><div class="row-h"><label for="aGamma">Midtones</label><output id="aGammaOut"></output></div><input type="range" id="aGamma" min="-100" max="100" value="0"></div>
+            <div class="row"><label for="aPreset">Look</label>
+              <select id="aPreset"><option value="none">None</option><option value="gray">Black and white</option><option value="sepia">Sepia</option><option value="invert">Invert</option><option value="posterize">Posterize</option><option value="threshold">Threshold (two colors)</option></select></div>
+            <div class="row" id="aLevelsRow" hidden><div class="row-h"><label for="aLevels">Levels</label><output id="aLevelsOut"></output></div><input type="range" id="aLevels" min="2" max="16" value="4"></div>
+            <p class="hint dim">The canvas shows a preview. Apply changes the selected layer (this frame or all frames, following Edits apply to).</p>
+            <div class="winbtns"><button class="btn" id="aAuto" data-help="Stretches the darkest and lightest tones to full range.">Auto contrast</button><button class="btn" id="aReset">Reset</button><button class="btn default" id="aApply">Apply</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- effects ---------- -->
+        <div class="page" data-page="effects" hidden>
+          <fieldset><legend>Blur and sharpen</legend>
+            <div class="row"><div class="row-h"><label for="eBlur">Blur radius</label><output id="eBlurOut"></output></div><input type="range" id="eBlur" min="1" max="40" value="3"></div>
+            <div class="winbtns"><button class="btn" id="eBlurBtn">Blur</button></div>
+            <div class="row"><div class="row-h"><label for="eSharp">Sharpen amount</label><output id="eSharpOut"></output></div><input type="range" id="eSharp" min="10" max="300" value="80"></div>
+            <div class="winbtns"><button class="btn" id="eSharpBtn">Sharpen</button></div>
+          </fieldset>
+          <fieldset><legend>Pixelate</legend>
+            <div class="row"><div class="row-h"><label for="ePix">Block size</label><output id="ePixOut"></output></div><input type="range" id="ePix" min="2" max="64" value="8"></div>
+            <div class="winbtns"><button class="btn" id="ePixBtn">Pixelate</button></div>
+          </fieldset>
+          <fieldset><legend>Outline (sticker edge)</legend>
+            <div class="row"><div class="row-h"><label for="eOut">Width</label><output id="eOutOut"></output></div><input type="range" id="eOut" min="1" max="40" value="6"></div>
+            <p class="hint dim">Draws a border in the primary color around everything visible on the layer.</p>
+            <div class="winbtns"><button class="btn" id="eOutBtn">Add outline</button></div>
+          </fieldset>
+          <fieldset><legend>Drop shadow</legend>
+            <div class="inline2">
+              <div class="row"><label for="eShX">Offset X</label><input type="number" id="eShX" value="8"></div>
+              <div class="row"><label for="eShY">Offset Y</label><input type="number" id="eShY" value="8"></div>
+            </div>
+            <div class="row"><div class="row-h"><label for="eShBlur">Softness</label><output id="eShBlurOut"></output></div><input type="range" id="eShBlur" min="0" max="40" value="8"></div>
+            <div class="row"><div class="row-h"><label for="eShOp">Strength</label><output id="eShOpOut"></output></div><input type="range" id="eShOp" min="5" max="100" value="55"></div>
+            <p class="hint dim">Adds a shadow layer below the selected layer in the secondary color.</p>
+            <div class="winbtns"><button class="btn" id="eShBtn">Add shadow</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- canvas ---------- -->
+        <div class="page" data-page="canvas" hidden>
+          <fieldset><legend>Canvas size</legend>
+            <p class="hint dim">Adds or removes space around the picture. Layers keep their size.</p>
+            <div class="inline2">
+              <div class="row"><label for="cvW">Width</label><input type="number" id="cvW" min="1" max="20000"></div>
+              <div class="row"><label for="cvH">Height</label><input type="number" id="cvH" min="1" max="20000"></div>
+            </div>
+            <div class="inline"><span>Anchor</span><div class="anchor" id="cvAnchor"></div></div>
+            <div class="winbtns"><button class="btn default" id="cvApply">Apply</button></div>
+          </fieldset>
+          <fieldset><legend>Resize image</legend>
+            <p class="hint dim">Scales the whole picture, every layer included.</p>
+            <div class="inline2">
+              <div class="row"><label for="rsW">Width</label><input type="number" id="rsW" min="1" max="20000"></div>
+              <div class="row"><label for="rsH">Height</label><input type="number" id="rsH" min="1" max="20000"></div>
+            </div>
+            <div class="row"><div class="row-h"><label for="rsPct">Percent</label><output id="rsPctOut"></output></div><input type="range" id="rsPct" min="5" max="400" value="100"></div>
+            <label class="check"><input type="checkbox" id="rsKeep" checked> Keep proportions</label>
+            <label class="check"><input type="checkbox" id="rsSmooth" checked> Smooth resampling (off keeps hard pixels)</label>
+            <div class="winbtns"><button class="btn default" id="rsApply">Resize</button></div>
+          </fieldset>
+        </div>
+        <!-- ---------- magic wand ---------- -->
+        <div class="page" data-page="wand" hidden>
+          <fieldset><legend>Magic wand</legend>
+            <p class="hint">Click a background area to erase every connected pixel of similar color. Alt+click restores a region. Shift+click ignores edges for that click.</p>
+            <div class="row"><div class="row-h"><label for="wtol">Tolerance</label><output id="wtolOut"></output></div><input type="range" id="wtol" min="1" max="100" value="24"></div>
+            <label class="check"><input type="checkbox" id="wcontig" checked> Connected pixels only</label>
+            <label class="check"><input type="checkbox" id="wedges" checked> Stop at edges</label>
+            <div class="row"><div class="row-h"><label for="wedge">Edge sensitivity</label><output id="wedgeOut"></output></div><input type="range" id="wedge" min="0" max="100" value="55"></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- crop ---------- -->
+        <div class="page" data-page="crop" hidden>
+          <fieldset><legend id="cropSub">Crop</legend>
+            <p class="hint">Drag on the image to draw the crop box. Drag the handles to resize it, or inside it to move it.</p>
+            <div class="row">
+              <label for="caspect">Aspect ratio</label>
+              <select id="caspect">
+                <option value="free">Free</option><option value="orig">Original</option><option value="1:1">1 : 1 square</option>
+                <option value="4:3">4 : 3</option><option value="3:4">3 : 4</option><option value="16:9">16 : 9</option>
+                <option value="9:16">9 : 16</option><option value="3:2">3 : 2</option><option value="2:3">2 : 3</option>
+              </select>
+            </div>
+            <div class="row"><div class="row-h"><label for="cropL">Left</label><output id="cropLOut"></output></div><input type="range" id="cropL" min="0" max="0" value="0"></div>
+            <div class="row"><div class="row-h"><label for="cropR">Right</label><output id="cropROut"></output></div><input type="range" id="cropR" min="0" max="0" value="0"></div>
+            <div class="row"><div class="row-h"><label for="cropT">Top</label><output id="cropTOut"></output></div><input type="range" id="cropT" min="0" max="0" value="0"></div>
+            <div class="row"><div class="row-h"><label for="cropB">Bottom</label><output id="cropBOut"></output></div><input type="range" id="cropB" min="0" max="0" value="0"></div>
+            <div class="grid4">
+              <label class="num" for="cropX"><span>X</span><input type="number" id="cropX" min="0" step="1"></label>
+              <label class="num" for="cropY"><span>Y</span><input type="number" id="cropY" min="0" step="1"></label>
+              <label class="num" for="cropW"><span>Width</span><input type="number" id="cropW" min="1" step="1"></label>
+              <label class="num" for="cropH"><span>Height</span><input type="number" id="cropH" min="1" step="1"></label>
+            </div>
+            <div class="inline">
+              <button class="btn" id="cFit" data-help="Sets the crop box tightly around everything still visible.">Fit to content</button>
+              <button class="btn" id="cReset">Reset</button>
+            </div>
+            <div class="winbtns"><button class="btn default" id="cApply" disabled>Apply crop</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- rotate ---------- -->
+        <div class="page" data-page="rotate" hidden>
+          <fieldset><legend>Flip and rotate</legend>
+            <div class="row">
+              <span>Turn</span>
+              <div class="seg full" role="group" aria-label="What to turn" id="rotTarget">
+                <button data-v="doc" aria-pressed="true" data-help="Turns the whole picture with all its layers.">Whole picture</button>
+                <button data-v="layer" aria-pressed="false" data-help="Turns only the selected layer.">Selected layer</button>
+              </div>
+            </div>
+            <div class="row" id="rotScopeRow" hidden>
+              <span>Apply to</span>
+              <div class="seg full" role="group" aria-label="Rotation applies to" id="rotScope">
+                <button data-r="all" aria-pressed="true">All frames</button>
+                <button data-r="one" aria-pressed="false">This frame</button>
+              </div>
+              <p class="hint dim" id="rotScopeHint"></p>
+            </div>
+            <div class="inline">
+              <button class="btn icon" id="rotL" data-tip="Rotate left 90°"><i class="ic" data-ic="rotl"></i></button>
+              <button class="btn icon" id="rotR" data-tip="Rotate right 90°"><i class="ic" data-ic="rotr"></i></button>
+              <button class="btn icon" id="flipH" data-tip="Flip horizontal"><i class="ic" data-ic="fliph"></i></button>
+              <button class="btn icon" id="flipV" data-tip="Flip vertical"><i class="ic" data-ic="flipv"></i></button>
+            </div>
+          </fieldset>
+          <fieldset><legend>Rotate by angle</legend>
+            <div class="row">
+              <div class="row-h"><label for="rang">Angle</label><span class="degbox"><input type="number" id="rangN" min="-180" max="180" step="0.1" value="0" aria-label="Angle in degrees">°</span></div>
+              <input type="range" id="rang" min="-180" max="180" step="0.1" value="0">
+            </div>
+            <label class="check" id="rexpRow"><input type="checkbox" id="rexp" checked> Expand the canvas to fit the corners</label>
+            <p class="hint dim">Rotating by an angle turns the whole picture or just the selected layer, as chosen above. The canvas shows it with a straightening grid before you apply it.</p>
+            <div class="winbtns"><button class="btn" id="rReset">Reset</button><button class="btn default" id="rApply" disabled>Apply</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- view (pan / zoom tools) ---------- -->
+        <div class="page" data-page="view" hidden>
+          <fieldset><legend>Backdrop</legend>
+            <div class="inline" role="group" aria-label="Backdrop" id="bgSeg">
+              <button class="tb" data-bg="checker" aria-pressed="true" data-tip="Checkerboard backdrop"><span style="width:16px;height:16px;background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/8px 8px;border:1px solid #000"></span></button>
+              <button class="tb" data-bg="white" aria-pressed="false" data-tip="White backdrop"><span style="width:16px;height:16px;background:#fff;border:1px solid #000"></span></button>
+              <button class="tb" data-bg="black" aria-pressed="false" data-tip="Black backdrop"><span style="width:16px;height:16px;background:#000;border:1px solid #000"></span></button>
+              <span class="tb" data-bg="color" aria-pressed="false" id="bgColorWrap" data-tip="Custom backdrop color" style="width:auto;padding:0 2px"><input type="color" id="bgColor" value="#2f8f5b" aria-label="Custom backdrop color"></span>
+            </div>
+            <p class="hint dim">Preview only. Not saved.</p>
+            <label class="check"><input type="checkbox" id="ghost" checked> Show erased areas faintly (15%)</label>
+            <p class="hint dim">Keeps erased pixels visible at low strength in the Result view so you can see what Restore will bring back.</p>
+          </fieldset>
+          <fieldset><legend>Image</legend>
+            <div><strong id="fname">sample</strong><br><span class="val" id="fdims">—</span></div>
+            <p class="hint" id="sampleNote">This is a sample photo. Open, drop or paste your own image.</p>
+            <div class="inline"><button class="btn" id="openBtn2">Open…</button><button class="btn" id="resetBtn" data-help="Brings back every erased pixel. Undo restores your edits.">Reset edits</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- auto remove ---------- -->
+        <div class="page" data-page="auto" hidden>
+          <fieldset><legend>Remove background</legend>
+            <div class="seg full" role="group" aria-label="Method" id="aMethod">
+              <button data-v="smart" aria-pressed="true" data-help="Builds color models of the background and the subject, follows real edges and keeps soft edges on hair and fur.">Smart</button>
+              <button data-v="classic" aria-pressed="false" data-help="Floods inward from the border, erasing colors close to the border colors.">Classic</button>
+            </div>
+            <p class="hint" data-am="smart">Learns the background colors from the border, works out what the subject looks like, and cuts along the picture's real edges. Mark the subject or the background with the hint brushes when it guesses wrong.</p>
+            <p class="hint" data-am="classic">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges.</p>
+            <div class="row"><label for="aPreset">Preset</label>
+              <select id="aPreset"><option value="">Choose a starting point…</option><option value="plain">Plain background (studio, wall, sky)</option><option value="busy">Busy or uneven background</option><option value="hair">Hair, fur, soft edges</option><option value="product">Product photo, crisp edges</option><option value="logo">Logo or drawing, flat colors</option></select></div>
+            <div class="row"><div class="row-h"><label for="atol">Background tolerance</label><output id="atolOut"></output></div><input type="range" id="atol" min="1" max="100" value="22" data-help="How different a color can be from the background colors and still be erased."></div>
+            <div class="row"><div class="row-h"><label for="aEdge">Stop at edges</label><output id="aEdgeOut"></output></div><input type="range" id="aEdge" min="0" max="100" value="55" data-help="Higher values let fainter edges stop the background from leaking into the subject."></div>
+            <label class="check"><input type="checkbox" id="aPrev"> Preview before applying</label>
+            <p class="val" id="aPrevStat" hidden></p>
+            <div class="winbtns"><button class="btn default" id="autoBtn"><i class="ic" data-ic="auto"></i>Remove</button></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Hints</legend>
+            <p class="hint dim">Paint over parts that were cut wrongly. Green marks the subject, magenta marks background. Right button paints the other color, Alt erases a hint.</p>
+            <div class="inline">
+              <button class="btn" id="aHintKeep" data-help="Paint over parts of the subject that must stay."><i class="ic" data-ic="hintkeep"></i>Mark subject</button>
+              <button class="btn" id="aHintDrop" data-help="Paint over parts that are background and must go."><i class="ic" data-ic="hintdrop"></i>Mark background</button>
+            </div>
+            <div class="row"><div class="row-h"><label for="aHintSize">Hint brush size</label><output id="aHintSizeOut"></output></div><input type="range" id="aHintSize" min="4" max="200" value="40"></div>
+            <div class="inline"><label class="check"><input type="checkbox" id="aShowHints" checked> Show hints</label><span class="spacer"></span><button class="btn" id="aHintClear">Clear hints</button></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Detection</legend>
+            <div class="row"><div class="row-h"><label for="aK">Background colors</label><output id="aKOut"></output></div><input type="range" id="aK" min="1" max="6" value="3" data-help="How many different colors the background is made of. Raise it for gradients, shadows and busy backgrounds."></div>
+            <div class="row"><div class="row-h"><label for="aBorder">Sample border width</label><output id="aBorderOut"></output></div><input type="range" id="aBorder" min="1" max="20" value="4" data-help="How much of the edge of the picture is read as background. Lower it when the subject touches the border."></div>
+            <div class="row"><div class="row-h"><label for="aIters">Refinement passes</label><output id="aItersOut"></output></div><input type="range" id="aIters" min="0" max="4" value="2" data-help="Extra passes re-learn the subject and background colors from the current result. More passes help when they look alike, but take longer."></div>
+            <label class="check" data-help="Only background that connects to the border is removed. Turn off to also clear matching colors inside the subject."><input type="checkbox" id="aContig" checked> Background must connect to the border</label>
+            <div class="row"><div class="row-h"><label for="aHoles">Clear enclosed gaps</label><output id="aHolesOut"></output></div><input type="range" id="aHoles" min="0" max="30" value="3" data-help="Background-colored gaps surrounded by the subject (between an arm and the body, say) are cleared when they are smaller than this share of the picture."></div>
+          </fieldset>
+          <fieldset data-am="smart"><legend>Edges</legend>
+            <div class="row"><div class="row-h"><label for="aDetail">Edge detail</label><output id="aDetailOut"></output></div><input type="range" id="aDetail" min="1" max="12" value="3" data-help="How far around an edge the picture is studied. Larger values catch wisps of hair; smaller values keep crisp outlines."></div>
+            <div class="row"><div class="row-h"><label for="aSoft">Edge softness</label><output id="aSoftOut"></output></div><input type="range" id="aSoft" min="0" max="100" value="25" data-help="Low values stick tightly to color changes, high values smooth the decision over a wider area."></div>
+            <div class="row"><div class="row-h"><label for="aContrast">Edge contrast</label><output id="aContrastOut"></output></div><input type="range" id="aContrast" min="0" max="100" value="50" data-help="Low values keep semi-transparent edges, high values make every pixel fully kept or fully erased."></div>
+            <p class="hint dim">Edge finishing (shrink, soften, defringe) still applies on top of this when you save.</p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- specks ---------- -->
+        <div class="page" data-page="specks" hidden>
+          <fieldset><legend>Remove stray specks</legend>
+            <p class="hint">Erases leftover bits of background that are not connected to the subject.</p>
+            <div class="row"><label for="speck">Island size</label>
+              <select id="speck"><option value="0.0002">Tiny islands only</option><option value="0.001" selected>Small islands</option><option value="0.005">Medium islands</option></select></div>
+            <div class="winbtns"><button class="btn default" id="speckBtn">Clean up</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- edge finishing ---------- -->
+        <div class="page" data-page="finish" hidden>
+          <fieldset><legend>Edge finishing</legend>
+            <div class="row"><div class="row-h"><label for="shrink">Shrink edge</label><output id="shrinkOut"></output></div><input type="range" id="shrink" min="0" max="6" value="0"></div>
+            <div class="row"><div class="row-h"><label for="soft">Soften edge</label><output id="softOut"></output></div><input type="range" id="soft" min="0" max="6" value="0"></div>
+            <label class="check"><input type="checkbox" id="defringe"> Remove color fringe</label>
+            <p class="hint">Cleans halos left by the old background. Shown in the Result view and applied when you save.</p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- opacity ---------- -->
+        <div class="page" data-page="opacity" hidden>
+          <fieldset><legend>Opacity</legend>
+            <div class="row"><div class="row-h"><label for="opac">Whole picture</label><output id="opacOut"></output></div><input type="range" id="opac" min="0" max="100" value="100"></div>
+            <p class="hint">Fades the whole picture, every frame included. Applied when you save.</p>
+          </fieldset>
+        </div>
+
+        <!-- ---------- animation ---------- -->
+        <div class="page" data-page="anim" hidden>
+          <section id="animSec" class="page" hidden>
+            <fieldset><legend>Frames</legend>
+              <div class="inline">
+                <button class="btn icon" id="prevFr" aria-label="Previous frame" data-tip="Previous frame"><i class="ic" data-ic="prev"></i></button>
+                <button class="btn icon" id="playBtn" aria-label="Play" data-tip="Play / pause"><i class="ic" data-ic="play"></i></button>
+                <button class="btn icon" id="nextFr" aria-label="Next frame" data-tip="Next frame"><i class="ic" data-ic="next"></i></button>
+                <input type="range" id="frameSl" min="0" max="0" value="0" aria-label="Frame" style="flex:1;min-width:60px">
+              </div>
+              <div class="row-h"><span class="val" id="frameInfo"></span><span><span class="tdot-key"></span>edited</span></div>
+            </fieldset>
+            <fieldset><legend>Edits apply to</legend>
+              <div class="seg full" role="group" aria-label="Edit scope" id="scopeSeg">
+                <button data-a="one" aria-pressed="true">This frame</button>
+                <button data-a="all" aria-pressed="false">All frames</button>
+              </div>
+              <p class="hint dim" id="scopeHint"></p>
+            </fieldset>
+            <fieldset><legend>Copy this frame's mask</legend>
+              <div class="inline"><button class="btn" id="copyNext"><i class="ic" data-ic="copy"></i>To next</button><button class="btn" id="copyAll">To all frames</button></div>
+            </fieldset>
+          </section>
+          <p class="hint" id="animNone">Open an animated GIF, WebP or PNG to use the animation features.</p>
+        </div>
+
+
+        <!-- ---------- animation mode: frames, onion skin, motion tween ---------- -->
+        <div class="page" data-page="animate" hidden>
+          <fieldset><legend>Animation mode</legend>
+            <label class="check" data-help="Shows the frame strip with every frame of the picture, onion skins and the frame tools."><input type="checkbox" id="amOn"> Animation mode</label>
+            <p class="hint dim">Each layer with frames plays along the timeline. A layer with a single frame stays still behind or in front, like a background.</p>
+          </fieldset>
+          <fieldset><legend>Frames</legend>
+            <div class="row-h"><span class="val" id="amInfo">Frame 1 of 1</span></div>
+            <div class="inline">
+              <button class="btn" id="amAdd" data-help="Adds an empty frame after this one on the selected layer. Other animated layers hold their picture."><i class="ic" data-ic="framenew"></i>New frame</button>
+              <button class="btn" id="amDup" data-help="Copies this frame and puts the copy right after it."><i class="ic" data-ic="layerdup"></i>Duplicate</button>
+            </div>
+            <div class="inline">
+              <button class="btn" id="amDel" data-help="Removes this frame from every animated layer."><i class="ic" data-ic="layerdel"></i>Delete</button>
+              <button class="btn icon" id="amLeft" data-tip="Move this frame earlier" aria-label="Move frame earlier"><i class="ic" data-ic="prev"></i></button>
+              <button class="btn icon" id="amRight" data-tip="Move this frame later" aria-label="Move frame later"><i class="ic" data-ic="next"></i></button>
+            </div>
+            <label class="check" data-help="New frames start as a copy of the current frame instead of empty."><input type="checkbox" id="amCopy"> New frames copy the current frame</label>
+            <div class="row"><div class="row-h"><label for="amDur">This frame lasts</label><output id="amDurOut">100 ms</output></div><input type="range" id="amDur" min="20" max="2000" step="10" value="100"></div>
+            <div class="row"><div class="row-h"><label for="amFps">Speed for all frames</label><output id="amFpsOut">12 fps</output></div><input type="range" id="amFps" min="1" max="30" value="12"></div>
+            <div class="inline"><span class="spacer"></span><button class="btn" id="amFpsApply">Apply to all frames</button></div>
+          </fieldset>
+          <fieldset><legend>Onion skin</legend>
+            <label class="check" data-help="Shows faint copies of the frames before and after this one, so you can draw the next step in the right place."><input type="checkbox" id="onOn" checked> Show neighboring frames</label>
+            <div class="row"><div class="row-h"><label for="onBefore">Frames before</label><output id="onBeforeOut">2</output></div><input type="range" id="onBefore" min="0" max="8" value="2"></div>
+            <div class="row"><div class="row-h"><label for="onAfter">Frames after</label><output id="onAfterOut">1</output></div><input type="range" id="onAfter" min="0" max="8" value="1"></div>
+            <div class="row"><div class="row-h"><label for="onOp">Strength</label><output id="onOpOut">35%</output></div><input type="range" id="onOp" min="5" max="90" value="35"></div>
+            <label class="check" data-help="Frames before are tinted red and frames after green."><input type="checkbox" id="onTint" checked> Color frames before red, after green</label>
+            <div class="seg full" role="group" aria-label="Onion skin shows" id="onSrc">
+              <button data-v="layer" aria-pressed="true" data-help="Only the selected layer's frames.">Selected layer</button>
+              <button data-v="doc" aria-pressed="false" data-help="The whole picture of the neighboring frames.">Whole picture</button>
+            </div>
+          </fieldset>
+          <fieldset><legend>Motion tween</legend>
+            <p class="hint">Moves, scales, turns or fades the selected layer smoothly from one frame to another. Frames are added when needed.</p>
+            <div class="inline2">
+              <div class="num"><label for="twFrom">From frame</label><input type="number" id="twFrom" min="1" value="1"></div>
+              <div class="num"><label for="twTo">To frame</label><input type="number" id="twTo" min="2" value="12"></div>
+            </div>
+            <div class="sub">Start</div>
+            <div class="twgrid">
+              <div class="num"><label for="twX0">X</label><input type="number" id="twX0" value="0"></div>
+              <div class="num"><label for="twY0">Y</label><input type="number" id="twY0" value="0"></div>
+              <div class="num"><label for="twS0">Size %</label><input type="number" id="twS0" value="100" min="1"></div>
+              <div class="num"><label for="twR0">Turn °</label><input type="number" id="twR0" value="0"></div>
+              <div class="num"><label for="twO0">Opacity %</label><input type="number" id="twO0" value="100" min="0" max="100"></div>
+            </div>
+            <button class="btn wide" id="twSet0" data-help="Copies the selected layer's current position into the start.">Use the layer's current position</button>
+            <div class="sub">End</div>
+            <div class="twgrid">
+              <div class="num"><label for="twX1">X</label><input type="number" id="twX1" value="0"></div>
+              <div class="num"><label for="twY1">Y</label><input type="number" id="twY1" value="0"></div>
+              <div class="num"><label for="twS1">Size %</label><input type="number" id="twS1" value="100" min="1"></div>
+              <div class="num"><label for="twR1">Turn °</label><input type="number" id="twR1" value="0"></div>
+              <div class="num"><label for="twO1">Opacity %</label><input type="number" id="twO1" value="100" min="0" max="100"></div>
+            </div>
+            <button class="btn wide" id="twSet1" data-help="Copies the selected layer's current position into the end.">Use the layer's current position</button>
+            <div class="row"><label for="twEase">Easing</label>
+              <select id="twEase"><option value="linear">Steady speed</option><option value="in">Ease in (start slow)</option><option value="out">Ease out (end slow)</option><option value="inout" selected>Ease in and out</option></select></div>
+            <label class="check"><input type="checkbox" id="twPath" checked> Show the path on the canvas</label>
+            <p class="hint dim">Tip: drag the layer to where it starts with the Move tool and press the first button, then drag it to where it ends and press the second.</p>
+            <div class="winbtns"><button class="btn default" id="twApply">Create tween</button></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- pixel art ---------- -->
+        <div class="page" data-page="pixel" hidden>
+          <fieldset><legend>Pixel art mode</legend>
+            <label class="check" data-help="Zooms in whole steps, shows a pixel grid, draws with hard edges and keeps colors inside the palette and color depth chosen below. Works together with animation mode."><input type="checkbox" id="pxOn"> Pixel art mode</label>
+            <p class="hint dim">Every tool draws hard-edged pixels, the zoom stays on whole numbers and new colors snap to the palette.</p>
+          </fieldset>
+          <fieldset><legend>Screen size</legend>
+            <div class="row"><label for="pxSize">Retro screen or sprite</label><select id="pxSize"><option value="">Custom size</option></select></div>
+            <div class="inline2">
+              <div class="num"><label for="pxW">Width</label><input type="number" id="pxW" min="1" max="4096" value="160"></div>
+              <div class="num"><label for="pxH">Height</label><input type="number" id="pxH" min="1" max="4096" value="144"></div>
+            </div>
+            <div class="sub">A new canvas starts</div>
+            <div class="seg full" role="group" aria-label="New canvas background" id="pxBg">
+              <button data-v="clear" aria-pressed="true" data-help="A see-through background.">Clear</button>
+              <button data-v="first" aria-pressed="false" data-help="Filled with the first palette color (usually the darkest).">1st color</button>
+              <button data-v="last" aria-pressed="false" data-help="Filled with the last palette color.">Last color</button>
+              <button data-v="white" aria-pressed="false" data-help="Filled with white.">White</button>
+            </div>
+            <button class="btn wide default" id="pxNew" data-help="Starts a new, empty picture at this size and turns pixel art mode on.">New pixel canvas at this size</button>
+            <div class="inline">
+              <button class="btn" id="pxResize" data-help="Scales the whole picture to this size with hard, unblurred pixels.">Scale picture</button>
+              <button class="btn" id="pxCanvas" data-help="Changes the canvas to this size and keeps the picture centered, without scaling it.">Change canvas</button>
+            </div>
+          </fieldset>
+          <fieldset><legend>Colors</legend>
+            <div class="row"><label for="pxPal">Palette</label><select id="pxPal" data-help="The colors this machine could show. New colors snap to the nearest one, and Reduce colors maps the picture onto them."></select></div>
+            <div class="row"><label for="pxDepth">Color depth</label><select id="pxDepth" data-help="Indexed depths limit how many different colors the picture may use. RGB depths limit how finely each red, green and blue channel can be set."></select></div>
+            <label class="check" data-help="Colors you choose are moved to the nearest one the palette and color depth allow."><input type="checkbox" id="pxSnap" checked> Snap chosen colors to the limits</label>
+            <div class="inline"><span class="val" id="pxCount"></span><span class="spacer"></span><button class="btn" id="pxCountBtn" data-help="Counts the colors on the current frame of the picture.">Count</button></div>
+            <div class="sub">Reduce colors on the selected layer</div>
+            <div class="row"><label for="pxDither">Dithering</label><select id="pxDither" data-help="Mixes neighboring pixels to fake colors the palette does not have.">
+              <option value="none">None (flat colors)</option><option value="o2">Ordered 2 × 2 (coarse checker)</option><option value="o4">Ordered 4 × 4 (Bayer)</option><option value="fs">Error diffusion (Floyd–Steinberg)</option></select></div>
+            <label class="check" data-help="Pixels become either fully solid or fully clear, like on real hardware."><input type="checkbox" id="pxHardAlpha" checked> No half-transparent pixels</label>
+            <label class="check" data-help="In animations, every frame of the layer is reduced with the same colors."><input type="checkbox" id="pxAllFrames" checked> All frames of the layer</label>
+            <button class="btn wide default" id="pxReduce" data-help="Maps the selected layer onto the palette and color depth above, with the dithering chosen."><i class="ic" data-ic="pixel"></i>Reduce colors</button>
+            <button class="btn wide" id="pxReplace" data-help="Every pixel of exactly the primary color on the selected layer becomes the secondary color.">Swap primary color for secondary</button>
+          </fieldset>
+          <fieldset><legend>Drawing</legend>
+            <label class="check" data-help="Every brush, shape, text and the paint bucket draw solid, fully opaque pixels with no soft edges."><input type="checkbox" id="pxHard" checked> Hard edges for every tool</label>
+            <label class="check" data-help="With a 1-pixel pencil, the extra corner pixel in a diagonal step is removed, so lines stay one pixel thin."><input type="checkbox" id="pxPerfect" checked> Pixel-perfect pencil lines</label>
+            <div class="sub">Mirror drawing</div>
+            <div class="seg full" role="group" aria-label="Mirror drawing" id="pxMirror">
+              <button data-v="off" aria-pressed="true">Off</button>
+              <button data-v="h" aria-pressed="false" data-help="Left and right mirror each other.">Left ↔ right</button>
+              <button data-v="v" aria-pressed="false" data-help="Top and bottom mirror each other.">Top ↕ bottom</button>
+              <button data-v="both" aria-pressed="false" data-help="Four-way symmetry.">Both</button>
+            </div>
+            <label class="check" data-help="Shows a line between every pixel once they are big enough to see."><input type="checkbox" id="pxGrid" checked> Pixel grid</label>
+            <div class="row"><label for="pxTile">Tile grid</label><select id="pxTile" data-help="A second, stronger grid that marks tiles and sprite cells.">
+              <option value="0">Off</option><option value="8">8 × 8</option><option value="16">16 × 16</option><option value="32">32 × 32</option><option value="64">64 × 64</option></select></div>
+          </fieldset>
+          <fieldset><legend>Preview and export</legend>
+            <label class="check" data-help="A small window in the corner shows the whole picture at its real pixel size while you work zoomed in."><input type="checkbox" id="pxPrev" checked> Preview window</label>
+            <div class="row"><label for="pxPrevScale">Preview size</label><select id="pxPrevScale"><option value="1">1 ×</option><option value="2">2 ×</option><option value="3">3 ×</option><option value="4">4 ×</option></select></div>
+            <label class="check" data-help="Adds scanlines and darker corners like an old tube screen."><input type="checkbox" id="pxCrt"> CRT scanlines</label>
+            <label class="check" data-help="Stretches the preview to a 4:3 TV shape, the way consoles looked on a television."><input type="checkbox" id="pxTv"> Stretch to a 4:3 TV</label>
+            <div class="row"><label for="pxExport">Export scale</label><select id="pxExport" data-help="Saved pictures are enlarged by this whole number with hard pixels, so they stay crisp when shared.">
+              <option value="1">1 × (actual pixels)</option><option value="2">2 ×</option><option value="3">3 ×</option><option value="4">4 ×</option><option value="6">6 ×</option><option value="8">8 ×</option></select></div>
+          </fieldset>
+        </div>
+
+        <!-- ---------- motion finder ---------- -->
+        <div class="page" data-page="motion" hidden>
+          <section id="motionSec" class="page" hidden>
+            <fieldset><legend>Motion finder</legend>
+              <p class="hint">Finds the parts of the animation that move and the parts that stay still.</p>
+              <div class="row">
+                <span>Compare each frame with</span>
+                <div class="seg full" role="group" aria-label="Motion method" id="mMode">
+                  <button data-k="plate" aria-pressed="true">Background plate</button>
+                  <button data-k="pairs" aria-pressed="false">Neighbor frames</button>
+                </div>
+                <p class="hint dim" id="mModeHint"></p>
+              </div>
+              <button class="btn wide" id="mAnalyze"><i class="ic" data-ic="motion"></i>Analyze motion</button>
+            </fieldset>
+            <fieldset id="mOpts" hidden><legend>Selection</legend>
+              <div class="seg full" role="group" aria-label="Motion selection" id="mTarget">
+                <button data-t="still" aria-pressed="true">Still areas</button>
+                <button data-t="moving" aria-pressed="false">Moving areas</button>
+              </div>
+              <div class="row"><div class="row-h"><label for="mThr">Motion threshold</label><output id="mThrOut"></output></div><input type="range" id="mThr" min="0" max="100" value="12"></div>
+              <div class="row"><div class="row-h"><label for="mNoise">Ignore flicker below</label><output id="mNoiseOut"></output></div><input type="range" id="mNoise" min="0" max="80" value="8"></div>
+              <div class="row"><div class="row-h"><label for="mSmooth">Smoothing</label><output id="mSmoothOut"></output></div><input type="range" id="mSmooth" min="0" max="12" value="2"></div>
+              <div class="row"><div class="row-h"><label for="mGrow">Grow or shrink</label><output id="mGrowOut"></output></div><input type="range" id="mGrow" min="-8" max="8" value="0"></div>
+              <label class="check"><input type="checkbox" id="mShow" checked> Highlight the selection</label>
+              <label class="check"><input type="checkbox" id="mHeat"> Show the motion heat map <span class="heatkey" aria-hidden="true"></span></label>
+              <p class="val" id="mStat"></p>
+              <div class="inline"><button class="btn" id="mErase">Erase selection</button><button class="btn" id="mRestore">Restore selection</button></div>
+              <p class="hint dim">Applies to every frame. Undo reverses it.</p>
+            </fieldset>
+          </section>
+          <p class="hint anim-none">Open an animated GIF, WebP or PNG to use the motion finder.</p>
+        </div>
+
+        <!-- ---------- stabilize ---------- -->
+        <div class="page" data-page="stab" hidden>
+          <section id="stabSec" class="page" hidden>
+            <fieldset><legend>Stabilize</legend>
+              <p class="hint">Measures how the picture shifts from frame to frame and moves each frame back to hold it steady.</p>
+              <div class="row">
+                <span>Measure each frame against</span>
+                <div class="seg full" role="group" aria-label="Stabilize reference" id="sRef">
+                  <button data-s="chain" aria-pressed="true" data-help="Compares each frame with the one before it. Copes with large, slow drifts.">Previous frame</button>
+                  <button data-s="first" aria-pressed="false" data-help="Compares every frame with the first one. Most accurate when the shake is small.">First frame</button>
+                </div>
+              </div>
+              <div class="row">
+                <span>Track</span>
+                <div class="seg full" role="group" aria-label="Area to track" id="sArea">
+                  <button data-a="all" aria-pressed="true">Whole frame</button>
+                  <button data-a="box" aria-pressed="false" data-help="Draw the box with the Track box tool (T).">Track box</button>
+                </div>
+                <p class="hint dim" id="sAreaHint"></p>
+              </div>
+              <div class="row"><div class="row-h"><label for="sRad">Largest shake to look for</label><output id="sRadOut"></output></div><input type="range" id="sRad" min="2" max="80" value="16"></div>
+              <label class="check" data-help="Only the parts you have not erased are used to measure the shake."><input type="checkbox" id="sVis"> Measure only unerased pixels</label>
+              <button class="btn wide" id="sAnalyze"><i class="ic" data-ic="stab"></i>Analyze shake</button>
+            </fieldset>
+            <fieldset id="sOpts" hidden><legend>Correction</legend>
+              <canvas class="graph sunken" id="sGraph" width="480" height="192" aria-label="Measured motion graph"></canvas>
+              <p class="val" style="font-size:10px"><span class="legend-line" style="background:#0000ff"></span>x &nbsp;<span class="legend-line" style="background:#ff0000"></span>y &nbsp;thin = measured, thick = kept</p>
+              <div class="row"><div class="row-h"><label for="sSmooth">Keep camera moves (smoothing)</label><output id="sSmoothOut"></output></div><input type="range" id="sSmooth" min="0" max="30" value="0" data-help="0 locks the picture completely. Higher values remove only the jitter and keep slow, intended camera movement."></div>
+              <div class="row"><label for="sEdge">Edges uncovered by shifting</label>
+                <select id="sEdge"><option value="transparent">Leave transparent</option><option value="crop">Crop to the area every frame shares</option><option value="extend">Repeat the edge pixels</option></select></div>
+              <label class="check"><input type="checkbox" id="sWhole" checked> Shift by whole pixels (sharpest)</label>
+              <label class="check"><input type="checkbox" id="sPrev" checked> Preview on the canvas</label>
+              <p class="val" id="sStat"></p>
+              <div class="winbtns"><button class="btn default" id="sApply">Apply</button></div>
+            </fieldset>
+          </section>
+          <p class="hint anim-none">Open an animated GIF, WebP or PNG to stabilize it.</p>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- ======================= COLOR PALETTE ======================= -->
+  <div class="palettebar" id="palettebar">
+    <div class="wells" data-help="Primary color (front) paints with the left button. Secondary color (back) paints with the right button and fills shapes. Double-click to edit. X swaps them.">
+      <button class="well w2" id="cw2" style="--c:#ffffff" data-tip="Secondary color"></button>
+      <button class="well w1" id="cw1" style="--c:#000000" data-tip="Primary color"></button>
+      <button class="swapc" id="cwSwap" data-tip="Swap colors" data-key="X">⇆</button>
+    </div>
+    <div class="palgrid" id="palGrid" data-help="Left-click a color for the primary color, right-click for the secondary color."></div>
+    <div class="recent" id="palRecent" data-tip="Recent colors"></div>
+    <div class="palside">
+      <select id="palScheme" aria-label="Color scheme" data-tip="Color scheme" data-help="Choose a preset color scheme for the palette."></select>
+      <button class="btn" id="palEdit" data-help="Opens the color editor with hue, saturation, brightness, RGB, hex and transparency.">Edit colors…</button>
+    </div>
+  </div>
+
+  <!-- ======================= STATUS BAR ======================= -->
+  <div class="statusbar" id="statusbar">
+    <div class="sb-help" id="sbHelp">For Help, press F1.</div>
+    <div id="sbPos" data-tip="Cursor position in image pixels"></div>
+    <div id="sbSize" data-tip="Image size"></div>
+    <div id="sbZoom" data-tip="Zoom"></div>
+    <div id="sbFrame" data-tip="Current frame"></div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" hidden accept="image/*,.gif,.tif,.tiff,.svg,.bmp,.ico,.avif,.webp,.gwiz,.zip">
+<input type="file" id="layerIn" hidden multiple accept="image/*,.gif,.tif,.tiff,.svg,.bmp,.ico,.avif,.webp">
+<div class="toast" id="toast" hidden role="status"></div>
+<div class="tip" id="tip" hidden></div>
+
+<!-- ======================= DIALOGS ======================= -->
+<div class="modal" id="saveOpts" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="soTitle" style="width:400px">
+    <div class="titlebar"><span class="tt" id="soTitle">Save As</span><button class="tbx" data-close="saveOpts" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <div class="row"><label for="fmt">Save as type</label>
+        <select id="fmt">
+          <option value="png">PNG (*.png) · full transparency</option>
+          <option value="webp">WebP (*.webp) · smaller, full transparency</option>
+          <option value="tiff">TIFF (*.tif) · RGBA, uncompressed</option>
+          <option value="gif">GIF (*.gif) · on/off transparency, animation</option>
+        </select></div>
+      <div class="row" id="qRow" hidden><div class="row-h"><label for="q">Quality</label><output id="qOut"></output></div><input type="range" id="q" min="50" max="100" value="92"></div>
+      <fieldset class="gifopts" id="gifOpts" hidden><legend>GIF compression</legend>
+        <div class="row"><div class="row-h"><label for="gcol">Colors</label><output id="gcolOut"></output></div><input type="range" id="gcol" min="2" max="255" value="255"></div>
+        <div class="inline2">
+          <div class="row"><label for="gdither">Dithering</label>
+            <select id="gdither"><option value="none">None (smallest)</option><option value="ordered">Pattern (steady)</option><option value="fs">Diffusion (smooth)</option></select></div>
+          <div class="row"><label for="matte">Soft edges blend into</label>
+            <select id="matte"><option value="none">Nothing, hard cut</option><option value="white">White</option><option value="black">Black</option><option value="bg">Backdrop color</option></select></div>
+        </div>
+        <div class="row"><div class="row-h"><label for="glossy">Lossy compression</label><output id="glossyOut"></output></div><input type="range" id="glossy" min="0" max="100" value="0"></div>
+        <div class="gifanim" id="gifAnimRows" hidden>
+          <label class="check"><input type="checkbox" id="gifAll" checked> Save all frames as an animation</label>
+          <div class="gifanim" id="gifAnimOpts">
+            <div class="inline2">
+              <div class="row"><span>Palette</span>
+                <div class="seg full" role="group" aria-label="GIF palette" id="gpalSeg"><button data-p="shared" aria-pressed="true">Shared</button><button data-p="frame" aria-pressed="false">Per frame</button></div></div>
+              <div class="row"><label for="gskip">Frames</label>
+                <select id="gskip"><option value="1">Every frame</option><option value="2">Every 2nd</option><option value="3">Every 3rd</option><option value="4">Every 4th</option></select></div>
+            </div>
+            <label class="check"><input type="checkbox" id="gopt" checked> Store only the pixels that change</label>
+            <div class="inline2">
+              <div class="row"><label for="gspeed">Speed</label>
+                <select id="gspeed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></div>
+              <div class="row"><label for="gloop">Loop</label>
+                <select id="gloop"><option value="0">Forever</option><option value="-1">Play once</option></select></div>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+      <div class="row"><div class="row-h"><label for="scale">Scale</label><output id="scaleOut"></output></div><input type="range" id="scale" min="10" max="100" value="100"></div>
+      <label class="check"><input type="checkbox" id="trim"> Trim transparent edges</label>
+      <p class="hint" id="fmtNote"></p>
+      <div class="est"><button class="btn" id="estBtn">Estimate size</button><span class="val" id="estOut"></span></div>
+      <div class="winbtns"><button class="btn default" id="saveBtn">Save…</button><button class="btn" data-close="saveOpts">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="saveDlg" hidden>
+  <form class="win dlg" id="sdForm" role="dialog" aria-modal="true" aria-labelledby="sdTitle" style="width:420px">
+    <div class="titlebar"><span class="tt" id="sdTitle">Save image</span><button type="button" class="tbx" id="sdX" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <label for="sdName">File name</label>
+      <div class="namebox"><input type="text" id="sdName" autocomplete="off" spellcheck="false"><span id="sdExt" class="val"></span></div>
+      <p class="val" id="sdInfo"></p>
+      <p class="hint" id="sdWhere"></p>
+      <div class="winbtns"><button type="submit" class="btn default">Save</button><button type="button" class="btn" id="sdCancel">Cancel</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="newDlg" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="nTitle" style="width:340px">
+    <div class="titlebar"><span class="tt" id="nTitle">New image</span><button class="tbx" data-close="newDlg" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <div class="row"><label for="nPreset">Size</label>
+        <select id="nPreset"><option value="">Custom</option><option value="800x600">800 × 600</option><option value="1024x768">1024 × 768</option><option value="1280x720">1280 × 720 (HD)</option><option value="1920x1080">1920 × 1080 (Full HD)</option><option value="1080x1080">1080 × 1080 (square post)</option><option value="1080x1920">1080 × 1920 (phone story)</option><option value="512x512">512 × 512 (icon, sticker)</option><option value="256x256">256 × 256</option><option value="128x128">128 × 128 (emoji)</option><option value="64x64">64 × 64 (pixel art)</option><option value="32x32">32 × 32 (pixel art)</option></select></div>
+      <div class="inline2">
+        <div class="row"><label for="nW">Width (px)</label><input type="number" id="nW" min="1" max="20000" value="800"></div>
+        <div class="row"><label for="nH">Height (px)</label><input type="number" id="nH" min="1" max="20000" value="600"></div>
+      </div>
+      <div class="row"><span>Background</span>
+        <div class="seg full" role="group" aria-label="Background" id="nBg"><button data-v="white" aria-pressed="true">White</button><button data-v="clear" aria-pressed="false">Transparent</button><button data-v="color" aria-pressed="false">Secondary color</button></div></div>
+      <div class="winbtns"><button class="btn default" id="nOk">OK</button><button class="btn" data-close="newDlg">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="colorDlg" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="cTitle" style="width:470px">
+    <div class="titlebar"><span class="tt" id="cTitle">Edit Colors</span><button class="tbx" data-close="colorDlg" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <div class="cpick">
+        <canvas id="cSV" width="180" height="180" aria-label="Saturation and brightness"></canvas>
+        <canvas id="cHue" width="18" height="180" aria-label="Hue"></canvas>
+        <div style="display:grid;gap:6px">
+          <div class="cprev"><span id="cOld" title="Current"></span><span id="cNew" title="New"></span></div>
+          <div class="cvals">
+            <label for="cR">Red</label><input type="number" id="cR" min="0" max="255">
+            <label for="cG">Green</label><input type="number" id="cG" min="0" max="255">
+            <label for="cB">Blue</label><input type="number" id="cB" min="0" max="255">
+            <label for="cHh">Hue</label><input type="number" id="cHh" min="0" max="359">
+            <label for="cSs">Sat %</label><input type="number" id="cSs" min="0" max="100">
+            <label for="cVv">Bright %</label><input type="number" id="cVv" min="0" max="100">
+            <label for="cHex">Hex</label><input type="text" id="cHex" maxlength="9">
+          </div>
+        </div>
+      </div>
+      <div class="row"><div class="row-h"><label for="cA">Opacity</label><output id="cAOut"></output></div><input type="range" id="cA" min="0" max="100" value="100"></div>
+      <div class="row"><span>Custom colors</span><div class="custom" id="cCustom"></div></div>
+      <div class="winbtns"><button class="btn" id="cAddCustom">Add to custom colors</button><span class="spacer"></span><button class="btn default" id="cOk">OK</button><button class="btn" data-close="colorDlg">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="helpDlg" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="hTitle" style="width:440px">
+    <div class="titlebar"><span class="tt" id="hTitle">G-WIZ Help — Keyboard shortcuts</span><button class="tbx" data-close="helpDlg" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <dl class="keys">
+        <dt>B · R · W</dt><dd>Eraser · Restore brush · Magic wand</dd>
+        <dt>C · T · H · Z</dt><dd>Crop · Track box · Pan · Magnifier</dd>
+        <dt>M</dt><dd>Move and transform the selected layer</dd>
+        <dt>P · N · Y · K · J</dt><dd>Pencil · Pen · Brush · Marker · Airbrush</dd>
+        <dt>L · U · O · A</dt><dd>Line · Rectangle · Ellipse · Text</dd>
+        <dt>G · I</dt><dd>Fill · Pick color</dd>
+        <dt>X</dt><dd>Swap primary and secondary colors</dd>
+        <dt>Ctrl+N · Ctrl+Shift+O</dt><dd>New image · Import as layer</dd>
+        <dt>Ctrl+C · Ctrl+V</dt><dd>Copy layer · paste as a new layer</dd>
+        <dt>Ctrl+Shift+S</dt><dd>Save project (.gwiz)</dd>
+        <dt>[ ]</dt><dd>Brush smaller / larger (or Alt + wheel)</dd>
+        <dt>Wheel, pinch</dt><dd>Zoom at the cursor</dd>
+        <dt>Space + drag</dt><dd>Pan with any tool (also middle or right drag)</dd>
+        <dt>Alt + drag</dt><dd>Restore while erasing</dd>
+        <dt>Shift + drag</dt><dd>Force: ignore edges and color</dd>
+        <dt>V</dt><dd>Cycle Result, Mask and Original views</dd>
+        <dt>, .</dt><dd>Previous / next frame</dd>
+        <dt>0 · 1</dt><dd>Fit to window · actual pixels</dd>
+        <dt>Ctrl+O · Ctrl+S</dt><dd>Open · Save</dd>
+        <dt>Ctrl+Z · Ctrl+Y</dt><dd>Undo · redo</dd>
+        <dt>Enter · Esc</dt><dd>Apply the crop box · cancel it</dd>
+      </dl>
+      <p class="hint">Hover over any button to see what it does. A longer explanation appears in the status bar.</p>
+      <div class="winbtns"><button class="btn default" data-close="helpDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="aboutDlg" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="aTitle" style="width:380px">
+    <div class="titlebar"><span class="tt" id="aTitle">About G-WIZ</span><button class="tbx" data-close="aboutDlg" aria-label="Close"><svg viewBox="0 0 8 7"><path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z"/></svg></button></div>
+    <div class="winbody">
+      <div class="about">
+        <img src="__ICON64__" alt="">
+        <div>
+          <p style="margin:0 0 6px"><b>G-WIZ</b> — Graphics Wizard<br>Version __VERSION__</p>
+          <p class="hint">Background eraser with edge-aware brushes, automatic removal, animation tools, motion finder, stabilizer and tunable GIF compression.</p>
+          <p class="hint" id="aboutMode"></p>
+        </div>
+      </div>
+      <div class="winbtns"><button class="btn default" data-close="aboutDlg">OK</button></div>
+    </div>
+  </div>
+</div>

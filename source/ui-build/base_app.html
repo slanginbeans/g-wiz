@@ -1,0 +1,2488 @@
+<title>Background Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: editor shell — top bar, tool rail, canvas stage, inspector panel; stacks to one column on phones */
+:root{
+  --bg:#e9ecef; --surface:#ffffff; --surface-2:#f3f5f7; --ink:#171a1e; --muted:#5b646e; --line:#d3d8de;
+  --stage:#d9dee3; --accent:#d23a26; --accent-ink:#ffffff; --accent-soft:rgba(210,58,38,.12);
+  --check-a:#ffffff; --check-b:#d0d5da; --focus:#1f6feb;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121417; --surface:#1b1e22; --surface-2:#23272c; --ink:#e7e9ec; --muted:#959ca5; --line:#2f343a;
+  --stage:#0c0e10; --accent:#ff5b44; --accent-ink:#1a0805; --accent-soft:rgba(255,91,68,.16);
+  --check-a:#3b3f45; --check-b:#2b2e33; --focus:#6aa8ff; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121417; --surface:#1b1e22; --surface-2:#23272c; --ink:#e7e9ec; --muted:#959ca5; --line:#2f343a;
+  --stage:#0c0e10; --accent:#ff5b44; --accent-ink:#1a0805; --accent-soft:rgba(255,91,68,.16);
+  --check-a:#3b3f45; --check-b:#2b2e33; --focus:#6aa8ff; color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-body);overflow:hidden}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-columns:auto minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr);
+  grid-template-areas:"bar bar bar" "rail stage panel";gap:10px;padding-inline:16px;padding-block:10px 16px}
+
+/* top bar */
+.bar{grid-area:bar;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.brand{display:flex;align-items:center;gap:9px;margin-right:6px}
+.brand-mark{width:22px;height:22px;border-radius:5px;background:
+  linear-gradient(135deg,var(--accent) 0 50%,transparent 50%),repeating-conic-gradient(var(--check-b) 0 25%,var(--check-a) 0 50%) 0 0/8px 8px;
+  border:1px solid var(--line)}
+.brand-name{font:800 19px/1 var(--f-display);letter-spacing:-.01em}
+.grp{display:flex;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:2px}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 10px;border:0;border-radius:6px;background:transparent;cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--surface-2)}
+.btn:disabled{opacity:.38;cursor:default}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.icon{width:32px;padding:0}
+.btn.primary{background:var(--accent);color:var(--accent-ink);font-weight:600;padding:0 14px}
+.btn.primary:hover:not(:disabled){background:var(--accent);filter:brightness(1.08)}
+.zoomval{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;min-width:58px}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:5px;padding:4px 9px;cursor:pointer;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:600}
+.bar .seg{background:var(--surface)}
+.bar .seg button[aria-pressed="true"]{background:var(--surface-2)}
+
+/* rail */
+.rail{grid-area:rail;display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:6px;align-self:start}
+.tool{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:58px;padding:8px 2px 6px;border:0;border-radius:6px;background:transparent;cursor:pointer;color:var(--muted);font-size:11px}
+.tool svg{width:22px;height:22px}
+.tool:hover{background:var(--surface-2);color:var(--ink)}
+.tool[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+.tool kbd{position:absolute;top:4px;right:5px;font:500 9px var(--f-mono);opacity:.6}
+
+/* stage */
+.stage{grid-area:stage;position:relative;border-radius:var(--r);background:var(--stage);overflow:hidden;min-width:0;min-height:0;touch-action:none;border:1px solid var(--line)}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100% - 20px);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:6px;
+  padding:4px 9px;font:12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);pointer-events:none}
+.hud b{color:var(--ink);font-weight:500}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}
+.timeline{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:4px;padding:5px 10px 5px 5px;
+  background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:8px}
+.tl-btn{width:30px;height:30px;flex:none;display:grid;place-items:center;border:0;border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+.tl-btn:hover{background:var(--surface-2)}
+.tl-btn svg{width:16px;height:16px}
+.tl-track{position:relative;flex:1;min-width:60px;display:grid;align-items:center;margin:0 6px}
+.tl-track canvas{position:absolute;left:0;right:0;top:50%;height:14px;width:100%;transform:translateY(-50%);pointer-events:none}
+.tl-track input{position:relative;width:100%}
+.tl-num{flex:none;font:12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);min-width:64px;text-align:right}
+.stage.has-tl .hud{bottom:58px}
+.drop{position:absolute;inset:10px;border:2px dashed var(--accent);border-radius:var(--r);display:grid;place-items:center;
+  background:color-mix(in srgb,var(--surface) 70%,transparent);font:600 18px var(--f-display);color:var(--accent);pointer-events:none}
+.busy{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:12.5px}
+
+/* panel */
+.panel{grid-area:panel;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:11px}
+.sec:last-child{border-bottom:0}
+.sec h2{margin:0;font:600 11px var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.row{display:grid;gap:5px}
+.row-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.row-h label,.lbl{font-size:13px}
+output,.val{font:12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+.hint{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45;max-width:60ch}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.check input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+select{width:100%;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);padding:0 8px}
+.seg.full{display:flex}
+.seg.full button{flex:1}
+.fileinfo{display:grid;gap:2px;min-width:0}
+.fileinfo strong{font-weight:600;overflow-wrap:anywhere}
+.fileinfo span{font:12px var(--f-mono);color:var(--muted)}
+.inline{display:flex;gap:8px;flex-wrap:wrap}
+.btn.ghost{border:1px solid var(--line);background:var(--surface-2)}
+.btn.wide{width:100%;height:38px}
+.bgs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bgsw{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);cursor:pointer;padding:0}
+.bgsw[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.bgsw.checker{background:repeating-conic-gradient(var(--check-b) 0 25%,var(--check-a) 0 50%) 0 0/10px 10px}
+.bgsw.white{background:#fff}.bgsw.black{background:#000}
+.bgcolor{position:relative;overflow:hidden}
+.bgcolor input{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);border:0;padding:0;cursor:pointer}
+.frames-row{display:flex;align-items:center;gap:8px}
+.gifopts{display:grid;gap:11px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}
+.gifopts select{background:var(--surface)}
+.gifopts .seg{background:var(--surface)}
+.gifopts .seg button[aria-pressed="true"]{background:var(--surface-2)}
+.gifanim{display:grid;gap:11px}
+.heatkey{display:inline-block;width:44px;height:8px;border-radius:4px;vertical-align:1px;margin-left:4px;background:linear-gradient(90deg,#2a6df4,#18c2b0,#f2d03b,#f0503a)}
+.sub{font-size:12px;font-weight:600;color:var(--muted)}
+.inline2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.num{display:grid;gap:3px;font-size:11.5px;color:var(--muted);min-width:0}
+.num input,.degbox input{width:100%;min-width:0;height:30px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);padding:0 6px;font:12.5px var(--f-mono);font-variant-numeric:tabular-nums}
+.degbox{display:inline-flex;align-items:center;gap:3px;font:12px var(--f-mono);color:var(--muted)}
+.degbox input{width:74px;height:26px;text-align:right}
+.inline .spacer{flex:1}
+.est{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn.wide svg{width:18px;height:18px}
+.frames-row input{flex:1;min-width:0}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+.thumb{position:relative;flex:none;padding:0;border:2px solid transparent;border-radius:6px;cursor:pointer;scroll-snap-align:center;line-height:0;
+  background:repeating-conic-gradient(var(--check-b) 0 25%,var(--check-a) 0 50%) 0 0/8px 8px}
+.thumb canvas{display:block;height:52px;width:auto;border-radius:4px}
+.thumb[aria-current="true"]{border-color:var(--accent)}
+.thumb:hover:not([aria-current="true"]){border-color:var(--line)}
+.tnum{position:absolute;left:3px;bottom:3px;font:500 10px/1 var(--f-mono);background:rgba(0,0,0,.6);color:#fff;padding:2px 4px;border-radius:3px}
+.tdot,.tdot-key{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1.5px var(--surface)}
+.tdot{position:absolute;top:4px;right:4px}
+.tdot-key{display:inline-block;vertical-align:0;margin-right:2px}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px;color:var(--muted);margin:0}
+.keys dt{font:11.5px var(--f-mono);color:var(--ink)}
+.keys dd{margin:0}
+kbd{font-family:var(--f-mono)}
+.modal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(10,12,15,.45)}
+.dlg{width:min(440px,100%);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:10px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.dlg h2{margin:0 0 2px;font:600 17px var(--f-display)}
+.dlg p{margin:0}
+.namebox{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);padding:0 10px 0 0}
+.namebox:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.namebox input{flex:1;min-width:0;height:36px;border:0;background:transparent;padding:0 10px;outline:none}
+.dlg-actions{margin-top:4px}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:8px 16px;border-radius:8px;font-size:13px;z-index:10;max-width:calc(100% - 32px);text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:820px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(240px,1fr) minmax(0,40%);grid-template-areas:"bar" "rail" "stage" "panel";gap:8px;padding-block:8px 12px}
+  .rail{flex-direction:row;align-self:stretch;justify-content:center}
+  .tool{width:auto;flex:1;flex-direction:row;justify-content:center;gap:6px;padding:7px 4px;font-size:12px}
+  .tool kbd{display:none}
+  .brand-name{font-size:17px}
+  .hide-sm{display:none}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">Background Wizard</span></div>
+    <div class="grp">
+      <button class="btn" id="openBtn" title="Open image (O)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v3"/><path d="M4 19l3-7h15l-3 7z"/></svg>Open</button>
+    </div>
+    <div class="grp">
+      <button class="btn icon" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+      <button class="btn icon" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="btn icon" id="zoomOut" title="Zoom out (−)" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M16 16l4 4"/></svg></button>
+      <button class="btn zoomval" id="zoomVal" title="Fit to window (0)">100%</button>
+      <button class="btn icon" id="zoomIn" title="Zoom in (+)" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M11 8v6M16 16l4 4"/></svg></button>
+      <button class="btn hide-sm" id="zoom1" title="Actual pixels (1)">1:1</button>
+    </div>
+    <div class="seg" role="group" aria-label="View" id="viewSeg">
+      <button data-v="result" aria-pressed="true" title="Show the result (V)">Result</button>
+      <button data-v="overlay" aria-pressed="false" title="Show erased areas as a red overlay (V)">Mask</button>
+      <button data-v="original" aria-pressed="false" title="Show the untouched image (V)">Original</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn primary" id="saveTop" title="Save (Ctrl+S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save</button>
+    <input type="file" id="fileIn" class="sr" accept="image/*,.gif,.tif,.tiff,.svg,.bmp,.ico,.avif,.webp">
+  </header>
+
+  <nav class="rail" aria-label="Tools">
+    <button class="tool" data-tool="erase" aria-pressed="true" title="Eraser (B)"><kbd>B</kbd>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M14.5 4.5l5 5-9 9H6l-2.5-2.5a1.5 1.5 0 0 1 0-2.1z"/><path d="M9 10l5 5M10.5 18.5H20"/></svg>Erase</button>
+    <button class="tool" data-tool="restore" aria-pressed="false" title="Restore brush (R)"><kbd>R</kbd>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M18.5 3.5l2 2-8 8-2.5.5.5-2.5z"/><path d="M9.5 14.5c-2.5 0-4 1.6-4 3.6 0 1-.6 1.6-1.5 1.9 1 .6 2.4.9 3.6.9 2.7 0 4.4-1.7 4.4-4"/></svg>Restore</button>
+    <button class="tool" data-tool="wand" aria-pressed="false" title="Magic wand (W)"><kbd>W</kbd>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M4 20L15 9M13 7l4 4"/><path d="M17 2.5v3M15.5 4h3M20.5 7v2M19.5 8h2M10 3v2M9 4h2"/></svg>Wand</button>
+    <button class="tool" data-tool="hand" aria-pressed="false" title="Pan (H, or hold Space)"><kbd>H</kbd>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5c0 4-2.5 7-6 7-2.6 0-4-1.2-5.4-3.4L3.8 14a1.5 1.5 0 0 1 2.5-1.6L8 14.5"/></svg>Pan</button>
+  </nav>
+
+  <main class="stage" id="stage">
+    <canvas id="view" aria-label="Image canvas"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="timeline" id="timeline" hidden>
+      <button class="tl-btn" id="tlPrev" aria-label="Previous frame" title="Previous frame (,)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM19 5v14L9 12z"/></svg></button>
+      <button class="tl-btn" id="tlPlay" aria-label="Play" title="Play / pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="tl-btn" id="tlNext" aria-label="Next frame" title="Next frame (.)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5 5v14l10-7z"/></svg></button>
+      <div class="tl-track"><canvas id="tlMarks" aria-hidden="true"></canvas><input type="range" id="tlSl" min="0" max="0" value="0" aria-label="Frame"></div>
+      <span class="tl-num" id="tlNum">1 / 1</span>
+    </div>
+    <div class="drop" id="drop" hidden>Drop to open</div>
+    <div class="busy" id="busy" hidden>Working…</div>
+  </main>
+
+  <aside class="panel" aria-label="Settings">
+    <section class="sec">
+      <h2>Image</h2>
+      <div class="fileinfo"><strong id="fname">sample-cactus.png</strong><span id="fdims">—</span></div>
+      <p class="hint" id="sampleNote">Sample photo. Open, drop or paste your own: PNG, JPEG, WebP, GIF (animated too), AVIF, BMP, SVG, ICO, TIFF.</p>
+      <div class="row">
+        <div class="row-h"><label for="opac">Opacity</label><output id="opacOut"></output></div>
+        <input type="range" id="opac" min="0" max="100" value="100">
+        <p class="hint">Fades the whole picture, every frame included. Applied when you save.</p>
+      </div>
+      <div class="inline">
+        <button class="btn ghost" id="openBtn2">Open image…</button>
+        <button class="btn ghost" id="resetBtn">Reset edits</button>
+      </div>
+    </section>
+
+    <section class="sec" id="geoSec">
+      <h2>Crop &amp; rotate</h2>
+      <span class="sub" id="cropSub">Crop</span>
+      <div class="row">
+        <label class="lbl" for="caspect">Aspect ratio</label>
+        <select id="caspect">
+          <option value="free">Free</option><option value="orig">Original</option><option value="1:1">1 : 1 square</option>
+          <option value="4:3">4 : 3</option><option value="3:4">3 : 4</option><option value="16:9">16 : 9</option>
+          <option value="9:16">9 : 16</option><option value="3:2">3 : 2</option><option value="2:3">2 : 3</option>
+        </select>
+      </div>
+      <div class="row"><div class="row-h"><label for="cropL">Left</label><output id="cropLOut"></output></div><input type="range" id="cropL" min="0" max="0" value="0"></div>
+      <div class="row"><div class="row-h"><label for="cropR">Right</label><output id="cropROut"></output></div><input type="range" id="cropR" min="0" max="0" value="0"></div>
+      <div class="row"><div class="row-h"><label for="cropT">Top</label><output id="cropTOut"></output></div><input type="range" id="cropT" min="0" max="0" value="0"></div>
+      <div class="row"><div class="row-h"><label for="cropB">Bottom</label><output id="cropBOut"></output></div><input type="range" id="cropB" min="0" max="0" value="0"></div>
+      <div class="grid4">
+        <label class="num" for="cropX"><span>X</span><input type="number" id="cropX" min="0" step="1" inputmode="numeric"></label>
+        <label class="num" for="cropY"><span>Y</span><input type="number" id="cropY" min="0" step="1" inputmode="numeric"></label>
+        <label class="num" for="cropW"><span>Width</span><input type="number" id="cropW" min="1" step="1" inputmode="numeric"></label>
+        <label class="num" for="cropH"><span>Height</span><input type="number" id="cropH" min="1" step="1" inputmode="numeric"></label>
+      </div>
+      <div class="inline">
+        <button class="btn ghost" id="cFit" title="Crop to the visible, non-transparent pixels">Fit to content</button>
+        <button class="btn ghost" id="cReset">Reset</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="cApply" disabled>Apply crop</button>
+      </div>
+      <span class="sub">Rotate</span>
+      <div class="row" id="rotScopeRow" hidden>
+        <div class="seg full" role="group" aria-label="Rotation applies to" id="rotScope">
+          <button data-r="all" aria-pressed="true">All frames</button>
+          <button data-r="one" aria-pressed="false">This frame</button>
+        </div>
+        <p class="hint" id="rotScopeHint"></p>
+      </div>
+      <div class="inline">
+        <button class="btn ghost" id="rotL" title="Rotate 90° counter-clockwise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V3M4 3h5"/><path d="M4.5 8.5A8 8 0 1 1 6 18"/></svg>90°</button>
+        <button class="btn ghost" id="rotR" title="Rotate 90° clockwise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 8V3M20 3h-5"/><path d="M19.5 8.5A8 8 0 1 0 18 18"/></svg>90°</button>
+        <button class="btn ghost" id="flipH" title="Flip horizontally"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7L3 12l5 5zM16 7l5 5-5 5z"/></svg>Flip</button>
+        <button class="btn ghost" id="flipV" title="Flip vertically"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M7 8l5-5 5 5zM7 16l5 5 5-5z"/></svg>Flip</button>
+      </div>
+      <div class="row">
+        <div class="row-h"><label for="rang">Angle</label><span class="degbox"><input type="number" id="rangN" min="-180" max="180" step="0.1" value="0" aria-label="Angle in degrees">°</span></div>
+        <input type="range" id="rang" min="-180" max="180" step="0.1" value="0">
+      </div>
+      <label class="check" id="rexpRow"><input type="checkbox" id="rexp" checked> Expand the canvas to fit the corners</label>
+      <div class="inline">
+        <button class="btn ghost" id="rReset">Reset angle</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="rApply" disabled>Apply rotation</button>
+      </div>
+      <p class="hint">Crop and rotation can be undone like any edit. The canvas previews a rotation with a straightening grid before you apply it.</p>
+    </section>
+
+    <section class="sec">
+      <h2>Quick fixes</h2>
+      <div class="row">
+        <button class="btn ghost wide" id="autoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L15 9M13 7l4 4"/><path d="M17 2.5v3M15.5 4h3M20.5 7v2M19.5 8h2M10 3v2M9 4h2"/></svg>Remove background automatically</button>
+        <div class="row-h"><label for="atol">Background tolerance</label><output id="atolOut"></output></div>
+        <input type="range" id="atol" min="1" max="100" value="22">
+        <label class="check"><input type="checkbox" id="aPrev"> Preview before applying</label>
+        <p class="val" id="aPrevStat" hidden></p>
+        <p class="hint">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges. Touch up with the brushes afterwards.</p>
+      </div>
+      <div class="row">
+        <label class="lbl" for="speck">Remove stray specks</label>
+        <div class="inline">
+          <select id="speck" style="width:auto;flex:1;min-width:0">
+            <option value="0.0002">Tiny islands only</option>
+            <option value="0.001" selected>Small islands</option>
+            <option value="0.005">Medium islands</option>
+          </select>
+          <button class="btn ghost" id="speckBtn">Clean up</button>
+        </div>
+        <p class="hint">Erases leftover bits of background that are not connected to the subject.</p>
+      </div>
+    </section>
+
+    <section class="sec" data-for="erase restore hand">
+      <h2 id="brushTitle">Eraser</h2>
+      <div class="row">
+        <span class="lbl">Detection</span>
+        <div class="seg full" role="group" aria-label="Detection mode" id="modeSeg">
+          <button data-m="smart" aria-pressed="true">Smart</button>
+          <button data-m="color" aria-pressed="false">Color</button>
+          <button data-m="edges" aria-pressed="false">Edges</button>
+          <button data-m="plain" aria-pressed="false">Plain</button>
+        </div>
+        <p class="hint" id="modeHint"></p>
+      </div>
+      <label class="check" title="Hold Shift while painting to do this temporarily"><input type="checkbox" id="force"> Force: ignore edges and color <span class="val">(hold Shift)</span></label>
+      <label class="check"><input type="checkbox" id="hiStroke"> Highlight the stroke until you let go</label>
+      <div class="row">
+        <div class="row-h"><label for="size">Size</label><output id="sizeOut"></output></div>
+        <input type="range" id="size" min="2" max="500" value="60">
+      </div>
+      <div class="row">
+        <span class="lbl">Size is measured in</span>
+        <div class="seg full" role="group" aria-label="Brush size reference" id="relSeg">
+          <button data-r="screen" aria-pressed="true">Screen px</button>
+          <button data-r="image" aria-pressed="false">Image px</button>
+        </div>
+        <p class="hint" id="relHint"></p>
+      </div>
+      <div class="row">
+        <div class="row-h"><label for="hard">Hardness</label><output id="hardOut"></output></div>
+        <input type="range" id="hard" min="0" max="100" value="75">
+      </div>
+      <div class="row" data-need="color">
+        <div class="row-h"><label for="tol">Color tolerance</label><output id="tolOut"></output></div>
+        <input type="range" id="tol" min="1" max="100" value="28">
+      </div>
+      <div class="row" data-need="edge">
+        <div class="row-h"><label for="edge">Edge sensitivity</label><output id="edgeOut"></output></div>
+        <input type="range" id="edge" min="0" max="100" value="55">
+      </div>
+      <div class="row" data-need="color">
+        <span class="lbl">Sample the color</span>
+        <div class="seg full" role="group" aria-label="Color sampling" id="sampSeg">
+          <button data-s="once" aria-pressed="true">Once per stroke</button>
+          <button data-s="cont" aria-pressed="false">Continuously</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-for="wand" hidden>
+      <h2>Magic wand</h2>
+      <p class="hint">Click a background area to erase every connected pixel of similar color. Alt-click restores a region instead. Shift-click ignores edges for that click.</p>
+      <div class="row">
+        <div class="row-h"><label for="wtol">Tolerance</label><output id="wtolOut"></output></div>
+        <input type="range" id="wtol" min="1" max="100" value="24">
+      </div>
+      <label class="check"><input type="checkbox" id="wcontig" checked> Connected pixels only</label>
+      <label class="check"><input type="checkbox" id="wedges" checked> Stop at edges</label>
+      <div class="row">
+        <div class="row-h"><label for="wedge">Edge sensitivity</label><output id="wedgeOut"></output></div>
+        <input type="range" id="wedge" min="0" max="100" value="55">
+      </div>
+    </section>
+
+    <section class="sec" id="animSec" hidden>
+      <h2>Animation</h2>
+      <div class="strip" id="strip" aria-label="Frames"></div>
+      <div class="frames-row">
+        <button class="btn icon ghost" id="prevFr" aria-label="Previous frame" title="Previous frame (,)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM19 5v14L9 12z"/></svg></button>
+        <button class="btn icon ghost" id="playBtn" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="btn icon ghost" id="nextFr" aria-label="Next frame" title="Next frame (.)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM5 5v14l10-7z"/></svg></button>
+        <input type="range" id="frameSl" min="0" max="0" value="0" aria-label="Frame">
+      </div>
+      <div class="row-h"><span class="val" id="frameInfo"></span><span class="val"><span class="tdot-key"></span> edited</span></div>
+      <div class="row">
+        <span class="lbl">Edits apply to</span>
+        <div class="seg full" role="group" aria-label="Edit scope" id="scopeSeg">
+          <button data-a="one" aria-pressed="true">This frame</button>
+          <button data-a="all" aria-pressed="false">All frames</button>
+        </div>
+        <p class="hint" id="scopeHint"></p>
+      </div>
+      <div class="row">
+        <span class="lbl">Copy this frame's mask to</span>
+        <div class="inline">
+          <button class="btn ghost" id="copyNext">Next frame</button>
+          <button class="btn ghost" id="copyAll">All frames</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="motionSec" hidden>
+      <h2>Motion finder</h2>
+      <p class="hint">Compares every frame with the next to find the parts of the animation that move and the parts that stay still. Handy for erasing a static background behind a moving subject, or the other way round.</p>
+      <button class="btn ghost wide" id="mAnalyze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l3-7 4 14 3-7h5"/></svg>Analyze motion</button>
+      <div class="row">
+        <span class="lbl">Compare each frame with</span>
+        <div class="seg full" role="group" aria-label="Motion method" id="mMode">
+          <button data-k="plate" aria-pressed="true">Background plate</button>
+          <button data-k="pairs" aria-pressed="false">Neighbor frames</button>
+        </div>
+        <p class="hint" id="mModeHint"></p>
+      </div>
+      <div class="gifanim" id="mOpts" hidden>
+        <div class="row">
+          <span class="lbl">Select</span>
+          <div class="seg full" role="group" aria-label="Motion selection" id="mTarget">
+            <button data-t="still" aria-pressed="true">Still areas</button>
+            <button data-t="moving" aria-pressed="false">Moving areas</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-h"><label for="mThr">Motion threshold</label><output id="mThrOut"></output></div>
+          <input type="range" id="mThr" min="0" max="100" value="12">
+        </div>
+        <div class="row">
+          <div class="row-h"><label for="mNoise">Ignore flicker below</label><output id="mNoiseOut"></output></div>
+          <input type="range" id="mNoise" min="0" max="80" value="8">
+        </div>
+        <div class="row">
+          <div class="row-h"><label for="mSmooth">Smoothing</label><output id="mSmoothOut"></output></div>
+          <input type="range" id="mSmooth" min="0" max="12" value="2">
+        </div>
+        <div class="row">
+          <div class="row-h"><label for="mGrow">Grow or shrink</label><output id="mGrowOut"></output></div>
+          <input type="range" id="mGrow" min="-8" max="8" value="0">
+        </div>
+        <label class="check"><input type="checkbox" id="mShow" checked> Highlight the selection</label>
+        <label class="check"><input type="checkbox" id="mHeat"> Show the motion heat map <span class="heatkey" aria-hidden="true"></span></label>
+        <p class="val" id="mStat"></p>
+        <div class="inline">
+          <button class="btn ghost" id="mErase">Erase selection</button>
+          <button class="btn ghost" id="mRestore">Restore selection</button>
+        </div>
+        <p class="hint">Applies to every frame. Undo reverses it.</p>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>Edge finishing</h2>
+      <div class="row">
+        <div class="row-h"><label for="shrink">Shrink edge</label><output id="shrinkOut"></output></div>
+        <input type="range" id="shrink" min="0" max="6" value="0">
+      </div>
+      <div class="row">
+        <div class="row-h"><label for="soft">Soften edge</label><output id="softOut"></output></div>
+        <input type="range" id="soft" min="0" max="6" value="0">
+      </div>
+      <label class="check"><input type="checkbox" id="defringe"> Remove color fringe</label>
+      <p class="hint">Cleans halos left by the old background: shrink pulls the edge inward, soften feathers it, and fringe removal recolors half-transparent edge pixels from the subject. Shown in the Result view and applied when you save.</p>
+    </section>
+
+    <section class="sec">
+      <h2>Backdrop</h2>
+      <div class="bgs" role="group" aria-label="Backdrop" id="bgSeg">
+        <button class="bgsw checker" data-bg="checker" aria-pressed="true" title="Checkerboard" aria-label="Checkerboard"></button>
+        <button class="bgsw white" data-bg="white" aria-pressed="false" title="White" aria-label="White"></button>
+        <button class="bgsw black" data-bg="black" aria-pressed="false" title="Black" aria-label="Black"></button>
+        <span class="bgsw bgcolor" data-bg="color" aria-pressed="false" title="Custom color" id="bgColorWrap"><input type="color" id="bgColor" value="#2f8f5b" aria-label="Custom backdrop color"></span>
+        <span class="hint">Preview only. Not saved.</span>
+      </div>
+      <label class="check"><input type="checkbox" id="ghost" checked> Show erased areas faintly (15%)</label>
+      <p class="hint">Keeps what you erased visible at low strength in the Result view, so you can see what the Restore brush will bring back. Saved files are not affected.</p>
+    </section>
+
+    <section class="sec">
+      <h2>Save</h2>
+      <div class="row">
+        <label class="lbl" for="fmt">Format</label>
+        <select id="fmt">
+          <option value="png">PNG · full transparency</option>
+          <option value="webp">WebP · full transparency, smaller</option>
+          <option value="tiff">TIFF · RGBA, uncompressed</option>
+          <option value="gif">GIF · on/off transparency</option>
+        </select>
+      </div>
+      <div class="row" id="qRow" hidden>
+        <div class="row-h"><label for="q">Quality</label><output id="qOut"></output></div>
+        <input type="range" id="q" min="50" max="100" value="92">
+      </div>
+      <div class="gifopts" id="gifOpts" hidden>
+        <span class="sub">GIF compression</span>
+        <div class="row">
+          <div class="row-h"><label for="gcol">Colors</label><output id="gcolOut"></output></div>
+          <input type="range" id="gcol" min="2" max="255" value="255">
+        </div>
+        <div class="row">
+          <label class="lbl" for="gdither">Dithering</label>
+          <select id="gdither">
+            <option value="none">None · smallest file</option>
+            <option value="ordered">Pattern · steady in animations</option>
+            <option value="fs">Diffusion · smoothest gradients</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="row-h"><label for="glossy">Lossy compression</label><output id="glossyOut"></output></div>
+          <input type="range" id="glossy" min="0" max="100" value="0">
+        </div>
+        <div class="row">
+          <label class="lbl" for="matte">Soft edges blend into</label>
+          <select id="matte">
+            <option value="none">Nothing · hard cut</option>
+            <option value="white">White</option>
+            <option value="black">Black</option>
+            <option value="bg">Custom backdrop color</option>
+          </select>
+        </div>
+        <div class="gifanim" id="gifAnimRows" hidden>
+          <label class="check"><input type="checkbox" id="gifAll" checked> Save all frames as an animation</label>
+          <div class="gifanim" id="gifAnimOpts">
+            <div class="row">
+              <span class="lbl">Palette</span>
+              <div class="seg full" role="group" aria-label="GIF palette" id="gpalSeg">
+                <button data-p="shared" aria-pressed="true">Shared</button>
+                <button data-p="frame" aria-pressed="false">Per frame</button>
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" id="gopt" checked> Store only the pixels that change</label>
+            <div class="row">
+              <label class="lbl" for="gskip">Frames</label>
+              <select id="gskip">
+                <option value="1">Keep every frame</option>
+                <option value="2">Keep every 2nd frame</option>
+                <option value="3">Keep every 3rd frame</option>
+                <option value="4">Keep every 4th frame</option>
+              </select>
+            </div>
+            <div class="inline2">
+              <div class="row">
+                <label class="lbl" for="gspeed">Speed</label>
+                <select id="gspeed">
+                  <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option>
+                  <option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option>
+                </select>
+              </div>
+              <div class="row">
+                <label class="lbl" for="gloop">Loop</label>
+                <select id="gloop"><option value="0">Forever</option><option value="-1">Play once</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-h"><label for="scale">Scale</label><output id="scaleOut"></output></div>
+        <input type="range" id="scale" min="10" max="100" value="100">
+      </div>
+      <label class="check"><input type="checkbox" id="trim"> Trim transparent edges</label>
+      <p class="hint" id="fmtNote"></p>
+      <div class="est"><button class="btn ghost" id="estBtn">Estimate file size</button><span class="val" id="estOut"></span></div>
+      <button class="btn primary wide" id="saveBtn">Save</button>
+    </section>
+
+    <section class="sec">
+      <h2>Shortcuts</h2>
+      <dl class="keys">
+        <dt>[ ]</dt><dd>Brush smaller / larger</dd>
+        <dt>Alt + wheel</dt><dd>Resize brush</dd>
+        <dt>Wheel, pinch</dt><dd>Zoom at the cursor</dd>
+        <dt>Space + drag</dt><dd>Pan (also middle or right drag)</dd>
+        <dt>Alt + drag</dt><dd>Restore while erasing</dd>
+        <dt>Shift + drag</dt><dd>Force: ignore edges and color</dd>
+        <dt>V</dt><dd>Cycle Result / Mask / Original</dd>
+        <dt>, .</dt><dd>Previous / next frame</dd>
+        <dt>0 · 1</dt><dd>Fit · actual pixels</dd>
+        <dt>Ctrl Z · Ctrl ⇧ Z</dt><dd>Undo · redo</dd>
+      </dl>
+    </section>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+<div class="modal" id="saveDlg" hidden>
+  <form class="dlg" id="sdForm" role="dialog" aria-modal="true" aria-labelledby="sdTitle">
+    <h2 id="sdTitle">Save image</h2>
+    <label class="lbl" for="sdName">File name</label>
+    <div class="namebox"><input type="text" id="sdName" autocomplete="off" spellcheck="false"><span id="sdExt" class="val"></span></div>
+    <p class="val" id="sdInfo"></p>
+    <p class="hint" id="sdWhere"></p>
+    <div class="inline dlg-actions"><span class="spacer"></span><button type="button" class="btn ghost" id="sdCancel">Cancel</button><button type="submit" class="btn primary">Save</button></div>
+  </form>
+</div>
+
+<script>
+/*CODECS-START*/
+// ---------- GIF decoding ----------
+function lzwDecode(minCode, data, count){
+  const out = new Uint8Array(count);
+  const clear = 1 << minCode, eoi = clear + 1;
+  const prefix = new Int16Array(4096), suffix = new Uint8Array(4096), first = new Uint8Array(4096), len = new Uint16Array(4096);
+  for (let i = 0; i < clear; i++){ prefix[i] = -1; suffix[i] = i; first[i] = i; len[i] = 1; }
+  let size = minCode + 1, mask = (1 << size) - 1, next = eoi + 1, old = -1, op = 0, cur = 0, bits = 0, p = 0;
+  outer: while (op < count){
+    while (bits < size){ if (p >= data.length) break outer; cur |= data[p++] << bits; bits += 8; }
+    let code = cur & mask; cur >>>= size; bits -= size;
+    if (code === clear){ size = minCode + 1; mask = (1 << size) - 1; next = eoi + 1; old = -1; continue; }
+    if (code === eoi) break;
+    if (old === -1){ if (code >= clear) break; out[op++] = suffix[code]; old = code; continue; }
+    if (code > next) break;
+    const fc = code < next ? first[code] : first[old];
+    if (next < 4096){
+      prefix[next] = old; suffix[next] = fc; first[next] = first[old]; len[next] = len[old] + 1; next++;
+      if (next === (1 << size) && size < 12){ size++; mask = (1 << size) - 1; }
+    }
+    let L = len[code], end = op + L, c = code;
+    if (end > count){ // truncate
+      let skip = end - count; while (skip-- > 0) c = prefix[c]; end = count; L = count - op;
+    }
+    for (let k = end - 1; k >= op; k--){ out[k] = suffix[c]; c = prefix[c]; }
+    op = end; old = code;
+  }
+  return out;
+}
+
+function decodeGif(bytes){
+  let p = 0;
+  const rd = () => bytes[p++];
+  const u16 = () => { const v = bytes[p] | (bytes[p + 1] << 8); p += 2; return v; };
+  const sig = String.fromCharCode.apply(null, bytes.subarray(0, 6));
+  if (!/^GIF8[79]a$/.test(sig)) throw new Error('Not a GIF');
+  p = 6;
+  const w = u16(), h = u16(), pk = rd(); rd(); rd();
+  let gct = null;
+  if (pk & 0x80){ const n = 2 << (pk & 7); gct = bytes.subarray(p, p + n * 3); p += n * 3; }
+  const skipBlocks = () => { while (p < bytes.length){ const s = rd(); if (!s) break; p += s; } };
+  const readBlocks = () => {
+    const parts = []; let total = 0;
+    while (p < bytes.length){ const s = rd(); if (!s) break; parts.push(bytes.subarray(p, p + s)); total += s; p += s; }
+    const out = new Uint8Array(total); let o = 0; for (const q of parts){ out.set(q, o); o += q.length; } return out;
+  };
+  const canvas = new Uint8ClampedArray(w * h * 4);
+  const frames = [], delays = [];
+  let gce = { disp: 0, delay: 0, trans: -1 }, lastDisp = 0, lastRect = null, saved = null;
+  while (p < bytes.length){
+    const b = rd();
+    if (b === 0x3B) break;
+    if (b === 0x21){
+      const label = rd();
+      if (label === 0xF9){
+        const s = rd(), pk2 = bytes[p], delay = bytes[p + 1] | (bytes[p + 2] << 8), ti = bytes[p + 3];
+        p += s; gce = { disp: (pk2 >> 2) & 7, delay, trans: (pk2 & 1) ? ti : -1 };
+      }
+      skipBlocks(); continue;
+    }
+    if (b === 0x2C){
+      const fx = u16(), fy = u16(), fw = u16(), fh = u16(), ipk = rd();
+      let ct = gct;
+      if (ipk & 0x80){ const n = 2 << (ipk & 7); ct = bytes.subarray(p, p + n * 3); p += n * 3; }
+      const inter = !!(ipk & 0x40), minCode = rd(), data = readBlocks();
+      const idx = lzwDecode(minCode, data, fw * fh);
+      if (lastDisp === 2 && lastRect){
+        const [rx, ry, rw, rh] = lastRect;
+        for (let y = ry; y < Math.min(h, ry + rh); y++) canvas.fill(0, (y * w + rx) * 4, (y * w + Math.min(w, rx + rw)) * 4);
+      } else if (lastDisp === 3 && saved) canvas.set(saved);
+      if (gce.disp === 3) saved = canvas.slice();
+      let rows = null;
+      if (inter){ rows = []; for (const [s, st] of [[0, 8], [4, 8], [2, 4], [1, 2]]) for (let r = s; r < fh; r += st) rows.push(r); }
+      for (let r = 0; r < fh; r++){
+        const y = fy + (rows ? rows[r] : r); if (y >= h) continue;
+        for (let x = 0; x < fw; x++){
+          const gx = fx + x; if (gx >= w) continue;
+          const ci = idx[r * fw + x];
+          if (ci === gce.trans || !ct || ci * 3 + 2 >= ct.length) continue;
+          const o = (y * w + gx) * 4;
+          canvas[o] = ct[ci * 3]; canvas[o + 1] = ct[ci * 3 + 1]; canvas[o + 2] = ct[ci * 3 + 2]; canvas[o + 3] = 255;
+        }
+      }
+      frames.push(canvas.slice()); delays.push(gce.delay);
+      lastDisp = gce.disp; lastRect = [fx, fy, fw, fh]; gce = { disp: 0, delay: 0, trans: -1 };
+      continue;
+    }
+    break;
+  }
+  if (!frames.length) throw new Error('GIF has no frames');
+  return { w, h, frames, delays };
+}
+
+// ---------- GIF encoding ----------
+class ByteW {
+  constructor(){ this.b = new Uint8Array(1 << 16); this.n = 0; }
+  ensure(k){ if (this.n + k > this.b.length){ const nb = new Uint8Array(Math.max(this.b.length * 2, this.n + k)); nb.set(this.b.subarray(0, this.n)); this.b = nb; } }
+  byte(v){ this.ensure(1); this.b[this.n++] = v & 255; }
+  u16(v){ this.byte(v); this.byte(v >> 8); }
+  bytes(a){ this.ensure(a.length); this.b.set(a, this.n); this.n += a.length; }
+  str(s){ for (let i = 0; i < s.length; i++) this.byte(s.charCodeAt(i)); }
+  out(){ return this.b.slice(0, this.n); }
+}
+
+const _dictCode = new Int16Array(1 << 20), _dictGen = new Uint32Array(1 << 20); let _gen = 0;
+function lzwEncode(idx, minCode, bw){
+  const clear = 1 << minCode, eoi = clear + 1;
+  let size = minCode + 1, next = eoi + 1;
+  const blk = new Uint8Array(255); let bl = 0, cur = 0, bits = 0;
+  const flushByte = (v) => { blk[bl++] = v; if (bl === 255){ bw.byte(255); bw.bytes(blk); bl = 0; } };
+  const write = (code) => { cur |= code << bits; bits += size; while (bits >= 8){ flushByte(cur & 255); cur >>>= 8; bits -= 8; } };
+  _gen++;
+  write(clear);
+  let prefix = idx[0];
+  for (let i = 1; i < idx.length; i++){
+    const k = idx[i], key = (prefix << 8) | k;
+    if (_dictGen[key] === _gen){ prefix = _dictCode[key]; continue; }
+    write(prefix);
+    if (next < 4096){
+      _dictGen[key] = _gen; _dictCode[key] = next++;
+      if (next > (1 << size) && size < 12) size++;
+    } else {
+      write(clear); _gen++; size = minCode + 1; next = eoi + 1;
+    }
+    prefix = k;
+  }
+  write(prefix); write(eoi);
+  if (bits > 0) flushByte(cur & 255);
+  if (bl){ bw.byte(bl); bw.bytes(blk.subarray(0, bl)); }
+  bw.byte(0);
+}
+
+function buildPalette(frames, maxColors, keep){
+  const hist = new Uint32Array(32768);
+  let total = 0; for (const f of frames) total += f.length >> 2;
+  const stride = Math.max(1, Math.floor(total / 3e6));
+  for (const f of frames){
+    for (let i = 0, n = f.length >> 2; i < n; i += stride){
+      const o = i * 4; if (!keep(f, o)) continue;
+      hist[((f[o] >> 3) << 10) | ((f[o + 1] >> 3) << 5) | (f[o + 2] >> 3)]++;
+    }
+  }
+  const keys = []; for (let k = 0; k < 32768; k++) if (hist[k]) keys.push(k);
+  const comp = (k, a) => a === 0 ? (k >> 10) & 31 : a === 1 ? (k >> 5) & 31 : k & 31;
+  const boxes = [{ s: 0, e: keys.length }];
+  const boxInfo = (bx) => {
+    let mn = [31, 31, 31], mx = [0, 0, 0], cnt = 0;
+    for (let i = bx.s; i < bx.e; i++){ const k = keys[i]; cnt += hist[k]; for (let a = 0; a < 3; a++){ const v = comp(k, a); if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; } }
+    const rg = [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]];
+    const axis = rg[1] >= rg[0] && rg[1] >= rg[2] ? 1 : rg[0] >= rg[2] ? 0 : 2;
+    bx.axis = axis; bx.score = rg[axis] * Math.sqrt(cnt); bx.cnt = cnt; return bx;
+  };
+  boxInfo(boxes[0]);
+  while (boxes.length < maxColors){
+    let bi = -1, best = 0;
+    for (let i = 0; i < boxes.length; i++) if (boxes[i].e - boxes[i].s > 1 && boxes[i].score > best){ best = boxes[i].score; bi = i; }
+    if (bi < 0) break;
+    const bx = boxes[bi], a = bx.axis;
+    const sub = keys.slice(bx.s, bx.e).sort((x, y) => comp(x, a) - comp(y, a));
+    for (let i = 0; i < sub.length; i++) keys[bx.s + i] = sub[i];
+    let acc = 0, half = bx.cnt / 2, m = bx.s + 1;
+    for (let i = bx.s; i < bx.e - 1; i++){ acc += hist[keys[i]]; if (acc >= half){ m = i + 1; break; } m = i + 1; }
+    boxes.splice(bi, 1, boxInfo({ s: bx.s, e: m }), boxInfo({ s: m, e: bx.e }));
+  }
+  const pal = [];
+  for (const bx of boxes){
+    if (bx.e <= bx.s) continue;
+    let r = 0, g = 0, b = 0, c = 0;
+    for (let i = bx.s; i < bx.e; i++){ const k = keys[i], n = hist[k]; r += (((k >> 10) & 31) * 8 + 4) * n; g += (((k >> 5) & 31) * 8 + 4) * n; b += ((k & 31) * 8 + 4) * n; c += n; }
+    pal.push([Math.round(r / c), Math.round(g / c), Math.round(b / c)]);
+  }
+  if (!pal.length) pal.push([0, 0, 0]);
+  return pal;
+}
+
+// frames: array of RGBA Uint8ClampedArray (w*h*4); delays in centiseconds
+// opts: matte [r,g,b]|null, colors 2..255, dither 'none'|'ordered'|'fs', local (per-frame palettes),
+//       optimize (store only changed pixels between frames), lossy 0..100, loop 0=forever / -1=play once
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+function encodeGif(frames, w, h, delays, opts){
+  const o = Object.assign({ matte: null, colors: 255, dither: 'none', local: false, optimize: true, lossy: 0, loop: 0 }, opts || {});
+  const keep = (f, p) => f[p + 3] >= 128;
+  const matte = o.matte;
+  const prepared = frames.map(f => {
+    if (!matte) return f;
+    const g = new Uint8ClampedArray(f.length);
+    for (let p = 0; p < f.length; p += 4){
+      const a = f[p + 3] / 255;
+      g[p] = f[p] * a + matte[0] * (1 - a); g[p + 1] = f[p + 1] * a + matte[1] * (1 - a); g[p + 2] = f[p + 2] * a + matte[2] * (1 - a); g[p + 3] = f[p + 3];
+    }
+    return g;
+  });
+  const maxC = Math.max(2, Math.min(255, o.colors | 0));
+  const pals = o.local ? prepared.map(f => buildPalette([f], maxC, keep)) : [buildPalette(prepared, maxC, keep)];
+  const luts = pals.map(() => new Int16Array(32768).fill(-1));
+  const bitsFor = (pal) => { let k = 0; while ((2 << k) < pal.length + 1) k++; return k; };
+  const spread = Math.max(10, Math.min(72, 255 / Math.cbrt(maxC) * 0.9));
+  const lossyThr2 = Math.pow(o.lossy * 0.42, 2);
+  const N = w * h;
+
+  function mapFrame(f, pi){
+    const pal = pals[pi], lut = luts[pi], T = pal.length, idx = new Uint8Array(N);
+    const near = (r, g, b) => {
+      const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      let v = lut[k];
+      if (v < 0){
+        const rr = ((k >> 10) & 31) * 8 + 4, gg = ((k >> 5) & 31) * 8 + 4, bb = (k & 31) * 8 + 4;
+        let bd = Infinity; v = 0;
+        for (let i = 0; i < pal.length; i++){ const dr = rr - pal[i][0], dg = gg - pal[i][1], db = bb - pal[i][2]; const d = dr * dr * 2 + dg * dg * 4 + db * db * 3; if (d < bd){ bd = d; v = i; } }
+        lut[k] = v;
+      }
+      return v;
+    };
+    const fs = o.dither === 'fs', ord = o.dither === 'ordered';
+    let eC = fs ? new Float32Array((w + 2) * 3) : null, eN = fs ? new Float32Array((w + 2) * 3) : null;
+    for (let y = 0; y < h; y++){
+      if (fs){ const t = eC; eC = eN; eN = t; eN.fill(0); }
+      for (let x = 0; x < w; x++){
+        const i = y * w + x, p = i * 4;
+        if (f[p + 3] < 128){ idx[i] = T; continue; }
+        let r = f[p], g = f[p + 1], b = f[p + 2];
+        if (ord){ const t = ((BAYER4[(y & 3) * 4 + (x & 3)] + 0.5) / 16 - 0.5) * spread; r += t; g += t; b += t; }
+        else if (fs){ const e = (x + 1) * 3; r += eC[e]; g += eC[e + 1]; b += eC[e + 2]; }
+        r = r < 0 ? 0 : r > 255 ? 255 : r; g = g < 0 ? 0 : g > 255 ? 255 : g; b = b < 0 ? 0 : b > 255 ? 255 : b;
+        let v = near(r | 0, g | 0, b | 0);
+        if (lossyThr2 > 0 && x > 0){
+          const q = idx[i - 1];
+          if (q !== T){ const c = pal[q], dr = r - c[0], dg = g - c[1], db = b - c[2]; if ((2 * dr * dr + 4 * dg * dg + 3 * db * db) / 9 <= lossyThr2) v = q; }
+        }
+        idx[i] = v;
+        if (fs){
+          const c = pal[v], er = r - c[0], eg = g - c[1], eb = b - c[2], e = (x + 1) * 3;
+          eC[e + 3] += er * 7 / 16; eC[e + 4] += eg * 7 / 16; eC[e + 5] += eb * 7 / 16;
+          eN[e - 3] += er * 3 / 16; eN[e - 2] += eg * 3 / 16; eN[e - 1] += eb * 3 / 16;
+          eN[e] += er * 5 / 16; eN[e + 1] += eg * 5 / 16; eN[e + 2] += eb * 5 / 16;
+          eN[e + 3] += er / 16; eN[e + 4] += eg / 16; eN[e + 5] += eb / 16;
+        }
+      }
+    }
+    return idx;
+  }
+
+  const n = prepared.length;
+  const pIdx = i => o.local ? i : 0;
+  const idxs = []; for (let i = 0; i < n; i++) idxs.push(mapFrame(prepared[i], pIdx(i)));
+  const colAt = (i, p) => { const pal = pals[pIdx(i)], v = idxs[i][p]; if (v === pal.length) return -1; const c = pal[v]; return (c[0] << 16) | (c[1] << 8) | c[2]; };
+
+  // Build the frame list. With optimize, a frame stores only the rectangle that changed, and pixels equal to
+  // what is already shown become transparent (cheap to compress). A frame is cleared afterwards (disposal 2)
+  // only when the next frame needs some of its pixels to turn transparent.
+  const outs = [], state = new Int32Array(N).fill(-1);
+  for (let i = 0; i < n; i++){
+    let d = delays[i]; if (!(d >= 2)) d = 10;
+    const T = pals[pIdx(i)].length;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1, needClear = true;
+    if (o.optimize){
+      needClear = false;
+      if (i < n - 1){ for (let p = 0; p < N; p++) if (idxs[i + 1][p] === pals[pIdx(i + 1)].length && colAt(i, p) !== -1){ needClear = true; break; } }
+      for (let p = 0; p < N; p++){
+        const c = colAt(i, p);
+        if (c !== state[p] || (needClear && c !== -1)){ const x = p % w, y = (p / w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      }
+      if (x1 < 0 && !needClear && outs.length && outs[outs.length - 1].disp === 1){ outs[outs.length - 1].delay = Math.min(65535, outs[outs.length - 1].delay + d); continue; }
+      if (x1 < 0){ x0 = 0; y0 = 0; x1 = 0; y1 = 0; }
+    } else { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+    const rw = x1 - x0 + 1, rh = y1 - y0 + 1, data = new Uint8Array(rw * rh), src = idxs[i];
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const p = y * w + x, c = colAt(i, p);
+      data[(y - y0) * rw + (x - x0)] = (o.optimize && c === state[p]) ? T : src[p];
+      if (!needClear) state[p] = c;
+    }
+    if (needClear) state.fill(-1);
+    outs.push({ x: x0, y: y0, w: rw, h: rh, data, disp: needClear ? 2 : 1, delay: d, pi: pIdx(i) });
+  }
+
+  const bw = new ByteW();
+  bw.str('GIF89a'); bw.u16(w); bw.u16(h);
+  const writeTable = (pal, k) => { for (let i = 0; i < (2 << k); i++){ const c = pal[i] || [0, 0, 0]; bw.byte(c[0]); bw.byte(c[1]); bw.byte(c[2]); } };
+  if (!o.local){ const k = bitsFor(pals[0]); bw.byte(0x80 | (7 << 4) | k); bw.byte(0); bw.byte(0); writeTable(pals[0], k); }
+  else { bw.byte(0x70); bw.byte(0); bw.byte(0); }
+  if (outs.length > 1 && o.loop >= 0){ bw.byte(0x21); bw.byte(0xFF); bw.byte(11); bw.str('NETSCAPE2.0'); bw.byte(3); bw.byte(1); bw.u16(o.loop); bw.byte(0); }
+  for (const f of outs){
+    const pal = pals[f.pi], k = bitsFor(pal), T = pal.length;
+    bw.byte(0x21); bw.byte(0xF9); bw.byte(4); bw.byte((f.disp << 2) | 1); bw.u16(f.delay); bw.byte(T); bw.byte(0);
+    bw.byte(0x2C); bw.u16(f.x); bw.u16(f.y); bw.u16(f.w); bw.u16(f.h);
+    if (o.local){ bw.byte(0x80 | k); writeTable(pal, k); } else bw.byte(0);
+    const minCode = Math.max(2, k + 1);
+    bw.byte(minCode); lzwEncode(f.data, minCode, bw);
+  }
+  bw.byte(0x3B);
+  return bw.out();
+}
+
+// ---------- TIFF ----------
+function encodeTiff(rgba, w, h){
+  const entries = [[256, 4, 1, w], [257, 4, 1, h], [258, 3, 4, 0], [259, 3, 1, 1], [262, 3, 1, 2], [273, 4, 1, 0],
+                   [277, 3, 1, 4], [278, 4, 1, h], [279, 4, 1, w * h * 4], [284, 3, 1, 1], [338, 3, 1, 2]];
+  const ifdOff = 8, ifdSize = 2 + entries.length * 12 + 4, bpsOff = ifdOff + ifdSize, dataOff = bpsOff + 8;
+  const buf = new ArrayBuffer(dataOff + w * h * 4), dv = new DataView(buf), u8 = new Uint8Array(buf);
+  u8[0] = 0x49; u8[1] = 0x49; dv.setUint16(2, 42, true); dv.setUint32(4, ifdOff, true);
+  dv.setUint16(ifdOff, entries.length, true);
+  entries.forEach(([tag, type, count, val], i) => {
+    const e = ifdOff + 2 + i * 12;
+    if (tag === 258) val = bpsOff; if (tag === 273) val = dataOff;
+    dv.setUint16(e, tag, true); dv.setUint16(e + 2, type, true); dv.setUint32(e + 4, count, true);
+    if (type === 3 && count === 1) dv.setUint16(e + 8, val, true); else dv.setUint32(e + 8, val, true);
+  });
+  dv.setUint32(ifdOff + 2 + entries.length * 12, 0, true);
+  for (let i = 0; i < 4; i++) dv.setUint16(bpsOff + i * 2, 8, true);
+  u8.set(rgba, dataOff);
+  return u8;
+}
+
+function decodeTiff(bytes){
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const le = bytes[0] === 0x49;
+  const u16 = o => dv.getUint16(o, le), u32 = o => dv.getUint32(o, le);
+  if (u16(2) !== 42) throw new Error('Not a TIFF');
+  const ifd = u32(4), n = u16(ifd), tags = {};
+  for (let i = 0; i < n; i++){
+    const e = ifd + 2 + i * 12, tag = u16(e), type = u16(e + 2), cnt = u32(e + 4);
+    const sz = { 1: 1, 3: 2, 4: 4 }[type]; if (!sz) continue;
+    const vo = sz * cnt <= 4 ? e + 8 : u32(e + 8), vals = [];
+    for (let k = 0; k < cnt; k++) vals.push(type === 3 ? u16(vo + 2 * k) : type === 4 ? u32(vo + 4 * k) : bytes[vo + k]);
+    tags[tag] = vals;
+  }
+  const g = (t, d) => (tags[t] ? tags[t][0] : d);
+  const w = g(256), h = g(257), bps = g(258, 1), comp = g(259, 1), photo = g(262, 2), spp = g(277, 1), planar = g(284, 1), extra = g(338, 0);
+  if (bps !== 8 || planar !== 1 || (comp !== 1 && comp !== 32773)) throw new Error('This TIFF uses compression or a bit depth this app cannot read. Try PNG instead.');
+  const raw = new Uint8Array(w * h * spp); let o = 0;
+  const offs = tags[273] || [], cnts = tags[279] || [];
+  for (let s = 0; s < offs.length && o < raw.length; s++){
+    const chunk = bytes.subarray(offs[s], offs[s] + cnts[s]);
+    if (comp === 1){ const take = Math.min(chunk.length, raw.length - o); raw.set(chunk.subarray(0, take), o); o += take; }
+    else { let i = 0; while (i < chunk.length && o < raw.length){ const c = (chunk[i++] << 24) >> 24; if (c >= 0){ for (let k = 0; k <= c && o < raw.length; k++) raw[o++] = chunk[i++]; } else if (c !== -128){ const v = chunk[i++]; for (let k = 0; k < 1 - c && o < raw.length; k++) raw[o++] = v; } } }
+  }
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < w * h; i++){
+    const s = i * spp, d = i * 4;
+    if (spp >= 3){ out[d] = raw[s]; out[d + 1] = raw[s + 1]; out[d + 2] = raw[s + 2]; out[d + 3] = spp >= 4 ? raw[s + 3] : 255;
+      if (spp >= 4 && extra === 1 && out[d + 3] > 0 && out[d + 3] < 255){ const a = out[d + 3] / 255; out[d] /= a; out[d + 1] /= a; out[d + 2] /= a; } }
+    else { let v = raw[s]; if (photo === 0) v = 255 - v; out[d] = out[d + 1] = out[d + 2] = v; out[d + 3] = spp === 2 ? raw[s + 1] : 255; }
+  }
+  return { w, h, frames: [out], delays: [0] };
+}
+
+// ---------- ZIP (store) ----------
+const _crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = _crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(name, data){
+  const nm = new TextEncoder().encode(name), crc = crc32(data), sz = data.length;
+  const out = new Uint8Array(30 + nm.length + sz + 46 + nm.length + 22), dv = new DataView(out.buffer);
+  let p = 0;
+  dv.setUint32(p, 0x04034b50, true); dv.setUint16(p + 4, 20, true); dv.setUint16(p + 12, 33, true); dv.setUint32(p + 14, crc, true);
+  dv.setUint32(p + 18, sz, true); dv.setUint32(p + 22, sz, true); dv.setUint16(p + 26, nm.length, true); out.set(nm, p + 30); p += 30 + nm.length;
+  out.set(data, p); p += sz;
+  const cd = p;
+  dv.setUint32(p, 0x02014b50, true); dv.setUint16(p + 4, 20, true); dv.setUint16(p + 6, 20, true); dv.setUint16(p + 14, 33, true);
+  dv.setUint32(p + 16, crc, true); dv.setUint32(p + 20, sz, true); dv.setUint32(p + 24, sz, true); dv.setUint16(p + 28, nm.length, true);
+  out.set(nm, p + 46); p += 46 + nm.length;
+  dv.setUint32(p, 0x06054b50, true); dv.setUint16(p + 8, 1, true); dv.setUint16(p + 10, 1, true);
+  dv.setUint32(p + 12, p - cd, true); dv.setUint32(p + 16, cd, true);
+  return out;
+}
+/*CODECS-END*/
+</script>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const stage = $('#stage'), view = $('#view'), vctx = view.getContext('2d');
+const downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : null;
+
+const S = {
+  tool: 'erase', mode: 'smart', size: 60, rel: 'screen', hard: 75, tol: 28, edge: 55, samp: 'once',
+  force: false, ghost: true, hiStroke: false, autoPrev: false, mMode: 'plate', mTarget: 'still', mThr: 12, mNoise: 8, mSmooth: 2, mGrow: 0, mShow: true, mHeat: false, opacity: 100, atol: 22, shrink: 0, soft: 0, defringe: false, gcol: 255, glossy: 0, gpal: 'shared', scale: 100, wtol: 24, wcontig: true, wedges: true, wedge: 55, scopeAll: false,
+  zoom: 1, panX: 0, panY: 0, viewMode: 'result', bg: 'checker', bgColor: '#2f8f5b',
+  cur: 0, playing: false, space: false, hover: null, sample: null, name: 'sample-cactus'
+};
+let W = 0, H = 0, frames = [], masks = [], delays = [];
+const imgCanvas = document.createElement('canvas');
+let imgCtx = null, disp = null;
+let dpr = 1, cw = 0, ch = 0;
+
+// ---------- UI helpers ----------
+let toastT = 0;
+function toast(msg, ms = 2600){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
+function busy(on){ $('#busy').hidden = !on; }
+const fmtHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+
+// ---------- theme colors for canvas ----------
+let themeCols = null;
+function readTheme(){
+  const cs = getComputedStyle(document.documentElement);
+  themeCols = { a: cs.getPropertyValue('--check-a').trim(), b: cs.getPropertyValue('--check-b').trim(), accent: cs.getPropertyValue('--accent').trim(), pat: null };
+  requestDraw();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
+new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
+function checkerPattern(){
+  if (themeCols.pat) return themeCols.pat;
+  const c = document.createElement('canvas'), s = Math.round(10 * dpr); c.width = c.height = s * 2;
+  const g = c.getContext('2d'); g.fillStyle = themeCols.a; g.fillRect(0, 0, s * 2, s * 2); g.fillStyle = themeCols.b; g.fillRect(0, 0, s, s); g.fillRect(s, s, s, s);
+  const p = vctx.createPattern(c, 'repeat'); if (p.setTransform) p.setTransform(new DOMMatrix([1 / dpr, 0, 0, 1 / dpr, 0, 0]));
+  return themeCols.pat = p;
+}
+
+// ---------- image state ----------
+function setImage(res, name){
+  const bytesNeeded = res.frames.length * res.w * res.h * 5;
+  if (bytesNeeded > 1.6e9){ toast('That image is too large to edit here (' + res.frames.length + ' frames of ' + res.w + '×' + res.h + ').', 5000); return false; }
+  stopPlay();
+  W = res.w; H = res.h; frames = res.frames; delays = res.delays.slice();
+  masks = frames.map(() => new Uint8Array(W * H).fill(255));
+  S.cur = 0; S.name = name; S.sample = null;
+  imgCanvas.width = W; imgCanvas.height = H;
+  imgCtx = imgCanvas.getContext('2d');
+  disp = imgCtx.createImageData(W, H);
+  resetEdges(); undoStack.length = 0; redoStack.length = 0; undoBytes = 0; updateUndoUI();
+  $('#fname').textContent = name;
+  $('#fdims').textContent = W + ' × ' + H + ' px' + (frames.length > 1 ? ' · ' + frames.length + ' frames' : '');
+  $('#sampleNote').hidden = name !== 'sample-cactus';
+  setupAnim(); resetGeoUI(); resetMotion();
+  fit(); renderRect(0, 0, W, H); updateFmtUI(); scheduleAutoPreview();
+  return true;
+}
+
+// display composition
+function renderRect(x0, y0, x1, y1){
+  if (!W) return;
+  x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); x1 = Math.min(W, Math.ceil(x1)); y1 = Math.min(H, Math.ceil(y1));
+  if (x1 <= x0 || y1 <= y0) return;
+  const src = frames[S.cur], m = masks[S.cur], d = disp.data, mode = S.viewMode, op = S.opacity / 100;
+  const rc = (mode === 'result' && refCache && refCache.f === S.cur) ? refCache.data : null;
+  const ac = hexToRgb(themeCols ? themeCols.accent : '#d23a26');
+  const ghost = S.ghost && mode === 'result' ? 0.15 : 0;
+  const hl = stroke && S.hiStroke && strokeMark ? strokeMark : null, hc = stroke && stroke.restore ? [52, 199, 120] : [255, 176, 32];
+  for (let y = y0; y < y1; y++){
+    let i = y * W + x0, p = i * 4;
+    for (let x = x0; x < x1; x++, i++, p += 4){
+      const a = src[p + 3];
+      if (rc){ d[p] = rc[p]; d[p + 1] = rc[p + 1]; d[p + 2] = rc[p + 2]; d[p + 3] = rc[p + 3]; }
+      else if (mode === 'result'){ d[p] = src[p]; d[p + 1] = src[p + 1]; d[p + 2] = src[p + 2]; d[p + 3] = (a * m[i] * op + 127) / 255; }
+      else if (mode === 'original'){ d[p] = src[p]; d[p + 1] = src[p + 1]; d[p + 2] = src[p + 2]; d[p + 3] = a; }
+      else { const t = 0.62 * (1 - m[i] / 255); d[p] = src[p] + (ac[0] - src[p]) * t; d[p + 1] = src[p + 1] + (ac[1] - src[p + 1]) * t; d[p + 2] = src[p + 2] + (ac[2] - src[p + 2]) * t; d[p + 3] = Math.max(a, m[i] < 255 ? 160 : 0); }
+      if (ghost){ const ga = a * ghost; if (d[p + 3] < ga) d[p + 3] = ga; }
+      if (hl && hl[i]){
+        const t = 0.6 * hl[i] / 255;
+        if (!rc && mode === 'result'){ d[p] = src[p]; d[p + 1] = src[p + 1]; d[p + 2] = src[p + 2]; }
+        d[p] += (hc[0] - d[p]) * t; d[p + 1] += (hc[1] - d[p + 1]) * t; d[p + 2] += (hc[2] - d[p + 2]) * t;
+        d[p + 3] = Math.max(d[p + 3], a * 0.85);
+      }
+    }
+  }
+  imgCtx.putImageData(disp, 0, 0, x0, y0, x1 - x0, y1 - y0);
+  requestDraw();
+}
+function hexToRgb(h){ h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+
+// ---------- edge maps (one per frame, lazy 64px tiles, Sobel over RGBA) ----------
+const TILE = 64; let edgeCache = new Map(), tilesX = 0, tilesY = 0;
+function resetEdges(){ edgeCache = new Map(); tilesX = Math.ceil(W / TILE); tilesY = Math.ceil(H / TILE); }
+function edgeOf(f){
+  let e = edgeCache.get(f);
+  if (!e){
+    e = { map: new Uint8Array(W * H), done: new Uint8Array(tilesX * tilesY) };
+    edgeCache.set(f, e);
+    const cap = Math.max(4, Math.floor(200e6 / (W * H)));
+    for (const k of edgeCache.keys()){ if (edgeCache.size <= cap) break; if (k !== f && k !== S.cur) edgeCache.delete(k); }
+  }
+  return e;
+}
+function ensureEdges(f, x0, y0, x1, y1){
+  const e = edgeOf(f);
+  const tx0 = Math.max(0, Math.floor(x0 / TILE)), ty0 = Math.max(0, Math.floor(y0 / TILE));
+  const tx1 = Math.min(tilesX - 1, Math.floor((x1 - 1) / TILE)), ty1 = Math.min(tilesY - 1, Math.floor((y1 - 1) / TILE));
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (!e.done[ty * tilesX + tx]){ computeTile(frames[f], e.map, tx, ty); e.done[ty * tilesX + tx] = 1; }
+  return e.map;
+}
+function computeTile(src, edge, tx, ty){
+  const xs = tx * TILE, xe = Math.min(W, xs + TILE), ys = ty * TILE, ye = Math.min(H, ys + TILE);
+  for (let y = ys; y < ye; y++){
+    const ym = Math.max(0, y - 1) * W, yc = y * W, yp = Math.min(H - 1, y + 1) * W;
+    for (let x = xs; x < xe; x++){
+      const xm = Math.max(0, x - 1), xp = Math.min(W - 1, x + 1);
+      const A = (ym + xm) * 4, B = (ym + x) * 4, C = (ym + xp) * 4, D = (yc + xm) * 4, F = (yc + xp) * 4, G = (yp + xm) * 4, Hh = (yp + x) * 4, K = (yp + xp) * 4;
+      let best = 0;
+      for (let c = 0; c < 4; c++){
+        const gx = (src[C + c] + 2 * src[F + c] + src[K + c]) - (src[A + c] + 2 * src[D + c] + src[G + c]);
+        const gy = (src[G + c] + 2 * src[Hh + c] + src[K + c]) - (src[A + c] + 2 * src[B + c] + src[C + c]);
+        const mg = (gx < 0 ? -gx : gx) + (gy < 0 ? -gy : gy);
+        if (mg > best) best = mg;
+      }
+      edge[yc + x] = best >= 1020 ? 255 : best >> 2;
+    }
+  }
+}
+const edgeThr = sens => 6 * Math.pow(220 / 6, (100 - sens) / 100);
+
+// ---------- color helpers ----------
+function sampleAt(ix, iy, f = S.cur){
+  const src = frames[f]; let r = 0, g = 0, b = 0, n = 0;
+  const cx = Math.floor(ix), cy = Math.floor(iy);
+  for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++){
+    if (x < 0 || y < 0 || x >= W || y >= H) continue; const o = (y * W + x) * 4; r += src[o]; g += src[o + 1]; b += src[o + 2]; n++;
+  }
+  return n ? [Math.round(r / n), Math.round(g / n), Math.round(b / n)] : null;
+}
+function colorAmtFn(sc, tolPct){
+  const tol = 6 + tolPct * 1.6, inner = tol * 0.5, span = tol - inner;
+  return (src, o) => {
+    const dr = src[o] - sc[0], dg = src[o + 1] - sc[1], db = src[o + 2] - sc[2];
+    const d = Math.sqrt((2 * dr * dr + 4 * dg * dg + 3 * db * db) / 9);
+    return d <= inner ? 1 : d >= tol ? 0 : 1 - (d - inner) / span;
+  };
+}
+
+// ---------- undo ----------
+const undoStack = [], redoStack = []; let undoBytes = 0, op = null;
+function targetFrames(){ return (S.scopeAll && frames.length > 1) ? frames.map((_, i) => i) : [S.cur]; }
+function beginOp(fs){ fs = fs || targetFrames(); op = { fs, snap: fs.map(f => masks[f].slice()), x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }; }
+function touchOp(x0, y0, x1, y1){ invalidateRefine(); if (!op) return; op.x0 = Math.min(op.x0, x0); op.y0 = Math.min(op.y0, y0); op.x1 = Math.max(op.x1, x1); op.y1 = Math.max(op.y1, y1); }
+function cropM(arr, x0, y0, x1, y1){ const bw = x1 - x0, out = new Uint8Array(bw * (y1 - y0)); for (let y = y0; y < y1; y++) out.set(arr.subarray(y * W + x0, y * W + x1), (y - y0) * bw); return out; }
+function pasteM(arr, data, x0, y0, x1, y1){ const bw = x1 - x0; for (let y = y0; y < y1; y++) arr.set(data.subarray((y - y0) * bw, (y - y0 + 1) * bw), y * W + x0); }
+function endOp(){
+  if (!op) return; const o = op; op = null;
+  if (!(o.x1 > o.x0)) return;
+  const e = { fs: o.fs, x0: o.x0, y0: o.y0, x1: o.x1, y1: o.y1, data: o.snap.map(s => cropM(s, o.x0, o.y0, o.x1, o.y1)) };
+  pushUndo(e); redoStack.length = 0; updateUndoUI(); thumbsDirty(o.fs); if (frames.length > 1) drawTlMarks();
+}
+function cancelOp(){ if (!op) return; op.fs.forEach((f, i) => masks[f].set(op.snap[i])); const o = op; op = null; if (o.x1 > o.x0) renderRect(o.x0, o.y0, o.x1, o.y1); }
+function entryBytes(e){ return e.geom ? e.frames.reduce((s, d) => s + d.length, 0) + e.masks.reduce((s, d) => s + d.length, 0) : e.data.reduce((s, d) => s + d.length, 0); }
+function pushUndo(e){ undoStack.push(e); undoBytes += entryBytes(e); while (undoStack.length > 80 || (undoBytes > 300e6 && undoStack.length > 1)) undoBytes -= entryBytes(undoStack.shift()); }
+function swapEntry(e){ invalidateRefine();
+  if (e.geom){ const cur = { geom: true, W, H, frames, masks }; W = e.W; H = e.H; frames = e.frames; masks = e.masks; reinitDims(); return cur; }
+  const cur = e.fs.map(f => cropM(masks[f], e.x0, e.y0, e.x1, e.y1)); e.fs.forEach((f, i) => pasteM(masks[f], e.data[i], e.x0, e.y0, e.x1, e.y1)); renderRect(e.x0, e.y0, e.x1, e.y1); thumbsDirty(e.fs); return { ...e, data: cur }; }
+function undo(){ if (op || !undoStack.length) return; const e = undoStack.pop(); undoBytes -= entryBytes(e); redoStack.push(swapEntry(e)); updateUndoUI(); }
+function redo(){ if (op || !redoStack.length) return; const e = redoStack.pop(); pushUndo(swapEntry(e)); updateUndoUI(); }
+function updateUndoUI(){ $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (frames.length > 1) drawTlMarks(); }
+
+// ---------- brush ----------
+let amt = new Float32Array(0), visited = new Uint8Array(0), queue = new Int32Array(0);
+function scratch(n){ if (amt.length < n){ amt = new Float32Array(n); visited = new Uint8Array(n); queue = new Int32Array(n); } }
+const brushR = () => Math.max(0.5, S.rel === 'screen' ? S.size / 2 / S.zoom : S.size / 2);
+
+let stroke = null, strokeMark = null;
+function beginStroke(ix, iy, restore, pointerType, shift){
+  stopPlay();
+  stroke = { restore, last: [ix, iy], t: performance.now(), touch: pointerType === 'touch', force: S.force || !!shift, samples: new Map() };
+  if (S.hiStroke){ if (!strokeMark || strokeMark.length !== W * H) strokeMark = new Uint8Array(W * H); else strokeMark.fill(0); }
+  beginOp();
+  // each frame gets its own sampled color, so a background that changes color between frames is still matched
+  for (const f of op.fs) stroke.samples.set(f, sampleAt(ix, iy, f));
+  S.sample = stroke.samples.get(S.cur);
+  dab(ix, iy);
+}
+function moveStroke(ix, iy){
+  const [lx, ly] = stroke.last, dx = ix - lx, dy = iy - ly, dist = Math.hypot(dx, dy);
+  const sp = Math.max(0.5, brushR() * 0.22);
+  if (dist < sp) return;
+  const steps = Math.floor(dist / sp);
+  for (let k = 1; k <= steps; k++) dab(lx + dx * (k * sp / dist), ly + dy * (k * sp / dist));
+  stroke.last = [lx + dx * (steps * sp / dist), ly + dy * (steps * sp / dist)];
+}
+function endStroke(){
+  if (!stroke) return;
+  const bb = op && op.x1 > op.x0 ? [op.x0, op.y0, op.x1, op.y1] : null, hadMark = S.hiStroke;
+  stroke = null; endOp(); updateHud();
+  if (hadMark && bb){ renderRect(bb[0], bb[1], bb[2], bb[3]); strokeMark && strokeMark.fill(0); }
+}
+
+function dab(cx, cy){
+  const r = brushR();
+  const x0 = Math.max(0, Math.floor(cx - r)), y0 = Math.max(0, Math.floor(cy - r));
+  const x1 = Math.min(W - 1, Math.ceil(cx + r)), y1 = Math.min(H - 1, Math.ceil(cy + r));
+  if (x0 > x1 || y0 > y1) return;
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  scratch(bw * bh);
+  const restore = stroke.restore, mode = stroke.force ? 'plain' : S.mode;
+  const useColor = !restore && (mode === 'smart' || mode === 'color');
+  const useEdge = mode === 'smart' || mode === 'edges';
+  const fs = op ? op.fs : [S.cur];
+  let plainDone = false;
+  for (const f of fs){
+    // detection runs on each frame's own pixels; plain brushing is identical for every frame, so compute it once
+    if (useColor && S.samp === 'cont'){ const s = sampleAt(cx, cy, f); if (s) stroke.samples.set(f, s); }
+    if (f === S.cur && useColor) S.sample = stroke.samples.get(f);
+    if (!(useColor || useEdge) && plainDone){ applyFrame(f, x0, y0, bw, bh, restore); continue; }
+    computeAmt(f, cx, cy, r, x0, y0, x1, y1, useColor, useEdge);
+    plainDone = true;
+    applyFrame(f, x0, y0, bw, bh, restore);
+  }
+  touchOp(x0, y0, x0 + bw, y0 + bh);
+  renderRect(x0, y0, x0 + bw, y0 + bh);
+}
+
+function computeAmt(f, cx, cy, r, x0, y0, x1, y1, useColor, useEdge){
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1, n = bw * bh, r2 = r * r, src = frames[f];
+  amt.fill(0, 0, n);
+  const sc = useColor ? stroke.samples.get(f) : null;
+  const cAmt = sc ? colorAmtFn(sc, S.tol) : null;
+  const hard = Math.min(0.999, S.hard / 100);
+  const fall = (lx, ly) => {
+    const dx = x0 + lx + 0.5 - cx, dy = y0 + ly + 0.5 - cy, d2 = dx * dx + dy * dy;
+    if (d2 > r2 + 0.25) return 0;
+    const t = Math.sqrt(d2) / r; if (t <= hard) return 1;
+    const u = Math.min(1, (t - hard) / (1 - hard)); return 1 - u * u * (3 - 2 * u);
+  };
+  if (!useEdge){
+    for (let ly = 0; ly < bh; ly++) for (let lx = 0; lx < bw; lx++){
+      let a = fall(lx, ly); if (a <= 0) continue;
+      if (cAmt) a *= cAmt(src, ((y0 + ly) * W + x0 + lx) * 4);
+      amt[ly * bw + lx] = a;
+    }
+    return;
+  }
+  const edge = ensureEdges(f, x0, y0, x1 + 1, y1 + 1);
+  const thr = edgeThr(S.edge), thr2 = Math.min(255, thr * 2.2);
+  visited.fill(0, 0, n);
+  let qh = 0, qt = 0;
+  const gidx = l => (y0 + ((l / bw) | 0)) * W + x0 + (l % bw);
+  const passable = (l) => { const gi = gidx(l); if (edge[gi] >= thr) return false; return !cAmt || cAmt(src, gi * 4) > 0; };
+  const ccx = Math.min(x1, Math.max(x0, Math.floor(cx))) - x0, ccy = Math.min(y1, Math.max(y0, Math.floor(cy))) - y0;
+  const c0 = ccy * bw + ccx;
+  if (passable(c0)){ visited[c0] = 1; queue[qt++] = c0; }
+  else {
+    const rs = Math.max(1.5, r * 0.2);
+    for (let ly = Math.max(0, Math.floor(ccy - rs)); ly <= Math.min(bh - 1, Math.ceil(ccy + rs)); ly++)
+      for (let lx = Math.max(0, Math.floor(ccx - rs)); lx <= Math.min(bw - 1, Math.ceil(ccx + rs)); lx++){
+        const l = ly * bw + lx; if ((lx - ccx) ** 2 + (ly - ccy) ** 2 > rs * rs) continue;
+        if (passable(l)){ visited[l] = 1; queue[qt++] = l; }
+      }
+  }
+  while (qh < qt){
+    const l = queue[qh++], lx = l % bw, ly = (l / bw) | 0;
+    const fl = fall(lx, ly); if (fl <= 0) continue;
+    const gi = gidx(l);
+    amt[l] = cAmt ? fl * cAmt(src, gi * 4) : fl;
+    const nb = [lx > 0 ? l - 1 : -1, lx < bw - 1 ? l + 1 : -1, ly > 0 ? l - bw : -1, ly < bh - 1 ? l + bw : -1];
+    for (const q of nb){
+      if (q < 0 || visited[q]) continue; visited[q] = 1;
+      const fq = fall(q % bw, (q / bw) | 0); if (fq <= 0) continue;
+      if (passable(q)){ queue[qt++] = q; continue; }
+      // rim pixel: sits on the edge itself; take a partial amount so cut-outs keep soft edges
+      const gq = gidx(q);
+      if (cAmt){ const ca = cAmt(src, gq * 4); if (ca > 0) amt[q] = Math.max(amt[q], fq * ca); }
+      else { const e = edge[gq]; amt[q] = Math.max(amt[q], fq * Math.max(0, Math.min(1, (thr2 - e) / (thr2 - thr))) * 0.6); }
+    }
+  }
+}
+
+function applyFrame(f, x0, y0, bw, bh, restore){
+  const m = masks[f], mark = (f === S.cur && stroke && S.hiStroke) ? strokeMark : null;
+  for (let ly = 0; ly < bh; ly++){
+    const row = (y0 + ly) * W + x0, lr = ly * bw;
+    for (let lx = 0; lx < bw; lx++){
+      const a = amt[lr + lx]; if (a <= 0.004) continue;
+      const v = (a * 255 + 0.5) | 0, gi = row + lx;
+      if (restore){ if (m[gi] < v) m[gi] = v; } else { const t = 255 - v; if (m[gi] > t) m[gi] = t; }
+      if (mark && v > mark[gi]) mark[gi] = v;
+    }
+  }
+}
+
+// ---------- magic wand ----------
+async function wandAt(ix, iy, restore, noEdges){
+  const px = Math.floor(ix), py = Math.floor(iy);
+  if (px < 0 || py < 0 || px >= W || py >= H) return;
+  stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
+  try {
+    const N = W * H, amt8 = new Uint8Array(N), vis = new Uint8Array(N);
+    let q = new Int32Array(1 << 16);
+    let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
+    beginOp();
+    for (const f of op.fs){
+      // every frame is flood-filled from its own pixels with its own sampled color
+      const src = frames[f], cAmt = colorAmtFn(sampleAt(px, py, f), S.wtol);
+      amt8.fill(0);
+      let fx0 = W, fy0 = H, fx1 = -1, fy1 = -1;
+      const mark = (gi, a) => { const v = (a * 255 + 0.5) | 0; if (v > amt8[gi]){ amt8[gi] = v; const x = gi % W, y = (gi / W) | 0; if (x < fx0) fx0 = x; if (x > fx1) fx1 = x; if (y < fy0) fy0 = y; if (y > fy1) fy1 = y; } };
+      if (!S.wcontig){
+        for (let gi = 0; gi < N; gi++){ const a = cAmt(src, gi * 4); if (a > 0) mark(gi, a); }
+      } else {
+        const useEdge = S.wedges && !noEdges, edge = useEdge ? ensureEdges(f, 0, 0, W, H) : null;
+        const thr = edgeThr(S.wedge);
+        vis.fill(0); let qh = 0, qt = 0;
+        const push = v => { if (qt >= q.length){ if (qh > q.length / 2){ q.copyWithin(0, qh, qt); qt -= qh; qh = 0; } else { const nq = new Int32Array(q.length * 2); nq.set(q); q = nq; } } q[qt++] = v; };
+        const s0 = py * W + px; vis[s0] = 1; push(s0);
+        while (qh < qt){
+          const gi = q[qh++];
+          mark(gi, cAmt(src, gi * 4));
+          const x = gi % W;
+          const nb = [x > 0 ? gi - 1 : -1, x < W - 1 ? gi + 1 : -1, gi >= W ? gi - W : -1, gi + W < N ? gi + W : -1];
+          for (const n of nb){
+            if (n < 0 || vis[n]) continue; vis[n] = 1;
+            const a = cAmt(src, n * 4); if (a <= 0) continue;
+            if (useEdge && edge[n] >= thr){ mark(n, a); continue; }
+            push(n);
+          }
+        }
+      }
+      if (fx1 < 0) continue;
+      const m = masks[f];
+      for (let y = fy0; y <= fy1; y++) for (let x = fx0, gi = y * W + fx0; x <= fx1; x++, gi++){
+        const v = amt8[gi]; if (!v) continue;
+        if (restore){ if (m[gi] < v) m[gi] = v; } else { const t = 255 - v; if (m[gi] > t) m[gi] = t; }
+      }
+      bx0 = Math.min(bx0, fx0); by0 = Math.min(by0, fy0); bx1 = Math.max(bx1, fx1); by1 = Math.max(by1, fy1);
+    }
+    if (bx1 < 0){ op = null; toast('Nothing matched there. Raise the tolerance.'); return; }
+    touchOp(bx0, by0, bx1 + 1, by1 + 1); endOp(); renderRect(bx0, by0, bx1 + 1, by1 + 1);
+  } finally { busy(false); }
+}
+
+// ---------- copy a frame's mask ----------
+function copyMask(to){
+  if (frames.length < 2) return;
+  stopPlay();
+  const targets = to === 'next' ? [(S.cur + 1) % frames.length] : frames.map((_, i) => i).filter(i => i !== S.cur);
+  const srcM = masks[S.cur];
+  beginOp(targets); targets.forEach(f => masks[f].set(srcM)); touchOp(0, 0, W, H); endOp();
+  toast(to === 'next' ? 'Mask copied to frame ' + (targets[0] + 1) + '.' : 'Mask copied to all ' + targets.length + ' other frames.');
+  if (to === 'next') setFrame(targets[0]);
+}
+
+// ---------- filmstrip ----------
+let thumbs = [], thumbQ = new Set(), thumbT = 0;
+function buildStrip(){
+  const strip = $('#strip'); strip.textContent = ''; thumbs = [];
+  if (frames.length < 2) return;
+  const th = 52, tw = Math.max(16, Math.min(120, Math.round(W * th / H)));
+  frames.forEach((_, i) => {
+    const b = document.createElement('button'); b.className = 'thumb'; b.type = 'button';
+    b.setAttribute('aria-label', 'Frame ' + (i + 1)); b.title = 'Frame ' + (i + 1);
+    const c = document.createElement('canvas'); c.width = tw; c.height = th;
+    const n = document.createElement('span'); n.className = 'tnum'; n.textContent = i + 1;
+    const dot = document.createElement('span'); dot.className = 'tdot'; dot.hidden = true; dot.title = 'Edited';
+    b.append(c, n, dot); b.addEventListener('click', () => { stopPlay(); setFrame(i); });
+    strip.appendChild(b); thumbs.push({ b, c, dot });
+  });
+  thumbsDirty(frames.map((_, i) => i)); markThumb();
+}
+function thumbsDirty(fs){ if (!thumbs.length) return; fs.forEach(f => thumbQ.add(f)); clearTimeout(thumbT); thumbT = setTimeout(flushThumbs, 120); }
+function flushThumbs(){
+  const t0 = performance.now();
+  for (const f of thumbQ){
+    thumbQ.delete(f); drawThumb(f);
+    if (performance.now() - t0 > 30){ thumbT = setTimeout(flushThumbs, 16); return; }
+  }
+}
+function drawThumb(f){
+  const t = thumbs[f]; if (!t) return;
+  const tw = t.c.width, th = t.c.height, g = t.c.getContext('2d'), id = g.createImageData(tw, th), d = id.data;
+  const src = frames[f], m = masks[f];
+  for (let y = 0; y < th; y++){ const sy = Math.min(H - 1, (y * H / th) | 0); for (let x = 0; x < tw; x++){ const sx = Math.min(W - 1, (x * W / tw) | 0), i = sy * W + sx, p = i * 4, o = (y * tw + x) * 4; d[o] = src[p]; d[o + 1] = src[p + 1]; d[o + 2] = src[p + 2]; d[o + 3] = (src[p + 3] * m[i] * S.opacity / 100) / 255; } }
+  g.putImageData(id, 0, 0);
+  let edited = false; for (let i = 0; i < m.length; i += 7) if (m[i] < 255){ edited = true; break; }
+  if (!edited) for (let i = 0; i < m.length; i++) if (m[i] < 255){ edited = true; break; }
+  t.dot.hidden = !edited;
+}
+function markThumb(){
+  thumbs.forEach((t, i) => t.b.setAttribute('aria-current', String(i === S.cur)));
+  const t = thumbs[S.cur]; if (t) t.b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+// ---------- view ----------
+let drawQueued = false;
+function requestDraw(){ if (!drawQueued){ drawQueued = true; requestAnimationFrame(draw); } }
+function resize(){
+  const r = stage.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+  const first = !cw; const ocw = cw, och = ch;
+  cw = r.width; ch = r.height; view.width = Math.round(cw * dpr); view.height = Math.round(ch * dpr);
+  if (themeCols) themeCols.pat = null;
+  if (!first && W){ S.panX += (cw - ocw) / 2; S.panY += (ch - och) / 2; }
+  requestDraw();
+}
+new ResizeObserver(resize).observe(stage);
+
+function draw(){
+  drawQueued = false;
+  if (!themeCols) readTheme();
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vctx.clearRect(0, 0, cw, ch);
+  if (!W) return;
+  const x = S.panX, y = S.panY, w = W * S.zoom, h = H * S.zoom;
+  const vx0 = Math.max(0, x), vy0 = Math.max(0, y), vx1 = Math.min(cw, x + w), vy1 = Math.min(ch, y + h);
+  const bgFill = S.bg === 'checker' ? checkerPattern() : S.bg === 'white' ? '#ffffff' : S.bg === 'black' ? '#000000' : S.bgColor;
+  if (S.rotA){
+    // live rotation preview around the image center
+    vctx.save();
+    if (!rotExpands()){ vctx.beginPath(); vctx.rect(x, y, w, h); vctx.clip(); }
+    vctx.translate(x + w / 2, y + h / 2); vctx.rotate(S.rotA * Math.PI / 180); vctx.translate(-(x + w / 2), -(y + h / 2));
+    vctx.fillStyle = bgFill; vctx.fillRect(x, y, w, h);
+    vctx.imageSmoothingEnabled = true; vctx.imageSmoothingQuality = 'high';
+    vctx.drawImage(imgCanvas, x, y, w, h);
+    vctx.restore();
+    vctx.strokeStyle = 'rgba(255,255,255,.35)'; vctx.lineWidth = 1; vctx.beginPath();
+    for (let gx = 0.5; gx < cw; gx += 48){ vctx.moveTo(gx, 0); vctx.lineTo(gx, ch); }
+    for (let gy = 0.5; gy < ch; gy += 48){ vctx.moveTo(0, gy); vctx.lineTo(cw, gy); }
+    vctx.stroke();
+  } else {
+    if (vx1 > vx0 && vy1 > vy0){ vctx.fillStyle = bgFill; vctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0); }
+    vctx.imageSmoothingEnabled = S.zoom < 1; vctx.imageSmoothingQuality = 'high';
+    vctx.drawImage(imgCanvas, x, y, w, h);
+    if (ovOn) vctx.drawImage(ovCanvas, x, y, w, h);
+  }
+  if (S.zoom >= 14){
+    vctx.strokeStyle = 'rgba(128,128,128,.28)'; vctx.lineWidth = 1; vctx.beginPath();
+    const ix0 = Math.max(0, Math.floor(-x / S.zoom)), ix1 = Math.min(W, Math.ceil((cw - x) / S.zoom));
+    const iy0 = Math.max(0, Math.floor(-y / S.zoom)), iy1 = Math.min(H, Math.ceil((ch - y) / S.zoom));
+    for (let i = ix0; i <= ix1; i++){ const sx = Math.round(x + i * S.zoom) + 0.5; vctx.moveTo(sx, Math.max(0, y)); vctx.lineTo(sx, Math.min(ch, y + h)); }
+    for (let j = iy0; j <= iy1; j++){ const sy = Math.round(y + j * S.zoom) + 0.5; vctx.moveTo(Math.max(0, x), sy); vctx.lineTo(Math.min(cw, x + w), sy); }
+    vctx.stroke();
+  }
+  vctx.strokeStyle = 'rgba(127,127,127,.5)'; vctx.lineWidth = 1; vctx.strokeRect(Math.round(x) - 0.5, Math.round(y) - 0.5, Math.round(w) + 1, Math.round(h) + 1);
+  if (S.crop && !cropIsFull(S.crop) && !S.rotA){
+    const c = S.crop, z = S.zoom, cx0 = x + c.x * z, cy0 = y + c.y * z, cx1 = cx0 + c.w * z, cy1 = cy0 + c.h * z;
+    vctx.fillStyle = 'rgba(8,10,12,.58)';
+    vctx.fillRect(x, y, w, cy0 - y); vctx.fillRect(x, cy1, w, y + h - cy1);
+    vctx.fillRect(x, cy0, cx0 - x, cy1 - cy0); vctx.fillRect(cx1, cy0, x + w - cx1, cy1 - cy0);
+    vctx.strokeStyle = 'rgba(255,255,255,.28)'; vctx.beginPath();
+    for (let k = 1; k < 3; k++){ const gx = cx0 + (cx1 - cx0) * k / 3, gy = cy0 + (cy1 - cy0) * k / 3; vctx.moveTo(gx, cy0); vctx.lineTo(gx, cy1); vctx.moveTo(cx0, gy); vctx.lineTo(cx1, gy); }
+    vctx.stroke();
+    vctx.lineWidth = 3; vctx.strokeStyle = 'rgba(0,0,0,.5)'; vctx.strokeRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+    vctx.lineWidth = 1.25; vctx.strokeStyle = '#ffffff'; vctx.strokeRect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+    const label = c.w + ' × ' + c.h;
+    vctx.font = '500 11px "IBM Plex Mono", ui-monospace, monospace';
+    const tw = vctx.measureText(label).width + 12, lx = Math.max(4, Math.min(cw - tw - 4, cx0)), ly = Math.max(4, cy0 - 22);
+    vctx.fillStyle = 'rgba(0,0,0,.72)'; vctx.fillRect(lx, ly, tw, 18); vctx.fillStyle = '#ffffff'; vctx.fillText(label, lx + 6, ly + 13);
+  }
+  // cursor
+  const hv = S.hover;
+  if (hv && !pan && !pinch && !S.space && (S.tool === 'erase' || S.tool === 'restore')){
+    const rr = brushR() * S.zoom;
+    vctx.beginPath(); vctx.arc(hv.x, hv.y, Math.max(1, rr), 0, Math.PI * 2);
+    vctx.lineWidth = 3; vctx.strokeStyle = 'rgba(0,0,0,.55)'; vctx.stroke();
+    const forced = stroke ? stroke.force : (S.force || hv.shift);
+    vctx.lineWidth = forced ? 2 : 1.25; vctx.strokeStyle = (S.tool === 'restore' || hv.alt) ? '#7ee2a8' : forced ? '#ffb020' : '#ffffff'; vctx.stroke();
+    if (S.hard < 95 && rr > 8){ vctx.beginPath(); vctx.arc(hv.x, hv.y, rr * S.hard / 100, 0, Math.PI * 2); vctx.setLineDash([3, 3]); vctx.lineWidth = 1; vctx.strokeStyle = 'rgba(255,255,255,.55)'; vctx.stroke(); vctx.setLineDash([]); }
+    vctx.lineWidth = 1; vctx.strokeStyle = '#ffffff';
+    vctx.beginPath(); vctx.moveTo(hv.x - 4, hv.y); vctx.lineTo(hv.x + 4, hv.y); vctx.moveTo(hv.x, hv.y - 4); vctx.lineTo(hv.x, hv.y + 4); vctx.stroke();
+  }
+}
+
+function setZoom(z, sx = cw / 2, sy = ch / 2){
+  z = Math.min(64, Math.max(0.02, z));
+  const ix = (sx - S.panX) / S.zoom, iy = (sy - S.panY) / S.zoom;
+  S.zoom = z; S.panX = sx - ix * z; S.panY = sy - iy * z;
+  $('#zoomVal').textContent = (z >= 10 ? Math.round(z * 100) : (Math.round(z * 1000) / 10)) + '%';
+  updateHud(); requestDraw();
+}
+function fit(){
+  if (!W || !cw) return;
+  const z = Math.min((cw - 40) / W, (ch - 40) / H, 4);
+  S.zoom = z; S.panX = (cw - W * z) / 2; S.panY = (ch - H * z) / 2; setZoom(z, cw / 2, ch / 2);
+}
+function stepZoom(dir, sx, sy){ setZoom(S.zoom * (dir > 0 ? 1.25 : 0.8), sx, sy); }
+
+function updateHud(){
+  const r = brushR();
+  let html = '<span><b>' + W + '×' + H + '</b> px</span><span>zoom <b>' + $('#zoomVal').textContent + '</b></span>';
+  if (S.tool === 'erase' || S.tool === 'restore') html += '<span>brush <b>' + (r * 2 < 10 ? (r * 2).toFixed(1) : Math.round(r * 2)) + '</b> image px</span>';
+  if (S.sample && S.tool === 'erase' && (S.mode === 'smart' || S.mode === 'color')) html += '<span><i class="swatch" style="background:' + fmtHex(S.sample) + '"></i>' + fmtHex(S.sample) + '</span>';
+  if (S.force && (S.tool === 'erase' || S.tool === 'restore')) html += '<span><b>Force on</b>: edges and color ignored</span>';
+  if (frames.length > 1) html += '<span>frame <b>' + (S.cur + 1) + '/' + frames.length + '</b></span>';
+  $('#hud').innerHTML = html;
+  $('#sizeOut').textContent = S.size + (S.rel === 'screen' ? ' screen px' : ' image px');
+}
+
+// ---------- pointer input ----------
+const pointers = new Map(); let pan = null, pinch = null;
+function local(e){ const r = view.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+const toImg = (p) => [(p.x - S.panX) / S.zoom, (p.y - S.panY) / S.zoom];
+function setCursor(){
+  view.style.cursor = (pan ? 'grabbing' : (S.space || S.tool === 'hand') ? 'grab' : S.tool === 'wand' ? 'crosshair' : 'none');
+}
+view.addEventListener('contextmenu', e => e.preventDefault());
+view.addEventListener('pointerdown', e => {
+  view.setPointerCapture(e.pointerId);
+  const p = local(e); pointers.set(e.pointerId, p);
+  if (pointers.size === 2){
+    if (stroke){ if (stroke.touch && performance.now() - stroke.t < 300){ stroke = null; cancelOp(); } else endStroke(); }
+    pan = null;
+    const [a, b] = [...pointers.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: S.zoom, img: toImg(mid) };
+    return;
+  }
+  if (pointers.size > 2 || !W) return;
+  if (e.button === 1 || e.button === 2 || S.space || S.tool === 'hand'){ pan = { x: p.x, y: p.y, px: S.panX, py: S.panY }; setCursor(); requestDraw(); e.preventDefault(); return; }
+  if (e.button !== 0) return;
+  const [ix, iy] = toImg(p);
+  if (S.tool === 'wand'){ wandAt(ix, iy, e.altKey, e.shiftKey); return; }
+  beginStroke(ix, iy, S.tool === 'restore' || e.altKey, e.pointerType, e.shiftKey);
+});
+view.addEventListener('pointermove', e => {
+  const p = local(e);
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
+  if (pinch && pointers.size >= 2){
+    const [a, b] = [...pointers.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const z = Math.min(64, Math.max(0.02, pinch.z0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0));
+    S.zoom = z; S.panX = mid.x - pinch.img[0] * z; S.panY = mid.y - pinch.img[1] * z; setZoom(z, mid.x, mid.y);
+    return;
+  }
+  S.hover = e.pointerType === 'touch' && !stroke ? null : { x: p.x, y: p.y, alt: e.altKey, shift: e.shiftKey };
+  if (stroke) stroke.force = S.force || e.shiftKey;
+  if (pan){ S.panX = pan.px + p.x - pan.x; S.panY = pan.py + p.y - pan.y; requestDraw(); return; }
+  if (stroke){
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ce of (evs.length ? evs : [e])){ const [ix, iy] = toImg(local(ce)); moveStroke(ix, iy); }
+  }
+  requestDraw();
+});
+function upHandler(e){
+  pointers.delete(e.pointerId);
+  if (pinch){ if (pointers.size < 2) pinch = null; return; }
+  if (stroke && pointers.size === 0) endStroke();
+  if (pan && pointers.size === 0){ pan = null; setCursor(); }
+  if (e.pointerType === 'touch') S.hover = null;
+  requestDraw();
+}
+view.addEventListener('pointerup', upHandler);
+view.addEventListener('pointercancel', upHandler);
+view.addEventListener('pointerleave', () => { if (!stroke && !pan){ S.hover = null; requestDraw(); } });
+view.addEventListener('wheel', e => {
+  e.preventDefault();
+  const p = local(e);
+  let dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+  if (e.altKey){ setSize(Math.round(S.size * Math.exp(-dy * 0.002))); S.hover = { x: p.x, y: p.y }; requestDraw(); return; }
+  setZoom(S.zoom * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018)), p.x, p.y);
+}, { passive: false });
+
+// ---------- keyboard ----------
+const VIEWS = ['result', 'overlay', 'original'];
+window.addEventListener('keydown', e => {
+  if (!$('#saveDlg').hidden) return;
+  const t = e.target, typing = t && (t.tagName === 'SELECT' || (t.tagName === 'INPUT' && t.type !== 'range' && t.type !== 'checkbox'));
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); return; }
+  if (mod && e.key.toLowerCase() === 's'){ e.preventDefault(); doSave(); return; }
+  if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); $('#fileIn').click(); return; }
+  if (typing || mod) return;
+  if (e.code === 'Space'){ if (t && t.tagName === 'BUTTON') return; e.preventDefault(); if (!S.space){ S.space = true; setCursor(); requestDraw(); } return; }
+  const k = e.key;
+  if (k === 'b' || k === 'B' || k === 'e' || k === 'E') setTool('erase');
+  else if (k === 'r' || k === 'R') setTool('restore');
+  else if (k === 'w' || k === 'W') setTool('wand');
+  else if (k === 'h' || k === 'H') setTool('hand');
+  else if (k === '[') setSize(Math.round(S.size / 1.15));
+  else if (k === ']') setSize(Math.round(S.size * 1.15) + 1);
+  else if (k === '+' || k === '=') stepZoom(1);
+  else if (k === '-' || k === '_') stepZoom(-1);
+  else if (k === '0') fit();
+  else if (k === '1') setZoom(1);
+  else if (k === 'v' || k === 'V') setViewMode(VIEWS[(VIEWS.indexOf(S.viewMode) + 1) % 3]);
+  else if ((k === ',' || k === '.') && frames.length > 1){ stopPlay(); setFrame((S.cur + (k === '.' ? 1 : frames.length - 1)) % frames.length); }
+  else return;
+  requestDraw();
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Space'){ S.space = false; setCursor(); requestDraw(); }
+  if (e.key === 'Alt' && S.hover){ S.hover.alt = false; requestDraw(); }
+  if (e.key === 'Shift'){ if (S.hover) S.hover.shift = false; if (stroke) stroke.force = S.force; requestDraw(); }
+});
+window.addEventListener('keydown', e => {
+  if (e.key === 'Alt' && S.hover){ e.preventDefault(); S.hover.alt = true; requestDraw(); }
+  if (e.key === 'Shift'){ if (S.hover) S.hover.shift = true; if (stroke) stroke.force = true; requestDraw(); }
+});
+window.addEventListener('blur', () => { S.space = false; setCursor(); });
+
+// ---------- controls ----------
+const MODE_HINTS = {
+  smart: 'Samples the color under the brush center and erases similar colors, but stops at strong edges. Best for backgrounds that touch the subject.',
+  color: 'Erases colors close to the sampled one anywhere inside the brush, even past edges. Good for gaps between hair or leaves.',
+  edges: 'Erases everything from the brush center up to the nearest strong edge, whatever its color.',
+  plain: 'Erases everything under the brush. Use it for clean-up away from the subject.'
+};
+function segBind(id, attr, fn){ $$(id + ' button').forEach(b => b.addEventListener('click', () => { $$(id + ' button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); fn(b.dataset[attr]); })); }
+function segSet(id, attr, val){ $$(id + ' button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[attr] === val))); }
+function setTool(t){
+  if (stroke) endStroke();
+  S.tool = t; $$('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
+  $$('.sec[data-for]').forEach(s => s.hidden = !s.dataset.for.split(' ').includes(t));
+  $('#brushTitle').textContent = t === 'restore' ? 'Restore brush' : 'Eraser';
+  setCursor(); updateModeUI(); updateHud(); requestDraw();
+}
+function updateModeUI(){
+  const restore = S.tool === 'restore';
+  const needColor = !restore && (S.mode === 'smart' || S.mode === 'color'), needEdge = S.mode === 'smart' || S.mode === 'edges';
+  $$('[data-need="color"]').forEach(el => el.hidden = !needColor);
+  $$('[data-need="edge"]').forEach(el => el.hidden = !needEdge);
+  $('#modeHint').textContent = restore ? (needEdge ? 'Paints the original pixels back, stopping at strong edges so the background stays erased.' : 'Paints the original pixels back.') : MODE_HINTS[S.mode];
+}
+function setSize(v){ S.size = Math.max(2, Math.min(500, v | 0)); $('#size').value = S.size; updateHud(); requestDraw(); }
+function setViewMode(v){ S.viewMode = v; segSet('#viewSeg', 'v', v); renderRect(0, 0, W, H); }
+function rangeBind(id, key, fmt, after){
+  const el = $('#' + id), out = $('#' + id + 'Out');
+  const upd = () => { S[key] = +el.value; if (out) out.textContent = fmt(S[key]); after && after(); };
+  el.addEventListener('input', upd); upd();
+}
+$$('.tool').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+segBind('#modeSeg', 'm', v => { S.mode = v; updateModeUI(); updateHud(); });
+segBind('#relSeg', 'r', v => {
+  // keep the brush the same physical size on screen when switching
+  const rImg = brushR(); S.rel = v; setSize(Math.round(v === 'screen' ? rImg * 2 * S.zoom : rImg * 2)); updateRelHint();
+});
+function updateRelHint(){ $('#relHint').textContent = S.rel === 'screen' ? 'The brush stays the same size on screen, so zooming in erases finer detail.' : 'The brush covers a fixed number of image pixels and grows on screen as you zoom in.'; }
+segBind('#sampSeg', 's', v => S.samp = v);
+segBind('#viewSeg', 'v', v => setViewMode(v));
+segBind('#scopeSeg', 'a', v => { S.scopeAll = v === 'all'; updateScopeHint(); });
+function updateScopeHint(){ $('#scopeHint').textContent = S.scopeAll
+  ? 'Each stroke runs on every frame, but edges and colors are detected separately in each one, so a moving subject is cut out frame by frame.'
+  : 'Only the frame you are looking at changes. Step through frames with the filmstrip, or with , and . on the keyboard.'; }
+updateScopeHint();
+$('#prevFr').addEventListener('click', () => { stopPlay(); setFrame((S.cur + frames.length - 1) % frames.length); });
+$('#nextFr').addEventListener('click', () => { stopPlay(); setFrame((S.cur + 1) % frames.length); });
+$('#copyNext').addEventListener('click', () => copyMask('next'));
+$('#copyAll').addEventListener('click', () => copyMask('all'));
+rangeBind('size', 'size', v => v, () => { updateHud(); requestDraw(); });
+rangeBind('hard', 'hard', v => v + '%', requestDraw);
+rangeBind('tol', 'tol', v => v + '%');
+rangeBind('edge', 'edge', v => v + '%');
+rangeBind('wtol', 'wtol', v => v + '%');
+rangeBind('wedge', 'wedge', v => v + '%');
+rangeBind('q', 'q', v => v + '%');
+let opacRaf = 0;
+rangeBind('opac', 'opacity', v => v + '%', () => {
+  if (!W || opacRaf) return;
+  opacRaf = requestAnimationFrame(() => { opacRaf = 0; invalidateRefine(); renderRect(0, 0, W, H); thumbsDirty(frames.map((_, i) => i)); updateFmtUI(); });
+});
+$('#wcontig').addEventListener('change', e => S.wcontig = e.target.checked);
+$('#ghost').addEventListener('change', e => { S.ghost = e.target.checked; renderRect(0, 0, W, H); });
+$('#hiStroke').addEventListener('change', e => { S.hiStroke = e.target.checked; });
+$('#force').addEventListener('change', e => { S.force = e.target.checked; updateHud(); requestDraw(); });
+$('#wedges').addEventListener('change', e => S.wedges = e.target.checked);
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+$('#zoomIn').addEventListener('click', () => stepZoom(1));
+$('#zoomOut').addEventListener('click', () => stepZoom(-1));
+$('#zoomVal').addEventListener('click', fit);
+$('#zoom1').addEventListener('click', () => setZoom(1));
+$('#resetBtn').addEventListener('click', () => {
+  if (!W) return; stopPlay();
+  beginOp(frames.map((_, i) => i)); masks.forEach(m => m.fill(255)); touchOp(0, 0, W, H); endOp(); renderRect(0, 0, W, H);
+  toast('All edits cleared. Undo brings them back.');
+});
+$$('#bgSeg [data-bg]').forEach(b => b.addEventListener('click', () => { S.bg = b.dataset.bg; $$('#bgSeg [data-bg]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); requestDraw(); }));
+$('#bgColor').addEventListener('input', e => { S.bgColor = e.target.value; S.bg = 'color'; $$('#bgSeg [data-bg]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.bg === 'color'))); requestDraw(); });
+$('#bgColorWrap').style.background = S.bgColor;
+$('#bgColor').addEventListener('input', e => $('#bgColorWrap').style.background = e.target.value);
+
+// ---------- animation ----------
+let playT = 0;
+function setupAnim(){
+  const multi = frames.length > 1;
+  $('#animSec').hidden = !multi;
+  $('#frameSl').max = Math.max(0, frames.length - 1); $('#frameSl').value = S.cur;
+  $('#timeline').hidden = !multi; stage.classList.toggle('has-tl', multi); $('#motionSec').hidden = !multi;
+  $('#tlSl').max = Math.max(0, frames.length - 1); syncTl(); drawTlMarks();
+  $('#rotScopeRow').hidden = !multi;
+  $('#cropSub').textContent = multi ? 'Crop · applies to every frame' : 'Crop';
+  updateFrameInfo();
+  buildStrip();
+}
+function updateFrameInfo(){
+  const d = delays[S.cur]; const ms = (d >= 2 ? d : 10) * 10;
+  $('#frameInfo').textContent = 'Frame ' + (S.cur + 1) + ' of ' + frames.length + ' · ' + ms + ' ms';
+}
+function setFrame(i){ S.cur = i; invalidateRefine(); if (!S.rotAll) updateRotScopeHint(); $('#frameSl').value = i; renderRect(0, 0, W, H); updateFrameInfo(); updateHud(); markThumb(); syncTl(); if (motionReady && S.mMode === 'plate' && !S.playing) scheduleMotion(false); }
+function play(){ if (S.playing) return; S.playing = true; $('#playBtn').innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>'; $('#playBtn').setAttribute('aria-label', 'Pause'); syncTl(); tick(); }
+function tick(){ if (!S.playing) return; const d = delays[S.cur]; playT = setTimeout(() => { if (!S.playing) return; setFrame((S.cur + 1) % frames.length); tick(); }, (d >= 2 ? d : 10) * 10); }
+function stopPlay(){ if (!S.playing) return; S.playing = false; clearTimeout(playT); $('#playBtn').innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'; $('#playBtn').setAttribute('aria-label', 'Play'); syncTl(); }
+$('#playBtn').addEventListener('click', () => S.playing ? stopPlay() : play());
+$('#frameSl').addEventListener('input', e => { stopPlay(); setFrame(+e.target.value); });
+
+// ---------- loading ----------
+async function loadFile(file){
+  if (!file) return;
+  busy(true);
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const base = (file.name || 'pasted-image').replace(/\.[^.]+$/, '') || 'image';
+    let res = null;
+    const isGif = buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46;
+    const isTiff = (buf[0] === 0x49 && buf[1] === 0x49 && buf[2] === 42) || (buf[0] === 0x4D && buf[1] === 0x4D && buf[3] === 42);
+    if (isGif){ try { res = decodeGif(buf); } catch (err) { res = null; } }
+    if (!res && !isGif && 'ImageDecoder' in window && /image\/(webp|png|apng|avif)/.test(file.type)){
+      try { res = await decodeAnimated(buf, file.type); } catch (err) { res = null; }
+    }
+    if (!res){ try { res = await decodeRaster(file); } catch (err) { if (!isTiff) throw err; } }
+    if (!res && isTiff) res = decodeTiff(buf);
+    if (!res) throw new Error('unreadable');
+    if (setImage(res, base)) toast('Opened ' + (file.name || 'image') + (res.frames.length > 1 ? ' · ' + res.frames.length + ' frames' : ''));
+  } catch (err) {
+    toast(err && err.message && err.message.length > 20 ? err.message : 'This browser could not read that file. Try PNG, JPEG, WebP or GIF.', 4500);
+  } finally { busy(false); }
+}
+async function decodeAnimated(buf, type){
+  const dec = new ImageDecoder({ data: buf, type });
+  await dec.tracks.ready;
+  const tr = dec.tracks.selectedTrack;
+  if (!tr || !tr.animated || tr.frameCount < 2){ dec.close(); return null; }
+  const n = Math.min(tr.frameCount, 600);
+  const out = [], ds = []; let w = 0, h = 0, cv = null, g = null;
+  for (let i = 0; i < n; i++){
+    const { image } = await dec.decode({ frameIndex: i });
+    if (!cv){ w = image.displayWidth; h = image.displayHeight; cv = document.createElement('canvas'); cv.width = w; cv.height = h; g = cv.getContext('2d', { willReadFrequently: true }); }
+    g.clearRect(0, 0, w, h); g.drawImage(image, 0, 0, w, h);
+    out.push(g.getImageData(0, 0, w, h).data); ds.push(Math.max(2, Math.round((image.duration || 100000) / 10000)));
+    image.close();
+  }
+  dec.close();
+  return { w, h, frames: out, delays: ds };
+}
+async function decodeRaster(file){
+  let src = null, w = 0, h = 0;
+  try { src = await createImageBitmap(file); w = src.width; h = src.height; }
+  catch (e) {
+    const url = URL.createObjectURL(file);
+    try { const img = new Image(); img.src = url; await img.decode(); src = img; w = img.naturalWidth || 1024; h = img.naturalHeight || 1024; }
+    finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  }
+  const MAX = 8192; let s = 1;
+  if (Math.max(w, h) > MAX){ s = MAX / Math.max(w, h); toast('Large image scaled to ' + Math.round(w * s) + '×' + Math.round(h * s) + ' px for editing.', 4000); }
+  const cvw = Math.max(1, Math.round(w * s)), cvh = Math.max(1, Math.round(h * s));
+  const cv = document.createElement('canvas'); cv.width = cvw; cv.height = cvh;
+  const g = cv.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, cvw, cvh);
+  if (src.close) src.close();
+  return { w: cvw, h: cvh, frames: [g.getImageData(0, 0, cvw, cvh).data], delays: [0] };
+}
+$('#openBtn').addEventListener('click', () => $('#fileIn').click());
+$('#openBtn2').addEventListener('click', () => $('#fileIn').click());
+$('#fileIn').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+// The overlay shows while files are dragged over the page and hides itself shortly after dragover events stop
+// (drag left the window, was cancelled, or dropped), so it can never get stuck.
+let dropT = 0;
+const hideDrop = () => { clearTimeout(dropT); $('#drop').hidden = true; };
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+window.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+  $('#drop').hidden = false; clearTimeout(dropT); dropT = setTimeout(hideDrop, 180);
+});
+window.addEventListener('dragleave', e => { if (!e.relatedTarget) hideDrop(); });
+window.addEventListener('dragend', hideDrop);
+window.addEventListener('drop', e => { e.preventDefault(); hideDrop(); const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
+window.addEventListener('paste', e => { const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/')); if (it){ e.preventDefault(); loadFile(it.getAsFile()); } });
+
+// ---------- edge finishing ----------
+const refineOn = () => S.shrink > 0 || S.soft > 0 || S.defringe;
+let refCache = null, refT = 0;
+function invalidateRefine(){
+  scheduleAutoPreview();
+  refCache = null; clearTimeout(refT);
+  if (!refineOn()) return;
+  refT = setTimeout(() => {
+    if (!W || !refineOn() || S.playing) return;
+    if (stroke){ invalidateRefine(); return; }
+    refCache = { f: S.cur, data: finalRGBA(S.cur) }; renderRect(0, 0, W, H);
+  }, 90);
+}
+function minFilter(a, r){
+  const t = new Uint8ClampedArray(a.length), o = new Uint8ClampedArray(a.length);
+  for (let y = 0; y < H; y++){ const row = y * W; for (let x = 0; x < W; x++){ let mn = 255; for (let k = Math.max(0, x - r), e = Math.min(W - 1, x + r); k <= e; k++){ const v = a[row + k]; if (v < mn) mn = v; } t[row + x] = mn; } }
+  for (let x = 0; x < W; x++) for (let y = 0; y < H; y++){ let mn = 255; for (let k = Math.max(0, y - r), e = Math.min(H - 1, y + r); k <= e; k++){ const v = t[k * W + x]; if (v < mn) mn = v; } o[y * W + x] = mn; }
+  return o;
+}
+function boxBlur(a, r){
+  const t = new Float32Array(a.length), o = new Uint8ClampedArray(a.length), d = 2 * r + 1;
+  for (let y = 0; y < H; y++){ const row = y * W; let s = 0; for (let k = -r; k <= r; k++) s += a[row + Math.min(W - 1, Math.max(0, k))];
+    for (let x = 0; x < W; x++){ t[row + x] = s / d; s += a[row + Math.min(W - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
+  for (let x = 0; x < W; x++){ let s = 0; for (let k = -r; k <= r; k++) s += t[Math.min(H - 1, Math.max(0, k)) * W + x];
+    for (let y = 0; y < H; y++){ o[y * W + x] = s / d; s += t[Math.min(H - 1, y + r + 1) * W + x] - t[Math.max(0, y - r) * W + x]; } }
+  return o;
+}
+// final pixels for a frame: mask, edge finishing, then whole-picture opacity
+function finalRGBA(fi){
+  const src = frames[fi], m = masks[fi], N = W * H, op = S.opacity / 100;
+  let a = new Uint8ClampedArray(N);
+  for (let i = 0; i < N; i++) a[i] = (src[i * 4 + 3] * m[i] + 127) / 255;
+  if (S.shrink > 0) a = minFilter(a, S.shrink);
+  if (S.soft > 0){ const b = boxBlur(boxBlur(a, S.soft), Math.max(1, S.soft >> 1)); for (let i = 0; i < N; i++) if (b[i] < a[i]) a[i] = b[i]; }
+  const out = new Uint8ClampedArray(N * 4);
+  for (let i = 0, p = 0; i < N; i++, p += 4){ out[p] = src[p]; out[p + 1] = src[p + 1]; out[p + 2] = src[p + 2]; out[p + 3] = a[i] * op + 0.5; }
+  if (S.defringe){
+    const R = 3;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+      const i = y * W + x, ai = a[i]; if (ai === 0 || ai >= 250) continue;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let yy = Math.max(0, y - R); yy <= Math.min(H - 1, y + R); yy++) for (let xx = Math.max(0, x - R); xx <= Math.min(W - 1, x + R); xx++){
+        const j = yy * W + xx; if (a[j] < 250) continue; const q = j * 4; r += src[q]; g += src[q + 1]; b += src[q + 2]; n++;
+      }
+      if (n){ const p = i * 4; out[p] = r / n; out[p + 1] = g / n; out[p + 2] = b / n; }
+    }
+  }
+  return out;
+}
+
+
+// ---------- frame scrubber under the canvas ----------
+const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>', PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+function syncTl(){
+  if (!frames.length) return;
+  $('#tlSl').value = S.cur; $('#tlNum').textContent = (S.cur + 1) + ' / ' + frames.length;
+  $('#tlPlay').innerHTML = S.playing ? PAUSE_SVG : PLAY_SVG; $('#tlPlay').setAttribute('aria-label', S.playing ? 'Pause' : 'Play');
+}
+// small ticks under the scrubber mark frames that have edits
+function drawTlMarks(){
+  const c = $('#tlMarks'); if (!c || frames.length < 2) return;
+  const r = c.getBoundingClientRect(), w = Math.max(1, Math.round(r.width * dpr)), h = Math.round(14 * dpr);
+  c.width = w; c.height = h; const g = c.getContext('2d'); g.clearRect(0, 0, w, h);
+  g.fillStyle = themeCols ? themeCols.accent : '#d23a26';
+  const n = frames.length, pad = 8 * dpr;
+  for (let f = 0; f < n; f++){
+    const m = masks[f]; let ed = false; for (let i = 0; i < m.length; i += 13) if (m[i] < 255){ ed = true; break; }
+    if (!ed) continue;
+    const x = pad + (w - 2 * pad) * (n === 1 ? 0 : f / (n - 1));
+    g.fillRect(Math.round(x - dpr), h - 3 * dpr, Math.max(2, 2 * dpr), 3 * dpr);
+  }
+}
+$('#tlSl').addEventListener('input', e => { stopPlay(); setFrame(+e.target.value); });
+$('#tlPrev').addEventListener('click', () => { stopPlay(); setFrame((S.cur + frames.length - 1) % frames.length); });
+$('#tlNext').addEventListener('click', () => { stopPlay(); setFrame((S.cur + 1) % frames.length); });
+$('#tlPlay').addEventListener('click', () => S.playing ? stopPlay() : play());
+$('#timeline').addEventListener('wheel', e => {
+  e.preventDefault(); if (frames.length < 2) return; stopPlay();
+  const step = (e.deltaY || e.deltaX) > 0 ? 1 : -1;
+  setFrame((S.cur + step + frames.length) % frames.length);
+}, { passive: false });
+['pointerdown', 'wheel'].forEach(t => $('#timeline').addEventListener(t, e => e.stopPropagation()));
+new ResizeObserver(() => drawTlMarks()).observe($('#timeline'));
+
+// ---------- crop & rotate ----------
+S.crop = null; S.rotA = 0; S.rotAll = true;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ASPECTS = { '1:1': 1, '4:3': 4 / 3, '3:4': 3 / 4, '16:9': 16 / 9, '9:16': 9 / 16, '3:2': 1.5, '2:3': 2 / 3 };
+function aspectRatio(){ const v = $('#caspect').value; return v === 'orig' ? W / H : (ASPECTS[v] || 0); }
+const curCrop = () => S.crop || { x: 0, y: 0, w: W, h: H };
+const cropIsFull = c => c.x === 0 && c.y === 0 && c.w === W && c.h === H;
+const rotTargets = () => (S.rotAll || frames.length < 2) ? frames.map((_, i) => i) : [S.cur];
+const rotExpands = () => rotTargets().length === frames.length && $('#rexp').checked;
+function syncCropUI(){
+  const c = curCrop();
+  const set = (id, max, v) => { const e = $('#' + id); e.max = Math.max(0, max); e.value = v; const o = $('#' + id + 'Out'); if (o) o.textContent = v + ' px'; };
+  set('cropL', W - 1, c.x); set('cropR', W - 1, W - c.x - c.w); set('cropT', H - 1, c.y); set('cropB', H - 1, H - c.y - c.h);
+  const num = (id, max, v) => { const e = $('#' + id); e.max = max; if (document.activeElement !== e) e.value = v; };
+  num('cropX', W - 1, c.x); num('cropY', H - 1, c.y); num('cropW', W, c.w); num('cropH', H, c.h);
+  $('#cApply').disabled = cropIsFull(c);
+  requestDraw();
+}
+function cropInput(k, v){
+  if (!W) return;
+  v = Math.round(+v); if (!isFinite(v)) return;
+  let { x, y, w, h } = curCrop();
+  const right = x + w, bottom = y + h; let anchorR = false, anchorB = false;
+  if (k === 'l'){ x = clamp(v, 0, right - 1); w = right - x; anchorR = true; }
+  else if (k === 'r'){ w = clamp(W - v - x, 1, W - x); }
+  else if (k === 't'){ y = clamp(v, 0, bottom - 1); h = bottom - y; anchorB = true; }
+  else if (k === 'b'){ h = clamp(H - v - y, 1, H - y); }
+  else if (k === 'x'){ x = clamp(v, 0, W - w); }
+  else if (k === 'y'){ y = clamp(v, 0, H - h); }
+  else if (k === 'w'){ w = clamp(v, 1, W - x); }
+  else if (k === 'h'){ h = clamp(v, 1, H - y); }
+  const ar = aspectRatio();
+  if (ar && 'lrw'.includes(k)){
+    h = Math.max(1, Math.round(w / ar));
+    if (h > H){ h = H; w = Math.max(1, Math.round(h * ar)); if (anchorR) x = right - w; }
+    if (y + h > H) y = H - h;
+  } else if (ar && 'tbh'.includes(k)){
+    w = Math.max(1, Math.round(h * ar));
+    if (w > W){ w = W; h = Math.max(1, Math.round(w / ar)); if (anchorB) y = bottom - h; }
+    if (x + w > W) x = W - w;
+  }
+  S.crop = { x, y, w, h }; syncCropUI();
+}
+function setAspect(){
+  const ar = aspectRatio(); if (!ar || !W){ syncCropUI(); return; }
+  const c = curCrop(); let w = c.w, h = Math.round(w / ar);
+  if (h > c.h){ h = c.h; w = Math.round(h * ar); }
+  w = Math.max(1, w); h = Math.max(1, h);
+  S.crop = { x: c.x + ((c.w - w) >> 1), y: c.y + ((c.h - h) >> 1), w, h }; syncCropUI();
+}
+function fitContent(){
+  if (!W) return;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  frames.forEach((src, f) => { const m = masks[f]; for (let y = 0; y < H; y++){ const row = y * W; for (let x = 0; x < W; x++){ const i = row + x; if (src[i * 4 + 3] * m[i] >= 255 * 8){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } } } });
+  if (x1 < 0){ toast('Nothing visible to fit to.'); return; }
+  $('#caspect').value = 'free';
+  S.crop = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; syncCropUI();
+}
+function applyCrop(){
+  const c = curCrop(); if (cropIsFull(c) || op) return;
+  const nf = frames.map(f => cropRGBA(f, [c.x, c.y, c.x + c.w, c.y + c.h]).slice());
+  const nm = masks.map(m => cropM(m, c.x, c.y, c.x + c.w, c.y + c.h));
+  geomCommit(nf, nm, c.w, c.h, 'Cropped to ' + c.w + ' × ' + c.h + ' px' + (frames.length > 1 ? ' on all ' + frames.length + ' frames.' : '.'));
+}
+// resample one frame and its mask; positive degrees turn clockwise
+function resampleFrame(src, m, nw, nh, deg, flip){
+  const out = new Uint8ClampedArray(nw * nh * 4), om = new Uint8Array(nw * nh).fill(255);
+  if (flip){
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++){
+      const sx = flip === 'h' ? W - 1 - x : x, sy = flip === 'v' ? H - 1 - y : y, si = sy * W + sx, di = y * nw + x;
+      out[di * 4] = src[si * 4]; out[di * 4 + 1] = src[si * 4 + 1]; out[di * 4 + 2] = src[si * 4 + 2]; out[di * 4 + 3] = src[si * 4 + 3]; om[di] = m[si];
+    }
+    return [out, om];
+  }
+  const rad = deg * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+  const exact = Math.abs(Math.round(deg / 90) * 90 - deg) < 1e-9;
+  const hw = nw / 2, hh = nh / 2, sw = W / 2, sh = H / 2;
+  for (let y = 0; y < nh; y++){
+    const dy = y + 0.5 - hh;
+    for (let x = 0; x < nw; x++){
+      const dx = x + 0.5 - hw, sx = c * dx + s * dy + sw, sy = -s * dx + c * dy + sh, di = y * nw + x, o = di * 4;
+      if (exact){
+        const ix = Math.floor(sx + 1e-6), iy = Math.floor(sy + 1e-6);
+        if (ix < 0 || iy < 0 || ix >= W || iy >= H) continue;
+        const si = iy * W + ix;
+        out[o] = src[si * 4]; out[o + 1] = src[si * 4 + 1]; out[o + 2] = src[si * 4 + 2]; out[o + 3] = src[si * 4 + 3]; om[di] = m[si];
+        continue;
+      }
+      const fx = sx - 0.5, fy = sy - 0.5, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+      let pa = 0, pr = 0, pg = 0, pb = 0, pm = 0, win = 0;
+      for (let k = 0; k < 4; k++){
+        const xx = x0 + (k & 1), yy = y0 + (k >> 1); if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+        const wgt = ((k & 1) ? tx : 1 - tx) * ((k >> 1) ? ty : 1 - ty), si = yy * W + xx, a = src[si * 4 + 3] * wgt;
+        pa += a; pr += src[si * 4] * a; pg += src[si * 4 + 1] * a; pb += src[si * 4 + 2] * a; pm += m[si] * wgt; win += wgt;
+      }
+      if (pa > 0){ out[o] = pr / pa; out[o + 1] = pg / pa; out[o + 2] = pb / pa; out[o + 3] = pa; }
+      if (win > 0) om[di] = pm / win;
+    }
+  }
+  return [out, om];
+}
+function transformFrames(deg, flip){
+  if (!W || op) return;
+  stopPlay();
+  const fs = rotTargets(), all = fs.length === frames.length;
+  let nw = W, nh = H;
+  if (!flip && all){
+    const quarter = Math.abs(Math.round(deg / 90) * 90 - deg) < 1e-9;
+    if (quarter || $('#rexp').checked){
+      const r = deg * Math.PI / 180, ac = Math.abs(Math.cos(r)), as = Math.abs(Math.sin(r));
+      nw = Math.max(1, Math.round(W * ac + H * as)); nh = Math.max(1, Math.round(W * as + H * ac));
+    }
+  }
+  const nf = frames.slice(), nm = masks.slice();
+  for (const f of fs){ const [a, b] = resampleFrame(frames[f], masks[f], nw, nh, deg, flip); nf[f] = a; nm[f] = b; }
+  const what = flip ? (flip === 'h' ? 'Flipped horizontally' : 'Flipped vertically')
+    : 'Rotated ' + Math.abs(+deg.toFixed(1)) + '° ' + (deg > 0 ? 'clockwise' : 'counter-clockwise');
+  const scope = frames.length > 1 ? (all ? ' on all ' + frames.length + ' frames.' : ' on frame ' + (S.cur + 1) + ' only.') : '.';
+  geomCommit(nf, nm, nw, nh, what + scope);
+}
+function geomCommit(nf, nm, nw, nh, msg){
+  pushUndo({ geom: true, W, H, frames: frames.slice(), masks: masks.slice() });
+  redoStack.length = 0; updateUndoUI();
+  W = nw; H = nh; frames = nf; masks = nm;
+  reinitDims(); if (msg) toast(msg);
+}
+function reinitDims(){
+  imgCanvas.width = W; imgCanvas.height = H; imgCtx = imgCanvas.getContext('2d'); disp = imgCtx.createImageData(W, H);
+  resetEdges(); refCache = null; S.cur = Math.min(S.cur, frames.length - 1);
+  $('#fdims').textContent = W + ' × ' + H + ' px' + (frames.length > 1 ? ' · ' + frames.length + ' frames' : '');
+  setupAnim(); resetGeoUI(); resetMotion(); fit(); renderRect(0, 0, W, H); updateFmtUI(); invalidateRefine(); updateHud();
+}
+function resetGeoUI(){ S.crop = null; setAngle(0); syncCropUI(); updateRotScopeHint(); }
+function setAngle(v){
+  v = clamp(Math.round((+v || 0) * 10) / 10, -180, 180); S.rotA = v;
+  $('#rang').value = v; if (document.activeElement !== $('#rangN')) $('#rangN').value = v;
+  $('#rApply').disabled = !v; requestDraw();
+}
+function updateRotScopeHint(){
+  const all = S.rotAll || frames.length < 2;
+  $('#rotScopeHint').textContent = all ? 'Every frame turns together, so the animation stays in sync.' : 'Only frame ' + (S.cur + 1) + ' turns. All frames share one canvas size, so the canvas keeps its size and corners outside it are cut off.';
+  $('#rexpRow').hidden = !all;
+}
+[['cropL', 'l'], ['cropR', 'r'], ['cropT', 't'], ['cropB', 'b']].forEach(([id, k]) => $('#' + id).addEventListener('input', e => cropInput(k, e.target.value)));
+[['cropX', 'x'], ['cropY', 'y'], ['cropW', 'w'], ['cropH', 'h']].forEach(([id, k]) => {
+  const el = $('#' + id);
+  el.addEventListener('change', e => cropInput(k, e.target.value));
+  el.addEventListener('keydown', e => { if (e.key === 'Enter'){ cropInput(k, e.target.value); e.target.blur(); } });
+  el.addEventListener('blur', syncCropUI);
+});
+$('#caspect').addEventListener('change', setAspect);
+$('#cFit').addEventListener('click', fitContent);
+$('#cReset').addEventListener('click', () => { $('#caspect').value = 'free'; S.crop = null; syncCropUI(); });
+$('#cApply').addEventListener('click', applyCrop);
+$('#rotL').addEventListener('click', () => transformFrames(-90));
+$('#rotR').addEventListener('click', () => transformFrames(90));
+$('#flipH').addEventListener('click', () => transformFrames(0, 'h'));
+$('#flipV').addEventListener('click', () => transformFrames(0, 'v'));
+$('#rang').addEventListener('input', e => setAngle(e.target.value));
+$('#rangN').addEventListener('change', e => setAngle(e.target.value));
+$('#rangN').addEventListener('keydown', e => { if (e.key === 'Enter'){ setAngle(e.target.value); e.target.blur(); } });
+$('#rexp').addEventListener('change', requestDraw);
+$('#rReset').addEventListener('click', () => setAngle(0));
+$('#rApply').addEventListener('click', () => { if (S.rotA) transformFrames(S.rotA); });
+segBind('#rotScope', 'r', v => { S.rotAll = v === 'all'; updateRotScopeHint(); requestDraw(); });
+
+// ---------- quick fixes ----------
+// Works out how strongly each pixel of frame f would be erased by automatic background removal (0..255 in out).
+function autoAmt(f, out){
+  const N = W * H, seed = new Int32Array(N), vis = new Uint8Array(N);
+  let q = new Int32Array(1 << 16), qh = 0, qt = 0;
+  const tol = 6 + S.atol * 1.6, inner = tol * 0.5, span = tol - inner, thr = edgeThr(S.wedge);
+  const src = frames[f], edge = ensureEdges(f, 0, 0, W, H);
+  out.fill(0);
+  const push = v => { if (qt >= q.length){ if (qh > q.length / 2){ q.copyWithin(0, qh, qt); qt -= qh; qh = 0; } else { const nq = new Int32Array(q.length * 2); nq.set(q); q = nq; } } q[qt++] = v; };
+  // the background is whatever color dominates the image border
+  const border = [];
+  for (let x = 0; x < W; x++){ border.push(x, (H - 1) * W + x); }
+  for (let y = 1; y < H - 1; y++){ border.push(y * W, y * W + W - 1); }
+  const hist = new Map(); let total = 0;
+  const key = gi => { const p = gi * 4; return ((src[p] >> 4) << 8) | ((src[p + 1] >> 4) << 4) | (src[p + 2] >> 4); };
+  for (const gi of border){ if (src[gi * 4 + 3] < 128) continue; const k = key(gi); hist.set(k, (hist.get(k) || 0) + 1); total++; }
+  const dom = new Set(); let best = -1, bestN = 0;
+  for (const [k, n] of hist){ if (n >= total * 0.06) dom.add(k); if (n > bestN){ bestN = n; best = k; } }
+  if (best >= 0) dom.add(best);
+  const near = k => { if (dom.has(k)) return true; const r = k >> 8, g = (k >> 4) & 15, b = k & 15;
+    for (const d of dom){ if (Math.abs((d >> 8) - r) <= 1 && Math.abs(((d >> 4) & 15) - g) <= 1 && Math.abs((d & 15) - b) <= 1) return true; } return false; };
+  for (const gi of border){
+    if (vis[gi]) continue;
+    if (src[gi * 4 + 3] < 128 || near(key(gi))){ vis[gi] = 1; seed[gi] = gi; out[gi] = 255; push(gi); }
+  }
+  let count = 0;
+  while (qh < qt){
+    const gi = q[qh++], s0 = seed[gi], x = gi % W, sp = s0 * 4;
+    const nb = [x > 0 ? gi - 1 : -1, x < W - 1 ? gi + 1 : -1, gi >= W ? gi - W : -1, gi + W < N ? gi + W : -1];
+    for (const n of nb){
+      if (n < 0 || vis[n]) continue;
+      const p = n * 4; let a;
+      if (src[p + 3] < 16) a = 1;
+      else { const dr = src[p] - src[sp], dg = src[p + 1] - src[sp + 1], db = src[p + 2] - src[sp + 2]; const d = Math.sqrt((2 * dr * dr + 4 * dg * dg + 3 * db * db) / 9); a = d <= inner ? 1 : d >= tol ? 0 : 1 - (d - inner) / span; }
+      if (a <= 0) continue;
+      vis[n] = 1; const v = (a * 255 + 0.5) | 0; if (v > out[n]) out[n] = v;
+      if (edge[n] >= thr) continue;          // rim of the subject: partly erased, not crossed
+      seed[n] = a >= 1 ? n : s0;              // follow gentle gradients in the background
+      push(n);
+    }
+  }
+  for (let i = 0; i < N; i++) if (out[i]) count++;
+  return count;
+}
+async function autoRemove(){
+  if (!W) return; stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
+  try {
+    const N = W * H, amt8 = new Uint8Array(N);
+    let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
+    beginOp();
+    for (const f of op.fs){
+      autoAmt(f, amt8);
+      const m = masks[f];
+      for (let gi = 0; gi < N; gi++){ const v = amt8[gi]; if (!v) continue; const t = 255 - v; if (m[gi] > t){ m[gi] = t; const x = gi % W, y = (gi / W) | 0; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; } }
+    }
+    if (bx1 < 0){ op = null; toast('No background found along the border. Raise the tolerance or use the wand.', 4000); return; }
+    const nf = op.fs.length;
+    touchOp(bx0, by0, bx1 + 1, by1 + 1); endOp(); renderRect(bx0, by0, bx1 + 1, by1 + 1);
+    toast('Background removed' + (nf > 1 ? ' on ' + nf + ' frames' : '') + '. Undo if it took too much.');
+  } finally { busy(false); }
+}
+
+// ---------- canvas overlays: auto-remove preview and motion finder ----------
+const ovCanvas = document.createElement('canvas'); let ovOn = false, ovRaf = 0;
+let autoPrevData = null, autoPrevT = 0;
+function scheduleAutoPreview(){
+  clearTimeout(autoPrevT);
+  if (!S.autoPrev){ if (autoPrevData){ autoPrevData = null; requestOverlay(); } $('#aPrevStat').hidden = true; return; }
+  autoPrevT = setTimeout(() => {
+    if (!W || !S.autoPrev || stroke || S.playing) return;
+    const N = W * H, d = new Uint8Array(N), m = masks[S.cur];
+    autoAmt(S.cur, d);
+    // only show pixels this would actually change
+    let n = 0; for (let i = 0; i < N; i++){ if (d[i] && m[i] > 255 - d[i]) n++; else d[i] = 0; }
+    autoPrevData = d;
+    const st = $('#aPrevStat'); st.hidden = false;
+    st.textContent = n ? 'Would erase ' + (n * 100 / N).toFixed(1) + '% of ' + (frames.length > 1 ? 'this frame' : 'the picture') + ', shown in red.' : 'Nothing left to remove at this tolerance.';
+    requestOverlay();
+  }, 140);
+}
+function requestOverlay(){ if (!ovRaf) ovRaf = requestAnimationFrame(() => { ovRaf = 0; renderOverlay(); }); }
+function renderOverlay(){
+  const sel = S.mShow && motionSel, heat = S.mHeat && motion, ap = S.autoPrev && autoPrevData;
+  if (!W || !(sel || heat || ap)){ ovOn = false; requestDraw(); return; }
+  if (ovCanvas.width !== W || ovCanvas.height !== H){ ovCanvas.width = W; ovCanvas.height = H; }
+  const g = ovCanvas.getContext('2d'), id = g.createImageData(W, H), d = id.data, N = W * H;
+  const ac = hexToRgb(themeCols ? themeCols.accent : '#d23a26');
+  for (let i = 0, p = 0; i < N; i++, p += 4){
+    let r = 0, gg = 0, b = 0, a = 0;
+    if (heat){ const v = motion[i] / 255; [r, gg, b] = heatColor(v); a = 140; }
+    if (sel && motionSel[i]){ const t = 0.7; r = r * (1 - t) + 25 * t; gg = gg * (1 - t) + 205 * t; b = b * (1 - t) + 230 * t; a = Math.max(a, 120); }
+    if (ap && ap[i]){ const t = ap[i] / 255; r = r * (1 - t) + ac[0] * t; gg = gg * (1 - t) + ac[1] * t; b = b * (1 - t) + ac[2] * t; a = Math.max(a, 60 + 120 * t); }
+    d[p] = r; d[p + 1] = gg; d[p + 2] = b; d[p + 3] = a;
+  }
+  g.putImageData(id, 0, 0); ovOn = true; requestDraw();
+}
+function heatColor(v){
+  const stops = [[42, 109, 244], [24, 194, 176], [242, 208, 59], [240, 80, 58]];
+  const x = Math.min(0.999, Math.max(0, v)) * 3, k = Math.floor(x), t = x - k, A = stops[k], B = stops[k + 1];
+  return [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
+}
+$('#aPrev').addEventListener('change', e => { S.autoPrev = e.target.checked; scheduleAutoPreview(); });
+
+// ---------- motion finder ----------
+// Two methods:
+//  plate  – build a background plate (per-pixel median of the frames) and compare each frame with it, so every
+//           frame gets its own cut-out of whatever is not background.
+//  pairs  – average change between neighboring frames; one map for the whole animation.
+let motion = null, motionSel = null, motionT = 0, plate = null, pairMap = null, motionReady = false;
+function resetMotion(){ motion = null; motionSel = null; plate = null; pairMap = null; motionReady = false; $('#mOpts').hidden = true; $('#mStat').textContent = ''; updateMotionHint(); requestOverlay(); }
+function updateMotionHint(){
+  $('#mModeHint').textContent = S.mMode === 'plate'
+    ? 'Builds a picture of the unchanging background, then finds what differs from it in each frame. Best for a subject moving over a still background.'
+    : 'Averages how much each pixel changes from frame to frame. Marks everywhere the subject travels, so the result is the same on every frame.';
+}
+function maxFilter(a, r){ const inv = new Uint8ClampedArray(a.length); for (let i = 0; i < a.length; i++) inv[i] = 255 - a[i]; const o = minFilter(inv, r); for (let i = 0; i < o.length; i++) o[i] = 255 - o[i]; return o; }
+const pxDiff = (A, B, p) => { let d = Math.abs(A[p] - B[p]); const dg = Math.abs(A[p + 1] - B[p + 1]), db = Math.abs(A[p + 2] - B[p + 2]), da = Math.abs(A[p + 3] - B[p + 3]); if (dg > d) d = dg; if (db > d) d = db; if (da > d) d = da; return d; };
+function buildPlate(){
+  const n = frames.length, N = W * H, pick = [];
+  const k = Math.min(n, 31); for (let j = 0; j < k; j++) pick.push(Math.round(j * (n - 1) / Math.max(1, k - 1)));
+  const out = new Uint8ClampedArray(N * 4), v = new Uint8Array(k);
+  for (let p = 0; p < N * 4; p++){
+    for (let j = 0; j < k; j++) v[j] = frames[pick[j]][p];
+    v.sort(); out[p] = v[k >> 1];
+  }
+  plate = out;
+}
+function buildPairs(){
+  const n = frames.length, N = W * H, acc = new Float32Array(N), noise = S.mNoise;
+  for (let f = 0; f < n; f++){
+    const A = frames[f], B = frames[(f + 1) % n];
+    for (let i = 0, p = 0; i < N; i++, p += 4){ if (A[p + 3] < 16 && B[p + 3] < 16) continue; const d = pxDiff(A, B, p); if (d > noise) acc[i] += d; }
+  }
+  // scale so the strongest 0.5% of pixels reach the top of the range
+  let mx = 0; for (let i = 0; i < N; i++){ acc[i] /= n; if (acc[i] > mx) mx = acc[i]; }
+  pairMap = new Uint8Array(N); if (mx <= 0) return;
+  const hist = new Uint32Array(1024); for (let i = 0; i < N; i++) hist[Math.min(1023, (acc[i] / mx * 1023) | 0)]++;
+  let cum = 0, top = mx; for (let k = 1023; k >= 0; k--){ cum += hist[k]; if (cum >= N * 0.005){ top = Math.max(1e-6, (k + 1) / 1024 * mx); break; } }
+  for (let i = 0; i < N; i++) pairMap[i] = Math.min(255, acc[i] / top * 255);
+}
+function analyzeMotion(){ if (S.mMode === 'plate'){ if (!plate) buildPlate(); } else buildPairs(); motionReady = true; }
+// 0..255 "how much this pixel is moving" for frame f
+function motionMapFor(f){
+  if (S.mMode === 'pairs') return pairMap;
+  const N = W * H, A = frames[f], out = new Uint8Array(N), noise = S.mNoise;
+  for (let i = 0, p = 0; i < N; i++, p += 4){ const d = pxDiff(A, plate, p); out[i] = d > noise ? Math.min(255, d * 2) : 0; }
+  return out;
+}
+function selFor(map){
+  const N = W * H, m = S.mSmooth > 0 ? boxBlur(map, S.mSmooth) : map, thr = S.mThr * 2.55, still = S.mTarget === 'still';
+  let sel = new Uint8ClampedArray(N);
+  for (let i = 0; i < N; i++){ const moving = m[i] > thr; sel[i] = (still ? !moving : moving) ? 255 : 0; }
+  if (S.mGrow > 0) sel = maxFilter(sel, S.mGrow); else if (S.mGrow < 0) sel = minFilter(sel, -S.mGrow);
+  return sel;
+}
+function updateMotionSel(){
+  if (!motionReady) return;
+  motion = motionMapFor(S.cur); motionSel = selFor(motion);
+  const N = W * H; let n = 0; for (let i = 0; i < N; i++) if (motionSel[i]) n++;
+  $('#mStat').textContent = (S.mTarget === 'still' ? 'Still' : 'Moving') + ' areas cover ' + (n * 100 / N).toFixed(1) + '% of ' + (S.mMode === 'plate' ? 'frame ' + (S.cur + 1) : 'every frame') + '.';
+  requestOverlay();
+}
+async function runAnalysis(){
+  if (!W || frames.length < 2) return;
+  stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
+  try { analyzeMotion(); $('#mOpts').hidden = false; S.mShow = true; $('#mShow').checked = true; updateMotionSel(); }
+  finally { busy(false); }
+}
+function scheduleMotion(reanalyze){
+  clearTimeout(motionT);
+  motionT = setTimeout(() => { if (!motionReady) return; if (reanalyze && S.mMode === 'pairs') buildPairs(); updateMotionSel(); }, reanalyze ? 200 : 60);
+}
+async function applyMotion(restore){
+  if (!motionReady || op) return;
+  stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
+  try {
+    const N = W * H, shared = S.mMode === 'pairs' ? selFor(pairMap) : null;
+    beginOp(frames.map((_, i) => i));
+    for (const f of op.fs){
+      const sel = shared || selFor(motionMapFor(f)), m = masks[f];
+      for (let i = 0; i < N; i++){ if (!sel[i]) continue; m[i] = restore ? 255 : 0; }
+    }
+    touchOp(0, 0, W, H); endOp(); renderRect(0, 0, W, H);
+    S.mShow = false; $('#mShow').checked = false; requestOverlay();
+    toast((restore ? 'Restored ' : 'Erased ') + (S.mTarget === 'still' ? 'still' : 'moving') + ' areas on all ' + frames.length + ' frames.');
+  } finally { busy(false); }
+}
+segBind('#mMode', 'k', v => { S.mMode = v; updateMotionHint(); if (motionReady){ busy(true); setTimeout(() => { try { analyzeMotion(); updateMotionSel(); } finally { busy(false); } }, 16); } });
+updateMotionHint();
+$('#mAnalyze').addEventListener('click', runAnalysis);
+segBind('#mTarget', 't', v => { S.mTarget = v; updateMotionSel(); });
+rangeBind('mThr', 'mThr', v => v + '%', () => scheduleMotion(false));
+rangeBind('mNoise', 'mNoise', v => v === 0 ? 'Off' : v + ' levels', () => scheduleMotion(true));
+rangeBind('mSmooth', 'mSmooth', v => v + ' px', () => scheduleMotion(false));
+rangeBind('mGrow', 'mGrow', v => (v > 0 ? '+' : '') + v + ' px', () => scheduleMotion(false));
+$('#mShow').addEventListener('change', e => { S.mShow = e.target.checked; requestOverlay(); });
+$('#mHeat').addEventListener('change', e => { S.mHeat = e.target.checked; requestOverlay(); });
+$('#mErase').addEventListener('click', () => applyMotion(false));
+$('#mRestore').addEventListener('click', () => applyMotion(true));
+
+async function removeSpecks(){
+  if (!W) return; stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
+  try {
+    const N = W * H, minSize = Math.max(8, Math.round(N * +$('#speck').value));
+    const lab = new Uint8Array(N); let comp = new Int32Array(1 << 14), removed = 0;
+    let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
+    beginOp();
+    for (const f of op.fs){
+      const src = frames[f], m = masks[f]; lab.fill(0);
+      const solid = gi => src[gi * 4 + 3] * m[gi] >= 255 * 24;
+      for (let s0 = 0; s0 < N; s0++){
+        if (lab[s0] || !solid(s0)) continue;
+        let n = 0, qh = 0; lab[s0] = 1; comp[n++] = s0;
+        while (qh < n){
+          const gi = comp[qh++], x = gi % W, y = (gi / W) | 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+            if (!dx && !dy) continue; const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+            const j = yy * W + xx; if (lab[j] || !solid(j)) continue; lab[j] = 1;
+            if (n >= comp.length){ const nc = new Int32Array(comp.length * 2); nc.set(comp); comp = nc; } comp[n++] = j;
+          }
+        }
+        if (n >= minSize) continue;
+        removed++;
+        for (let k = 0; k < n; k++){
+          const gi = comp[k], x = gi % W, y = (gi / W) | 0;
+          // take the faint halo around the speck with it
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){ const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const j = yy * W + xx; if (j === gi || !solid(j)) m[j] = 0; }
+          m[gi] = 0;
+          if (x - 1 < bx0) bx0 = Math.max(0, x - 1); if (x + 1 > bx1) bx1 = Math.min(W - 1, x + 1); if (y - 1 < by0) by0 = Math.max(0, y - 1); if (y + 1 > by1) by1 = Math.min(H - 1, y + 1);
+        }
+      }
+    }
+    if (!removed){ op = null; toast('No specks found at that size.'); return; }
+    touchOp(bx0, by0, bx1 + 1, by1 + 1); endOp(); renderRect(bx0, by0, bx1 + 1, by1 + 1);
+    toast('Removed ' + removed + (removed === 1 ? ' speck.' : ' specks.'));
+  } finally { busy(false); }
+}
+$('#autoBtn').addEventListener('click', autoRemove);
+$('#speckBtn').addEventListener('click', removeSpecks);
+
+// ---------- saving ----------
+function contentBox(list){
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (const c of list) for (let y = 0; y < H; y++){ const row = y * W; for (let x = 0; x < W; x++) if (c[(row + x) * 4 + 3]){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+  return x1 < 0 ? null : [x0, y0, x1 + 1, y1 + 1];
+}
+function cropRGBA(c, [x0, y0, x1, y1]){
+  if (x0 === 0 && y0 === 0 && x1 === W && y1 === H) return c;
+  const bw = x1 - x0, out = new Uint8ClampedArray(bw * (y1 - y0) * 4);
+  for (let y = y0; y < y1; y++) out.set(c.subarray((y * W + x0) * 4, (y * W + x1) * 4), (y - y0) * bw * 4);
+  return out;
+}
+function resizeRGBA(c, w, h, nw, nh){
+  let cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  cv.getContext('2d').putImageData(new ImageData(c, w, h), 0, 0);
+  // halve repeatedly for clean downscaling, then finish at the exact size
+  while (w / 2 >= nw && h / 2 >= nh){
+    const nx = document.createElement('canvas'); nx.width = Math.max(1, w >> 1); nx.height = Math.max(1, h >> 1);
+    const g = nx.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, nx.width, nx.height); cv = nx; w = nx.width; h = nx.height;
+  }
+  const out = document.createElement('canvas'); out.width = nw; out.height = nh;
+  const g = out.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, nw, nh);
+  return g.getImageData(0, 0, nw, nh).data;
+}
+function updateScaleOut(){ const s = S.scale / 100; $('#scaleOut').textContent = S.scale + '% · ' + Math.max(1, Math.round(W * s)) + '×' + Math.max(1, Math.round(H * s)) + ' px'; }
+const fmtBytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(b < 10240 ? 1 : 0) + ' KB' : (b / 1048576).toFixed(2) + ' MB';
+function clearEstimate(){ const e = $('#estOut'); if (e) e.textContent = ''; }
+function updateFmtUI(){
+  const f = $('#fmt').value, multi = frames.length > 1;
+  $('#qRow').hidden = f !== 'webp';
+  $('#gifOpts').hidden = f !== 'gif';
+  $('#gifAnimRows').hidden = !(f === 'gif' && multi);
+  $('#gifAnimOpts').hidden = !$('#gifAll').checked;
+  updateScaleOut(); clearEstimate();
+  const inViewer = !!downloadsP;
+  const notes = {
+    png: 'Lossless, with smooth semi-transparent edges.' + (multi ? ' Saves the current frame.' : ''),
+    webp: 'Keeps soft edges at a fraction of PNG size.' + (multi ? ' Saves the current frame.' : ''),
+    tiff: 'Uncompressed RGBA, for print and layout tools.' + (inViewer ? ' Delivered inside a .zip, since this viewer only hands out certain file types.' : '') + (multi ? ' Saves the current frame.' : ''),
+    gif: 'Each pixel is either fully shown or fully clear. Fewer colors, lossy compression, a smaller scale and fewer frames all shrink the file; pick a blend color that matches where the GIF will sit to avoid jagged edges.' + (S.opacity < 100 ? ' GIF cannot store partial opacity: below 50% the picture disappears, so set a blend color to fade it into instead.' : '')
+  };
+  $('#fmtNote').textContent = notes[f];
+}
+$('#fmt').addEventListener('change', updateFmtUI);
+rangeBind('atol', 'atol', v => v + '%', () => scheduleAutoPreview());
+rangeBind('shrink', 'shrink', v => v + ' px', () => invalidateRefineAndShow());
+rangeBind('soft', 'soft', v => v + ' px', () => invalidateRefineAndShow());
+rangeBind('gcol', 'gcol', v => v + (v === 255 ? ' (max)' : ''), clearEstimate);
+rangeBind('glossy', 'glossy', v => v === 0 ? 'Off' : v + '%', clearEstimate);
+rangeBind('scale', 'scale', v => v, () => { updateScaleOut(); clearEstimate(); });
+$('#defringe').addEventListener('change', e => { S.defringe = e.target.checked; invalidateRefineAndShow(); });
+function invalidateRefineAndShow(){ if (!W) return; invalidateRefine(); clearEstimate(); if (!refineOn()) renderRect(0, 0, W, H); }
+segBind('#gpalSeg', 'p', v => { S.gpal = v; clearEstimate(); });
+['#gdither', '#matte', '#gskip', '#gspeed', '#gloop', '#gopt', '#trim', '#q'].forEach(id => $(id).addEventListener('change', clearEstimate));
+$('#gifAll').addEventListener('change', updateFmtUI);
+$('#estBtn').addEventListener('click', estimate);
+
+
+
+class SaveError extends Error {}
+async function buildOutput(rawTiff, baseName){
+  const f = $('#fmt').value, trim = $('#trim').checked, n = frames.length;
+  const anim = f === 'gif' && n > 1 && $('#gifAll').checked;
+  let idxs = [], dl = [];
+  if (anim){
+    const step = +$('#gskip').value, speed = +$('#gspeed').value;
+    for (let i = 0; i < n; i += step){ idxs.push(i); let sum = 0; for (let k = i; k < Math.min(n, i + step); k++) sum += delays[k] >= 2 ? delays[k] : 10; dl.push(Math.max(2, Math.round(sum / speed))); }
+  } else { idxs = [S.cur]; dl = [delays[S.cur]]; }
+  const comps = idxs.map(finalRGBA);
+  const box = trim ? contentBox(comps) : [0, 0, W, H];
+  if (!box) throw new SaveError('Nothing to save: every pixel is erased.');
+  let bw = box[2] - box[0], bh = box[3] - box[1];
+  let out = comps.map(c => cropRGBA(c, box));
+  if (S.scale < 100){
+    const nw = Math.max(1, Math.round(bw * S.scale / 100)), nh = Math.max(1, Math.round(bh * S.scale / 100));
+    out = out.map(c => resizeRGBA(c, bw, bh, nw, nh)); bw = nw; bh = nh;
+  }
+  const base = baseName || (S.name + '-cutout');
+  let blob, filename;
+  if (f === 'png' || f === 'webp'){
+    const cv = document.createElement('canvas'); cv.width = bw; cv.height = bh;
+    cv.getContext('2d').putImageData(new ImageData(out[0], bw, bh), 0, 0);
+    blob = await new Promise(r => cv.toBlob(r, 'image/' + f, f === 'webp' ? S.q / 100 : undefined));
+    if (!blob) throw new SaveError('Could not encode the image.');
+    if (f === 'webp' && blob.type !== 'image/webp') throw new SaveError('This browser cannot write WebP. Choose PNG, or use Chrome, Edge or Firefox.');
+    filename = base + '.' + f;
+  } else if (f === 'tiff'){
+    const tif = encodeTiff(out[0], bw, bh);
+    if (downloadsP && !rawTiff){ blob = new Blob([zipStore(base + '.tif', tif)]); filename = base + '-tiff.zip'; }
+    else { blob = new Blob([tif], { type: 'image/tiff' }); filename = base + '.tif'; }
+  } else {
+    const mv = $('#matte').value;
+    const matte = mv === 'white' ? [255, 255, 255] : mv === 'black' ? [0, 0, 0] : mv === 'bg' ? hexToRgb(S.bgColor) : null;
+    const gif = encodeGif(out, bw, bh, dl, {
+      matte, colors: S.gcol, dither: $('#gdither').value, lossy: S.glossy,
+      local: anim && S.gpal === 'frame', optimize: !anim || $('#gopt').checked, loop: +$('#gloop').value
+    });
+    blob = new Blob([gif], { type: 'image/gif' }); filename = base + '.gif';
+  }
+  return { blob, filename, w: bw, h: bh, count: idxs.length };
+}
+const FILE_TYPES = {
+  png: { ext: 'png', mime: 'image/png', desc: 'PNG image' },
+  webp: { ext: 'webp', mime: 'image/webp', desc: 'WebP image' },
+  tiff: { ext: 'tif', mime: 'image/tiff', desc: 'TIFF image' },
+  gif: { ext: 'gif', mime: 'image/gif', desc: 'GIF image' }
+};
+const canPick = typeof window.showSaveFilePicker === 'function';
+let savingNow = false;
+// Save: open the system Save dialog first (while the click still counts as a user action), then encode and write.
+async function doSave(){
+  if (!W || savingNow) return;
+  stopPlay();
+  const t = FILE_TYPES[$('#fmt').value], suggested = S.name + '-cutout.' + t.ext;
+  if (canPick){
+    let handle = null;
+    try {
+      handle = await window.showSaveFilePicker({ suggestedName: suggested, types: [{ description: t.desc, accept: { [t.mime]: ['.' + t.ext] } }] });
+    } catch (err) {
+      if (err && err.name === 'AbortError'){ toast('Save cancelled.'); return; }
+      handle = null; // the picker is blocked in this view: fall back to the app's own save window
+    }
+    if (handle){
+      savingNow = true; busy(true); await new Promise(r => setTimeout(r, 16));
+      try {
+        const o = await buildOutput(true); showEstimate(o);
+        const w = await handle.createWritable(); await w.write(o.blob); await w.close();
+        toast('Saved ' + handle.name + ' · ' + fmtBytes(o.blob.size));
+      } catch (err) { toast(err instanceof SaveError ? err.message : 'Saving failed: ' + (err && err.message || err), 5000); }
+      finally { busy(false); savingNow = false; }
+      return;
+    }
+  }
+  openSaveDialog(t, suggested);
+}
+function openSaveDialog(t, suggested){
+  const dlg = $('#saveDlg');
+  $('#sdName').value = suggested.replace(/\.[^.]+$/, '');
+  $('#sdExt').textContent = '.' + (downloadsP && t.ext === 'tif' ? 'tif inside .zip' : t.ext);
+  const s = S.scale / 100, multi = $('#fmt').value === 'gif' && frames.length > 1 && $('#gifAll').checked;
+  $('#sdInfo').textContent = t.desc + ' · ' + Math.max(1, Math.round(W * s)) + ' × ' + Math.max(1, Math.round(H * s)) + ' px' + ($('#trim').checked ? ' before trimming' : '') + (multi ? ' · animated' : '');
+  $('#sdWhere').textContent = downloadsP
+    ? 'The viewer asks you to confirm the download next. Where it goes depends on your browser\'s download settings; turn on "Always ask where to save files" (Chrome, Edge) or "Always ask you where to save files" (Firefox) to pick a folder each time.'
+    : 'This browser does not let pages open a folder picker, so the file goes to your downloads. To choose a folder every time, turn on "Always ask you where to save files" in Firefox, or in Safari set "File download location" to "Ask for each download".';
+  dlg.hidden = false; setTimeout(() => { const i = $('#sdName'); i.focus(); i.select(); }, 0);
+}
+function closeSaveDialog(){ $('#saveDlg').hidden = true; }
+async function confirmSaveDialog(){
+  const t = FILE_TYPES[$('#fmt').value];
+  let name = $('#sdName').value.trim().replace(/[\\/:*?"<>|]+/g, '-') || (S.name + '-cutout');
+  closeSaveDialog();
+  savingNow = true; busy(true); await new Promise(r => setTimeout(r, 16));
+  try {
+    const o = await buildOutput(false, name); showEstimate(o);
+    await saveBlob(o.blob, o.filename);
+  } catch (err) { toast(err instanceof SaveError ? err.message : 'Saving failed: ' + (err && err.message || err), 5000); }
+  finally { busy(false); savingNow = false; }
+}
+function showEstimate(o){ $('#estOut').textContent = fmtBytes(o.blob.size) + ' · ' + o.w + '×' + o.h + (o.count > 1 ? ' · ' + o.count + ' frames' : ''); }
+async function estimate(){
+  if (!W) return; stopPlay(); busy(true); $('#estOut').textContent = 'Encoding…'; await new Promise(r => setTimeout(r, 16));
+  try { showEstimate(await buildOutput()); }
+  catch (err) { $('#estOut').textContent = ''; toast(err instanceof SaveError ? err.message : 'Could not encode: ' + (err && err.message || err), 5000); }
+  finally { busy(false); }
+}
+async function saveBlob(blob, filename){
+  if (downloadsP){
+    const dl = await downloadsP;
+    if (!dl){ toast('Saving files is not available in this view.', 4500); return; }
+    try { await dl.save({ filename, data: blob }); toast('Saved ' + filename + ' · ' + fmtBytes(blob.size)); }
+    catch (err) {
+      const c = err && err.code;
+      if (c === 'declined') toast('Save cancelled.');
+      else if (c === 'rate_limited') toast('A save prompt is already open.');
+      else if (c === 'too_large') toast('That file is too large to hand over here. Try Trim transparent edges or WebP.', 5000);
+      else toast('Could not save: ' + ((err && err.message) || c || 'unknown error'), 5000);
+    }
+    return;
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast('Saved ' + filename + ' · ' + fmtBytes(blob.size));
+}
+$('#saveBtn').addEventListener('click', doSave);
+$('#sdForm').addEventListener('submit', e => { e.preventDefault(); confirmSaveDialog(); });
+$('#sdCancel').addEventListener('click', () => { closeSaveDialog(); toast('Save cancelled.'); });
+$('#saveDlg').addEventListener('pointerdown', e => { if (e.target.id === 'saveDlg') closeSaveDialog(); });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#saveDlg').hidden){ e.preventDefault(); closeSaveDialog(); } }, true);
+$('#saveTop').addEventListener('click', doSave);
+
+// ---------- sample photo ----------
+function makeSample(){
+  const w = 960, h = 720, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  let grd = g.createRadialGradient(w * 0.46, h * 0.36, 40, w * 0.5, h * 0.55, w * 0.78);
+  grd.addColorStop(0, '#e6e9ec'); grd.addColorStop(0.6, '#c6cdd4'); grd.addColorStop(1, '#a2abb5');
+  g.fillStyle = grd; g.fillRect(0, 0, w, h);
+  const cx = w / 2;
+  g.save(); g.filter = 'blur(16px)'; g.fillStyle = 'rgba(38,44,54,.42)'; g.beginPath(); g.ellipse(cx + 26, 640, 175, 26, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  const rr = (x, y, ww, hh, r) => { const p = new Path2D(); p.moveTo(x + r, y); p.arcTo(x + ww, y, x + ww, y + hh, r); p.arcTo(x + ww, y + hh, x, y + hh, r); p.arcTo(x, y + hh, x, y, r); p.arcTo(x, y, x + ww, y, r); p.closePath(); return p; };
+  // cactus
+  const body = new Path2D();
+  body.addPath(rr(cx - 80, 150, 160, 330, 80));
+  body.addPath(rr(cx - 205, 200, 66, 175, 33));
+  body.addPath(rr(cx - 185, 315, 130, 58, 29));
+  body.addPath(rr(cx + 118, 168, 60, 150, 30));
+  body.addPath(rr(cx + 60, 270, 110, 52, 26));
+  grd = g.createLinearGradient(cx - 210, 0, cx + 180, 0);
+  grd.addColorStop(0, '#21492a'); grd.addColorStop(0.3, '#4f9457'); grd.addColorStop(0.55, '#6db06b'); grd.addColorStop(0.8, '#3b7a44'); grd.addColorStop(1, '#1f4426');
+  g.fillStyle = grd; g.fill(body);
+  g.save(); g.clip(body);
+  g.strokeStyle = 'rgba(18,52,26,.45)'; g.lineWidth = 3;
+  for (const dx of [-52, -22, 8, 38, 62]){ g.beginPath(); g.moveTo(cx + dx * 0.7, 160); g.quadraticCurveTo(cx + dx * 1.1, 320, cx + dx * 0.8, 480); g.stroke(); }
+  for (const [x0, y0, x1, y1] of [[-172, 210, -172, 370], [148, 175, 148, 315]]){ g.beginPath(); g.moveTo(cx + x0, y0); g.lineTo(cx + x1, y1); g.stroke(); }
+  g.restore();
+  g.strokeStyle = 'rgba(246,240,214,.95)'; g.lineWidth = 1.2; g.lineCap = 'round';
+  for (let i = 0; i < 900; i++){
+    const x = cx - 210 + rnd() * 390, y = 150 + rnd() * 330;
+    if (!g.isPointInPath(body, x, y)) continue;
+    for (let k = 0; k < 3; k++){ const a = rnd() * Math.PI * 2, L = 4 + rnd() * 7; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * L, y + Math.sin(a) * L); g.stroke(); }
+  }
+  // flower
+  g.save(); g.translate(cx + 6, 156);
+  for (let i = 0; i < 9; i++){ g.rotate(Math.PI * 2 / 9); g.fillStyle = i % 2 ? '#ef6f9a' : '#f58db0'; g.beginPath(); g.ellipse(0, -17, 8, 18, 0, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = '#f6d34b'; g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill(); g.restore();
+  // pot
+  grd = g.createLinearGradient(cx - 150, 0, cx + 150, 0);
+  grd.addColorStop(0, '#7a3519'); grd.addColorStop(0.35, '#d07a4c'); grd.addColorStop(0.6, '#b85e35'); grd.addColorStop(1, '#6d2f16');
+  g.fillStyle = grd; g.beginPath();
+  g.moveTo(cx - 136, 486); g.lineTo(cx + 136, 486); g.lineTo(cx + 108, 628); g.quadraticCurveTo(cx + 104, 640, cx + 92, 640);
+  g.lineTo(cx - 92, 640); g.quadraticCurveTo(cx - 104, 640, cx - 108, 628); g.closePath(); g.fill();
+  g.fillStyle = grd; g.fill(rr(cx - 152, 446, 304, 52, 9));
+  g.fillStyle = 'rgba(255,220,190,.18)'; g.fillRect(cx - 146, 452, 292, 6);
+  g.fillStyle = 'rgba(60,24,10,.25)'; g.fillRect(cx - 140, 494, 280, 8);
+  // sensor noise
+  const id = g.getImageData(0, 0, w, h), d = id.data;
+  for (let i = 0; i < d.length; i += 4){ const n = (rnd() - 0.5) * 12; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  return { w, h, frames: [d], delays: [0] };
+}
+
+// ---------- boot ----------
+readTheme(); resize();
+updateRelHint(); setTool('erase'); updateFmtUI();
+setImage(makeSample(), 'sample-cactus');
+setTimeout(fit, 0);
+})();
+</script>

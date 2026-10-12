@@ -1,0 +1,209 @@
+G-WIZ for iPad  (version 1.6.1)
+===============================
+
+G-WIZ installs on an iPad from a web address. After one visit with internet,
+it runs from its own Home Screen icon, full-screen and fully offline. Your
+pictures never leave the iPad. The website only hands over the program.
+
+You do steps 1 and 2 once. They take about 10 minutes and are free.
+
+
+1. Put G-WIZ on a free GitHub Pages website  (on a computer)
+------------------------------------------------------------
+  a. Go to https://github.com and sign up or sign in.
+  b. Click the + at the top right > "New repository".
+     Name it  g-wiz  , choose Public, and click "Create repository".
+     (Free accounts can only publish public repositories as websites. Anyone
+     with the address could open the app, but never your pictures.)
+  c. On the new repository page, click "uploading an existing file".
+  d. Open the "Upload to GitHub" folder from this zip. Select everything in it
+     (index.html, sw.js, manifest.webmanifest, version.txt and the icons
+     folder) and drag it all onto the GitHub page. Click "Commit changes".
+     The files must sit at the top of the repository, not inside an
+     "Upload to GitHub" folder. Check that the icons folder came through
+     with its 4 pictures.
+  e. Open the repository's Settings > Pages. Under "Build and deployment", set
+     Source to "Deploy from a branch". Set Branch to "main" and the folder to
+     "/ (root)", then click Save.
+  f. Wait a minute or two and refresh the Pages settings. It shows the address:
+        https://YOUR-USER-NAME.github.io/g-wiz/
+
+
+2. Install it on the iPad
+-------------------------
+  a. On the iPad, open that address in Safari.
+  b. Tap the Share button (the square with an arrow), then "Add to Home Screen".
+     If you see an "Open as Web App" switch, leave it on. Tap Add.
+  c. Open G-WIZ from its new Home Screen icon once while you still have
+     internet. Wait about 5 seconds so it can store its copy on the iPad.
+     (The Home Screen app keeps its own copy, separate from Safari.)
+  d. Test it: turn on Airplane Mode, close G-WIZ, and open it again. It works.
+
+  Deleting the icon removes G-WIZ and its settings. To get it back, repeat
+  step 2.
+
+
+3. Updates
+----------
+  To change the app, replace index.html (or any other file) in the GitHub
+  repository: open the file > the pencil icon or "Add file > Upload files" >
+  Commit. GitHub publishes the change in about a minute. Its servers may keep
+  the old copy for up to 10 minutes.
+
+  The next time you open G-WIZ on the iPad with internet, it compares its copy
+  with the website. If something changed, it downloads the new version in the
+  background and shows "A new version of G-WIZ has been downloaded".
+  Tap "Restart now", or choose Later and the update starts the next time
+  G-WIZ opens. Without internet it keeps using the copy it has.
+
+  When a new version of G-WIZ comes as a zip like this one, upload the new
+  "Upload to GitHub" files over the old ones.
+
+
+Using G-WIZ on the iPad
+-----------------------
+  Touch mode switches on automatically: big controls and a key bar over the
+  canvas.
+    Undo / Redo   also: tap with two fingers to undo, three fingers to redo
+    Shift         straight and 45-degree lines, squares and circles, keep
+                  proportions; with the Eraser it ignores edges
+    Alt           the Eraser restores; drawing tools pick a color
+    Ctrl          with the Move tool, corners distort and edges skew
+    2nd           paint, fill and pick with the secondary color; palette taps
+                  set the secondary color
+    Fit           fit the picture to the screen
+    Panels        hide the side panels for a bigger canvas
+    Canvas view   hide everything but the picture
+  These keys stay on until you tap them again.
+
+  - Canvas view hides the whole interface so only the picture shows. To switch
+    it on or off, double-tap the screen with the Pencil tip, tap with four
+    fingers, press Tab on a keyboard, or use the "Show interface" button in
+    the corner. The tap on the side of the Pencil can't be used: iPadOS only
+    passes it to App Store apps, not to web apps. You can turn the Pencil-tip
+    double tap off in View > "Pencil double tap toggles canvas view".
+  - Tap the Layers title bar to minimize the Layers panel and make room for
+    the tool options. Tap it again to bring the panel back.
+
+  - Pinch with two fingers to zoom. Drag with two fingers to move around.
+    A finger waits a split second before it paints, so a two- or three-finger
+    tap never leaves a mark.
+  - Apple Pencil: the first time you use it, G-WIZ makes the Pencil draw and
+    fingers pan and zoom, so your hand never leaves marks. Pressure works with
+    the brush and pen. Change this in View > "Pencil draws, fingers pan".
+  - Press and hold any button to see its name.
+  - Open and Import as layer show the Files and Photos picker.
+  - Save makes the file, then tap Save... and choose "Save to Files" to pick a
+    folder, or "Save Image" to put it in Photos (PNG and GIF). Projects
+    (.gwiz) save the same way.
+  - An external keyboard works with all the shortcuts (press F1 for the list).
+
+Pixel art
+---------
+  Tap the green sprite button on the toolbar (or Image > Pixel art mode) and
+  tick "Pixel art mode". It works together with Animation mode.
+  - Pick a retro screen or sprite size (Game Boy, NES, SNES, Genesis, Game Boy
+    Advance, ZX Spectrum, Commodore 64, PICO-8, tiles from 8 x 8 and more) and
+    tap "New pixel canvas at this size", or scale the current picture to it.
+  - Pick a retro palette (PICO-8, Game Boy, NES, C64, ZX Spectrum, CGA/EGA,
+    Apple II, MSX, Master System and others) and a color depth from 1-bit
+    (2 colors) to 16-bit. Colors you choose snap to those limits.
+  - Reduce colors turns a photo or drawing into pixel art with the palette,
+    with or without dithering. The counter turns red when a frame uses more
+    colors than allowed.
+  - Every tool draws hard pixels. The 1-pixel pencil keeps diagonal lines
+    clean, mirror drawing gives left-right, top-bottom or four-way symmetry,
+    and the pixel grid and tile grid help line things up.
+  - The preview window in the corner shows the real-size picture, with CRT
+    scanlines and 4:3 TV stretch if you like. Tap its X to close it.
+  - Export scale saves the picture 2 to 8 times larger with crisp pixels.
+
+Animation
+---------
+  Tap the film-strip button on the toolbar (or Animation > Animation mode)
+  and tick "Animation mode". The frame strip then shows every frame.
+  - New frame / Duplicate / Delete are on the frame strip and on the
+    Animation page, with buttons to move a frame earlier or later. A new
+    frame starts empty on the selected layer; other animated layers hold
+    their picture. A layer with only one frame stays still on every frame,
+    like a background.
+  - Onion skin shows faint copies of the frames before (red) and after
+    (green). Choose how many frames before and after, how strong they look,
+    and whether they show just the selected layer or the whole picture.
+    The onion button on the frame strip switches it on and off.
+  - Frame length: set how long this frame shows, or a speed for all frames.
+  - Motion tween moves, scales, turns or fades the selected layer smoothly
+    between two frames. Drag the layer to its start with the Move tool, tap
+    "Use the layer's current position" under Start, drag it to its end, tap
+    the button under End, pick the frames and easing, then Create tween. A
+    dotted path previews the motion. Undo takes it back.
+  - Save as GIF to export the animation.
+
+  G-WIZ now starts on a blank white 1280 x 720 picture. Help > Open the
+  sample picture brings back the cactus.
+
+New in 1.5
+----------
+  - Autosave: G-WIZ keeps your picture on the iPad a few seconds after each
+    change and whenever you switch away from it. If it was closed with work
+    that was not saved as a project, the next start asks "Pick up where you
+    left off?". File > Recover autosaved work lists the last three pictures;
+    File > Autosave turns it off. Autosaves stay on this iPad only.
+    (1.6.1) The bottom of that dialog says whether Safari protects your
+    autosaves from being cleared when the iPad runs low on space. Opening
+    G-WIZ from its Home Screen icon, rather than in Safari, usually gives this
+    protection. Save important work as a project as well.
+  - Adding a picture that is bigger than the canvas asks what to do: shrink
+    the picture to fit, enlarge the canvas to fit the picture, or keep both
+    sizes.
+  - Markers are fully opaque by default (lower Opacity or pick Multiply for
+    see-through ink).
+  - Fixed: the calligraphy pen drew nothing if G-WIZ had been used before.
+  - Long menus no longer run off the screen; they switch to two columns.
+
+Removing a background (version 1.4)
+-----------------------------------
+  Remove background now has two methods. "Smart" (the default) learns the
+  background colors from the border, works out what the subject looks like,
+  cuts along the picture's real edges and keeps soft edges on hair and fur.
+  "Classic" is the old flood from the border.
+  - Presets give a starting point: plain background, busy background, hair
+    and fur, product photo, logo.
+  - Hints: when it guesses wrong, choose "Mark subject" (green) or "Mark
+    background" (magenta) and paint over the part, then Remove again. The
+    hint brushes are also in the toolbox. "Keep" hints win over everything,
+    so a subject that touches the edge of the picture can be rescued with
+    one stroke.
+  - Sliders: Background tolerance, Stop at edges, Background colors (raise
+    it for gradients and busy backgrounds), Sample border width (lower it
+    when the subject touches the edge), Refinement passes, "Background must
+    connect to the border", Clear enclosed gaps, Edge detail (how far around
+    edges hair is studied), Edge softness and Edge contrast.
+  - Turn on "Preview before applying" to see the result as red before you
+    commit; the preview updates as you move sliders or paint hints.
+  - Under the Eraser's Detection settings, "Perceptual color matching" and
+    "Ignore fine texture and noise in edges" also apply to the brush, the
+    wand and the classic remover.
+
+Drawing (version 1.4)
+---------------------
+  - Every drawing tool has a Style list: Pencil (hard round, square, grainy,
+    sketch), Pen (ink, ballpoint, calligraphy, felt tip, brush pen), Brush
+    (soft, hard, bristle, chalk, splatter, watercolor), Marker (chisel, round,
+    highlighter, dry) and Airbrush (fine, coarse, soft, spatter, stipple).
+  - Pen pressure: a curve editor sets how pressure turns into size and
+    opacity (presets or drag the red point), with a smallest size and lowest
+    opacity. The green dot shows your last pressure. Pressure now works for
+    the marker and airbrush too.
+  - Canvas view shows a small tool strip on the left: eraser, restore, the
+    drawing tools, bucket and move, a size slider, an opacity slider, the
+    primary color and undo/redo. Collapse it with the arrow; View > "Tool
+    strip in canvas view" hides it.
+
+  iPad limits
+  - Safari limits how much memory a page may use. Pictures are kept to about
+    16 megapixels (4000 x 4000), and very long or large animations may not
+    fit. Undo keeps fewer steps than on a PC.
+  - Safari cannot write WebP files. PNG, GIF and TIFF work.
+  - Animated WebP or PNG files may open as a single still frame. Animated GIFs
+    open fully.

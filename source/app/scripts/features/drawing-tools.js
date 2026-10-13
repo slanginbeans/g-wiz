@@ -365,6 +365,8 @@ function commitStroke(){
   if (!any){ requestDraw(); return; }
   const fs = (S.scopeAll && frames.length > 1) ? frames.map((_, i) => i) : [S.cur];
   const entry = paintSnapshot(fs, x0, y0, x1, y1);
+  // the pixel-art shading pencil steps the colors underneath darker or lighter instead of painting
+  if (typeof pxShadeActive === 'function' && pxShadeActive()){ pxShadeApply(fs, sd.data, x0, y0, bw, bh); pushPaint(entry); resetEdges(); renderRect(x0, y0, x1, y1); DS.ctx.clearRect(0, 0, W, H); requestDraw(); return; }
   const tmp = document.createElement('canvas'); tmp.width = bw; tmp.height = bh; const tg = tmp.getContext('2d', { willReadFrequently: true });
   const pxs = pixSnapper();
   for (const f of fs){

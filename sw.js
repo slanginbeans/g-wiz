@@ -1,7 +1,7 @@
 // G-WIZ offline support. The first visit stores a copy of the app on the device; after that it opens
 // from that copy, with or without internet. The page itself checks the website for a newer index.html
 // and offers a restart when one has been downloaded; the other files are refreshed quietly here.
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 const CACHE = 'gwiz-app';
 const FILES = ['index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png'];
 const abs = f => new URL(f, self.registration.scope).href;
@@ -19,7 +19,8 @@ self.addEventListener('install', e => {
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    // old copies of the app go; downloaded AI models stay
+    for (const k of await caches.keys()) if (k !== CACHE && !k.startsWith('gwiz-models')) await caches.delete(k);
     await self.clients.claim();
   })());
 });

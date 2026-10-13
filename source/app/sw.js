@@ -19,7 +19,8 @@ self.addEventListener('install', e => {
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    // old copies of the app go; downloaded AI models stay
+    for (const k of await caches.keys()) if (k !== CACHE && !k.startsWith('gwiz-models')) await caches.delete(k);
     await self.clients.claim();
   })());
 });

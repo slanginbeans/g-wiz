@@ -1,11 +1,12 @@
 // ---------- pointer routing for the new tools ----------
-const NEW_TOOLS = ['move', 'fill', 'picker', 'text', 'hintKeep', 'hintDrop', ...DRAW_TOOLS, ...SHAPE_TOOLS];
+const NEW_TOOLS = ['move', 'fill', 'picker', 'text', 'hintKeep', 'hintDrop', 'refine', ...DRAW_TOOLS, ...SHAPE_TOOLS];
 function handleToolDown(e, p){
   const t = S.tool; if (!NEW_TOOLS.includes(t)) return false;
   if (!W) return true;
   if (t === 'picker' || (e.altKey && (DRAW_TOOLS.includes(t) || SHAPE_TOOLS.includes(t) || t === 'fill'))){ pickColorAt(p, e.button === 2); return true; }
   if (t === 'move'){ if (e.button === 0) xfDown(e, p); return true; }
   if (t === 'hintKeep' || t === 'hintDrop') return hintDown(e, p);
+  if (t === 'refine') return refineDown(e, p);
   if (t === 'text'){ if (e.button === 0) textClick(p); return true; }
   if (AL.locked){ toast('The selected layer is locked. Unlock it in the Layers panel to draw on it.'); return true; }
   if (t === 'fill'){ fillAt(p, e.button === 2); return true; }
@@ -15,11 +16,12 @@ function handleToolDown(e, p){
 function handleToolMove(e, p){
   if (XF && XF.drag){ xfMove(e, p); return true; }
   if (hintStroke){ hintMove(e, p); return true; }
+  if (refineStroke){ refineMove(e, p); return true; }
   if (DS.active){ moveDraw(e); return true; }
   if (S.tool === 'move' && XF && !S.space){ const m = xfHit(p); view.style.cursor = XF_CURSOR[m] || 'default'; }
   return false;
 }
-function handleToolUp(e){ if (hintStroke){ hintUp(); return true; } if (XF && XF.drag){ xfUp(); return true; } if (DS.active){ endDraw(); return true; } return false; }
+function handleToolUp(e){ if (hintStroke){ hintUp(); return true; } if (refineStroke){ refineUp(); return true; } if (XF && XF.drag){ xfUp(); return true; } if (DS.active){ endDraw(); return true; } return false; }
 function beforeToolChange(t){
   if (XF && t !== 'move') xfCommit();
   if (TE && t !== 'text') textCommit();
@@ -28,7 +30,7 @@ function beforeToolChange(t){
 }
 // brush outline for the drawing tools
 function drawDrawCursor(){
-  drawHintCursor();
+  drawHintCursor(); drawRefineCursor();
   const hv = S.hover; if (!hv || pan || S.space || DS.active && DS.tool === 'air' && false) return;
   const t = S.tool; let size = 0;
   if (DRAW_TOOLS.includes(t)) size = S.draw[t].size; else return;

@@ -56,6 +56,15 @@ Version: ________   iPad model: ________________   iPadOS: ________   Date: ____
   [ ] 6.2  Turn on Animation mode, add 3 frames, draw on each, press play.
            It plays smoothly. Save as GIF and check it in Photos or Files.
 
+  [ ] 6.3  Remove background > AI model > High quality > Download (Wi-Fi). It
+           finishes and says "Ready on this device". Remove again: note the
+           time it shows: ________ s (standard model: ________ s).
+  [ ] 6.4  Close G-WIZ fully and open it again offline: High quality still
+           says "Ready on this device".
+  [ ] 6.5  Refine edge brush: paint along the cactus spines across the edge
+           with the Pencil. When you lift it, the edge looks cleaner; Undo
+           takes it back. Turn on Edge check: soft pixels show magenta.
+
 7. Pixel art
   [ ] 7.1  Pixel art page: pick "Game Boy" size and the Game Boy palette, tap
            "New pixel canvas". The canvas is big and crisp, not blurry.
@@ -63,6 +72,10 @@ Version: ________   iPad model: ________________   iPadOS: ________   Date: ____
            no doubled corners. The preview window in the corner shows it.
   [ ] 7.3  Help > Open the sample picture, Pixel art mode on, NES palette,
            4-bit, Error diffusion, Reduce colors. It finishes within a few seconds.
+  [ ] 7.4  Pixel art page: tap a color under "Colors in the picture", pick a
+           new color, Recolor. Shading pencil Darken: drawing darkens pixels.
+  [ ] 7.5  Save sprite sheet (Image menu) on an animation: the share sheet
+           offers the PNG.
 
 8. Keyboard (only if you use one)
   [ ] 8.1  Cmd+Z / Cmd+Y (or Ctrl) undo and redo. P (pencil), Y (brush) and

@@ -78,6 +78,7 @@ __STYLES__</style>
         <button class="tool" data-tool="restore" aria-pressed="false" data-tip="Restore brush" data-key="R" data-help="Paints the original pixels back where you erased too much."><i class="ic" data-ic="restore"></i></button>
       <button class="tool" data-tool="hintKeep" data-tip="Mark subject" data-help="Paint over parts the background remover must keep. Used by Remove background (Smart)."><i class="ic" data-ic="hintkeep"></i></button>
       <button class="tool" data-tool="hintDrop" data-tip="Mark background" data-help="Paint over parts the background remover must erase. Used by Remove background (Smart)."><i class="ic" data-ic="hintdrop"></i></button>
+      <button class="tool" data-tool="refine" data-tip="Refine edge" data-help="Paint along hair, fur or a soft outline after removing the background. When you let go, every pixel under the stroke is re-cut by how much of it is subject and how much background."><i class="ic" data-ic="refine"></i></button>
         <button class="tool" data-tool="wand" aria-pressed="false" data-tip="Magic wand" data-key="W" data-help="Click to erase a connected area of similar color. Alt+click restores, Shift+click ignores edges."><i class="ic" data-ic="wand"></i></button>
         <button class="tool" data-tool="fill" aria-pressed="false" data-tip="Fill with color" data-key="G" data-help="Click to fill an area of similar color. Left-click uses the primary color, right-click the secondary."><i class="ic" data-ic="fill"></i></button>
         <button class="tool" data-tool="picker" aria-pressed="false" data-tip="Pick color" data-key="I" data-help="Click to pick the primary color from the picture, right-click for the secondary."><i class="ic" data-ic="picker"></i></button>
@@ -517,6 +518,10 @@ __STYLES__</style>
             </div>
             <p class="hint" data-am="ai">An AI model built into G-WIZ finds the main subject (a person, an animal, an object) and the cut then follows the picture's real edges, keeping soft hair and fur. It runs on this device and works offline. Mark the subject or the background with the hint brushes when it misses a part.</p>
             <p class="hint dim" id="aAiStat" data-am="ai"></p>
+            <div class="row" data-am="ai"><label for="aModel">AI model</label><select id="aModel" data-help="Standard is built in and fast. High quality is a larger model (a one-time 44 MB download, kept on this device) that finds subjects and their outlines more reliably, at about three times the work."><option value="small">Standard (built in, fast)</option><option value="large">High quality (44 MB download)</option></select></div>
+            <p class="hint dim" id="aModelStat" data-am="ai"></p>
+            <div class="inline" data-am="ai"><button class="btn" id="aModelGet" hidden>Download</button><button class="btn" id="aModelFile" hidden data-help="Load the model file (u2net.bin) from this device, for example one you downloaded on another computer.">Load file…</button><button class="btn" id="aModelForget" hidden>Remove from this device</button><a id="aModelLink" hidden target="_blank" rel="noopener" download="u2net.bin">Model file (u2net.bin)</a></div>
+            <input type="file" id="aModelIn" accept=".bin,application/octet-stream" hidden>
             <p class="hint" data-am="smart">Learns the background colors from the border, works out what the subject looks like, and cuts along the picture's real edges. Often the more exact choice for logos, drawings and shapes on a plain background. Mark the subject or the background with the hint brushes when it guesses wrong.</p>
             <p class="hint" data-am="classic">Reads the colors along the image border, then erases that background inward until it reaches the subject's edges.</p>
             <div class="row"><label for="aPreset">Preset</label>
@@ -536,7 +541,22 @@ __STYLES__</style>
             <div class="row"><div class="row-h"><label for="aHintSize">Hint brush size</label><output id="aHintSizeOut"></output></div><input type="range" id="aHintSize" min="4" max="200" value="40"></div>
             <div class="inline"><label class="check"><input type="checkbox" id="aShowHints" checked> Show hints</label><span class="spacer"></span><button class="btn" id="aHintClear">Clear hints</button></div>
           </fieldset>
+          <fieldset><legend>Check and refine</legend>
+            <div class="inline" role="group" aria-label="Backdrop" id="aBgSeg">
+              <button class="tb" data-bg2="checker" aria-pressed="true" data-tip="Checkerboard backdrop"><span style="width:16px;height:16px;background:repeating-conic-gradient(#c0c0c0 0 25%,#fff 0 50%) 0 0/8px 8px;border:1px solid #000"></span></button>
+              <button class="tb" data-bg2="white" aria-pressed="false" data-tip="White backdrop"><span style="width:16px;height:16px;background:#fff;border:1px solid #000"></span></button>
+              <button class="tb" data-bg2="black" aria-pressed="false" data-tip="Black backdrop"><span style="width:16px;height:16px;background:#000;border:1px solid #000"></span></button>
+              <span class="tb" data-bg2="color" aria-pressed="false" data-tip="Custom backdrop color" style="width:auto;padding:0 2px"><input type="color" id="aBgColor" value="#2f8f5b" aria-label="Custom backdrop color"></span>
+              <span class="spacer"></span><span class="hint dim">Q switches</span>
+            </div>
+            <label class="check" data-help="Paints every partly see-through pixel magenta, so leftover halos and soft fringes stand out against any backdrop."><input type="checkbox" id="aEdgeCheck"> Edge check: show see-through pixels</label>
+            <p class="hint dim">Halos show up best on a backdrop unlike the old background: black for a light one, white for a dark one.</p>
+            <button class="btn wide" id="aRefine" data-help="Paint along hair, fur or a soft outline after removing the background. When you let go, every pixel under the stroke is re-cut by how much of it is subject and how much is background."><i class="ic" data-ic="refine"></i>Refine edge brush</button>
+            <p class="hint dim">After removing the background, paint the refine brush along hair, fur or a blurred outline, across the edge. The pixels under the stroke are re-cut one by one.</p>
+            <div class="row"><div class="row-h"><label for="aRefineSize">Refine brush size</label><output id="aRefineSizeOut"></output></div><input type="range" id="aRefineSize" min="4" max="200" value="30"></div>
+          </fieldset>
           <fieldset data-am="smart ai"><legend>Detection</legend>
+            <div class="row" data-am="ai"><div class="row-h"><label for="aSmooth">Steady across frames</label><output id="aSmoothOut"></output></div><input type="range" id="aSmooth" min="0" max="100" value="50" data-help="In animations, each frame's subject map is blended with the frames around it where the picture has not changed, so the outline does not flicker. 0 treats every frame on its own."></div>
             <div class="row" data-am="ai"><div class="row-h"><label for="aTrust">Trust the AI</label><output id="aTrustOut"></output></div><input type="range" id="aTrust" min="0" max="100" value="85" data-help="High values keep what the AI calls the subject even where its colors look like the background. Low values let clear color differences decide more of the outline."></div>
             <div class="row"><div class="row-h"><label for="aK">Background colors</label><output id="aKOut"></output></div><input type="range" id="aK" min="1" max="6" value="3" data-help="How many different colors the background is made of. Raise it for gradients, shadows and busy backgrounds."></div>
             <div class="row" data-am="smart"><div class="row-h"><label for="aBorder">Sample border width</label><output id="aBorderOut"></output></div><input type="range" id="aBorder" min="1" max="20" value="4" data-help="How much of the edge of the picture is read as background. Lower it when the subject touches the border."></div>
@@ -723,6 +743,41 @@ __STYLES__</style>
             <label class="check" data-help="Shows a line between every pixel once they are big enough to see."><input type="checkbox" id="pxGrid" checked> Pixel grid</label>
             <div class="row"><label for="pxTile">Tile grid</label><select id="pxTile" data-help="A second, stronger grid that marks tiles and sprite cells.">
               <option value="0">Off</option><option value="8">8 × 8</option><option value="16">16 × 16</option><option value="32">32 × 32</option><option value="64">64 × 64</option></select></div>
+          </fieldset>
+          <fieldset><legend>Colors in the picture</legend>
+            <div class="pxswatches sunken" id="pxUsed" aria-label="Colors in the picture"></div>
+            <p class="hint dim" id="pxRecolorInfo"></p>
+            <label class="check" data-help="Recolor every layer and every frame, not only the selected layer."><input type="checkbox" id="pxRecolorAll" checked> All layers</label>
+            <button class="btn wide default" id="pxRecolor" disabled data-help="Every pixel of exactly the selected color becomes the primary color, like changing one color of an indexed palette.">Recolor to the primary color</button>
+          </fieldset>
+          <fieldset><legend>Outline and shading</legend>
+            <div class="seg full" role="group" aria-label="Outline" id="pxOutMode">
+              <button data-v="outside" aria-pressed="true" data-help="Clear pixels next to the shape get the primary color.">Outside</button>
+              <button data-v="inside" aria-pressed="false" data-help="The shape's own rim pixels get the primary color.">Inside</button>
+            </div>
+            <label class="check"><input type="checkbox" id="pxOutCorners"> Include corners (8 directions)</label>
+            <button class="btn wide" id="pxOutline" data-help="Draws a one-pixel outline around everything on the selected layer, in the primary color.">Add outline</button>
+            <div class="sub">Shades of the primary color</div>
+            <div class="pxswatches sunken" id="pxRamp" aria-label="Shades of the primary color"></div>
+            <div class="row"><div class="row-h"><label for="pxRampN">Shades</label><output id="pxRampNOut"></output></div><input type="range" id="pxRampN" min="3" max="9" step="2" value="5"></div>
+            <div class="row"><div class="row-h"><label for="pxRampHue">Hue shift</label><output id="pxRampHueOut"></output></div><input type="range" id="pxRampHue" min="0" max="60" value="25" data-help="Darker shades lean toward blue and lighter ones toward yellow, the way pixel artists shade. 0 only darkens and lightens."></div>
+            <button class="btn wide" id="pxRampAdd">Add these shades to Custom colors</button>
+            <div class="sub">Shading pencil</div>
+            <div class="seg full" role="group" aria-label="Shading pencil" id="pxShade">
+              <button data-v="off" aria-pressed="true">Off</button>
+              <button data-v="darken" aria-pressed="false" data-help="The pencil moves each pixel it touches one step darker along the palette.">Darken</button>
+              <button data-v="lighten" aria-pressed="false" data-help="The pencil moves each pixel it touches one step lighter along the palette.">Lighten</button>
+            </div>
+          </fieldset>
+          <fieldset><legend>Tiles and sprite sheets</legend>
+            <label class="check" data-help="The preview window shows the picture repeated 3 × 3, so seams between tiles show up."><input type="checkbox" id="pxTilePrev"> Tiled preview (3 × 3)</label>
+            <button class="btn wide" id="pxShift" data-help="Moves the picture by half its width and height, wrapping around, so the tile edges meet in the middle where you can draw over the seams. Shift again to move them back.">Shift by half (edit the seams)</button>
+            <div class="inline2">
+              <div class="num"><label for="pxSheetCols">Sheet layout</label><select id="pxSheetCols"><option value="auto">Square</option><option value="row">One row</option><option value="col">One column</option><option value="4">4 columns</option><option value="8">8 columns</option><option value="16">16 columns</option></select></div>
+              <div class="num"><label for="pxSheetPad">Gap</label><select id="pxSheetPad"><option value="0">0 px</option><option value="1">1 px</option><option value="2">2 px</option><option value="4">4 px</option><option value="8">8 px</option></select></div>
+            </div>
+            <label class="check" data-help="Also saves a JSON file listing where each frame is and how long it lasts, for game engines."><input type="checkbox" id="pxSheetJson"> Also save a frame list (JSON)</label>
+            <button class="btn wide" id="pxSheet" data-help="Saves every animation frame side by side in one PNG, enlarged by the export scale.">Save sprite sheet (PNG)</button>
           </fieldset>
           <fieldset><legend>Preview and export</legend>
             <label class="check" data-help="A small window in the corner shows the whole picture at its real pixel size while you work zoomed in."><input type="checkbox" id="pxPrev" checked> Preview window</label>

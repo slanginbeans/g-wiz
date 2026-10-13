@@ -1,4 +1,4 @@
-G-WIZ — Graphics Wizard  (version 1.7.0)
+G-WIZ — Graphics Wizard  (version 1.8.0)
 =========================================
 
 Starting G-WIZ
@@ -84,6 +84,47 @@ Colors
   Retro 8-bit, Game Boy, Material, Ocean, Sunset, Forest, Candy, Vintage) and
   your own Custom colors. Edit colors (or double-click a well) opens a full color
   picker with RGB, HSV, hex and opacity.
+
+New in 1.8
+----------
+Background removal
+  - High-quality AI model: Remove background > AI model > "High quality".
+    A larger model (U²-Net) that finds subjects and their outlines more
+    reliably, especially people with raised arms, busy scenes and drawings.
+    It is a one-time 44 MB download, kept on this computer afterwards, and
+    needs the graphics chip. "Load file…" loads the model file (u2net.bin)
+    if this computer cannot download it.
+  - Refine edge brush (toolbox, or Remove background > Check and refine):
+    after removing the background, paint along hair, fur or a soft outline.
+    When you let go, every pixel under the stroke is re-cut by how much of it
+    is subject and how much background. Works after any method, even after
+    erasing by hand. Undo takes a stroke back.
+  - Check the result: backdrop buttons right on the Remove background page,
+    Q switches between checkerboard, white, black and your own color, and
+    "Edge check" paints every partly see-through pixel magenta so halos and
+    fringes stand out.
+  - Steady across frames (AI method, animations): the outline no longer
+    flickers from frame to frame. Each frame is compared with the frames
+    around it wherever the picture has not changed, so a moving subject is
+    not smeared.
+Pixel art (Pixel art page)
+  - Colors in the picture: every color the frame uses. Pick one, choose a new
+    primary color and Recolor: every pixel of that color changes, on all
+    layers and frames, in one undo step.
+  - Add outline: a one-pixel outline in the primary color, outside or inside
+    the shape, with or without corners.
+  - Shades of the primary color: a ramp of 3 to 9 shades with hue shifting
+    (darker toward blue, lighter toward yellow); click one to use it, or add
+    them all to Custom colors.
+  - Shading pencil: Darken or Lighten; the pencil then moves each pixel it
+    touches one step darker or lighter along the palette.
+  - Tiled preview (3 × 3) shows seams; "Shift by half" brings the tile edges
+    to the middle so you can draw over the seams (shift again to put them
+    back).
+  - Save sprite sheet (also in the Image menu): every animation frame in one
+    PNG, square, one row, one column or a set number of columns, with an
+    optional gap, at the export scale; optionally with a JSON frame list for
+    game engines.
 
 New in 1.7: AI background removal
 ---------------------------------
@@ -212,7 +253,7 @@ Touch screens
   Tap with two fingers to undo, three fingers to redo; pinch to zoom. With a pen,
   View > "Pencil draws, fingers pan" keeps your hand from drawing.
   An iPad version that installs from a web address and then works offline comes
-  as a separate download (G-WIZ-iPad-1.7.0.zip).
+  as a separate download (G-WIZ-iPad-1.8.0.zip).
 
 Also new in 1.1
 ---------------

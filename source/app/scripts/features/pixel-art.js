@@ -219,6 +219,7 @@ let pixCountT = 0;
 function pixDirty(){ if (!PIX.on) return; clearTimeout(pixCountT); pixCountT = setTimeout(updateColorCount, 400); }
 function updateColorCount(){
   if (!W || DocW * DocH > 4e6){ $('#pxCount').textContent = ''; return; }
+  if (typeof pxUsedSchedule === 'function') pxUsedSchedule();
   const d = composeDoc(S.dcur, false), set = new Set();
   for (let p = 0; p < d.length && set.size < 4097; p += 4) if (d[p + 3] >= 128) set.add((d[p] << 16) | (d[p + 1] << 8) | d[p + 2]);
   const K = pixCount(), pal = pixPalette(), n = set.size;
@@ -306,13 +307,15 @@ function pixPreviewSync(){ pv.hidden = !(PIX.on && PIX.preview && W && DocW * Do
 function pixPreviewRender(){
   if (pv.hidden || !W) return;
   const c = $('#pvCanvas'), k = PIX.prevScale, maxW = Math.min(cw * 0.32, 420), maxH = Math.min(ch * 0.36, 340);
-  let w = DocW * k, h = DocH * k;
+  const tl = PIX.tilePrev ? 3 : 1;   // 3 × 3 copies show whether the picture tiles without seams
+  let w = DocW * k * tl, h = DocH * k * tl;
   if (PIX.tv) w = Math.round(h * 4 / 3);
   const fitS = Math.min(1, maxW / w, maxH / h); w = Math.max(1, Math.round(w * fitS)); h = Math.max(1, Math.round(h * fitS));
   if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
   const g = c.getContext('2d'), rgba = composeDoc(S.dcur, false);
   g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-  g.drawImage(toCanvas(rgba, DocW, DocH), 0, 0, w, h);
+  const pic = toCanvas(rgba, DocW, DocH);
+  for (let ty = 0; ty < tl; ty++) for (let tx = 0; tx < tl; tx++) g.drawImage(pic, Math.round(tx * w / tl), Math.round(ty * h / tl), Math.round((tx + 1) * w / tl) - Math.round(tx * w / tl), Math.round((ty + 1) * h / tl) - Math.round(ty * h / tl));
   if (PIX.crt){
     const rows = Math.max(1, h / DocH);
     g.fillStyle = 'rgba(0,0,0,.28)';

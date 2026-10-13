@@ -21,7 +21,7 @@ import (
 //go:embed index.html
 var indexHTML []byte
 
-const version = "1.7.0"
+const version = "1.8.0"
 
 type launcher struct {
 	token    string

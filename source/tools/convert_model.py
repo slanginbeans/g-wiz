@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
-"""Converts the U²-Net-P subject-detection model (ONNX) into G-WIZ's compact model file.
+"""Converts a U²-Net subject-detection model (ONNX) into G-WIZ's compact model file.
 
-    python3 tools/convert_model.py path/to/u2netp.onnx       # writes app/models/u2netp.bin
+    python3 tools/convert_model.py u2netp.onnx                    # the built-in model -> app/models/u2netp.bin
+    python3 tools/convert_model.py u2net.onnx --bits 8 --name "U2-Net" --out ../models/u2net.bin
+                                                                  # the optional high-quality model, served
+                                                                  # from the repository root (GitHub Pages)
 
-The model: U²-Net-P by Xuebin Qin et al., Apache License 2.0 (https://github.com/xuebinqin/U-2-Net),
-in the ONNX conversion published by rembg (https://github.com/danielgatis/rembg/releases, u2netp.onnx).
+The models: U²-Net and U²-Net-P by Xuebin Qin et al., Apache License 2.0
+(https://github.com/xuebinqin/U-2-Net), in the ONNX conversions published by rembg
+(https://github.com/danielgatis/rembg/releases, u2netp.onnx and u2net.onnx).
 
 The ONNX graph is reduced to the six operations the app implements (convolution with optional ReLU,
 2x2 max-pooling, bilinear resize to another tensor's size, addition, packing several tensors' channels
-together, sigmoid on the output). Weights are stored as 16-bit integers with one float scale per output
-channel: 2.3 MB, and the same results as the original to within rounding.
+together, sigmoid on the output). Weights are stored as 16-bit (default) or 8-bit integers with one float
+scale per output channel. U²-Net-P at 16 bits: 2.3 MB, the same results as the original to within rounding
+(8 bits is not enough for it: the last layer mixes six large side outputs that nearly cancel). U²-Net at
+8 bits: 44 MB, within about 1% of the original; its smallest layers stay in float32.
 
-File layout (little endian):
+File layout (little endian), version 2:
     'GWNN'  u32 version  u32 json_length  json  padding to 4 bytes
-    float32 block (per conv: scales[cout], bias[cout])   int16 block (per conv: weights cout*cin*k*k)
-The JSON lists tensors (channel counts) and the program; each conv has offsets into the two blocks.
+    float32 block (per conv: scales[cout], bias[cout]; float layers also their weights)
+    integer block (meta "wbits" 8 or 16; per quantized conv: weights cout*cin*k*k)
+The JSON lists tensors (channel counts) and the program; each conv has offsets into the two blocks
+("f" scales and bias, "q" integer weights or "fw" float weights).
 
 This file also has a NumPy reference implementation of the converted model (run_reference), which the
 tests use to check the app's own inference.
@@ -94,7 +102,8 @@ def load_onnx(path):
     return nodes, inits, outputs
 
 # ---------------- ONNX graph -> program ----------------
-def convert(onnx_path):
+def convert(onnx_path, bits=16, name='U2-Net-P'):
+    qmax = (1 << (bits - 1)) - 1
     nodes, inits, outputs = load_onnx(onnx_path)
     prod = {o: n for n in nodes for o in n['out']}
     used = {}
@@ -138,13 +147,18 @@ def convert(onnx_path):
             o_name = n['out'][0]; relu = o_name in relu_after and len(used.get(o_name, [])) == 1
             if relu: o_name = relu_after[o_name]
             out = tid(o_name, co)
-            # 16-bit weights with one scale per output channel: 8 bits are not enough here, because the last
-            # layer mixes six large side outputs that nearly cancel and small errors grow through ~100 layers
-            scale = np.maximum(np.abs(w).reshape(co, -1).max(1), 1e-12) / 32767
-            q = np.clip(np.round(w / scale[:, None, None, None]), -32767, 32767).astype('<i2')
-            prog.append({'op': 'conv', 'in': ins, 'out': out, 'k': k, 'dil': a['dilations'][0], 'relu': relu, 'cout': co, 'cin': ci, 'f': fpos[0], 'q': ipos[0]})
-            floats += [scale.astype(np.float32), b]; fpos[0] += 2 * co
-            wq.append(q.ravel()); ipos[0] += q.size
+            step = {'op': 'conv', 'in': ins, 'out': out, 'k': k, 'dil': a['dilations'][0], 'relu': relu, 'cout': co, 'cin': ci, 'f': fpos[0]}
+            if bits < 16 and w.size <= 4096:
+                # the smallest layers (the side outputs and the final mix) stay float: at 8 bits they would cost accuracy
+                step['fw'] = fpos[0] + 2 * co
+                floats += [np.ones(co, np.float32), b, w.ravel()]; fpos[0] += 2 * co + w.size
+            else:
+                scale = np.maximum(np.abs(w).reshape(co, -1).max(1), 1e-12) / qmax
+                q = np.clip(np.round(w / scale[:, None, None, None]), -qmax, qmax).astype('<i2' if bits == 16 else 'i1')
+                step['q'] = ipos[0]
+                floats += [scale.astype(np.float32), b]; fpos[0] += 2 * co
+                wq.append(q.ravel()); ipos[0] += q.size
+            prog.append(step)
         elif op == 'Relu':
             assert n['in'][0] in names and names.get(n['out'][0]) is not None or True
             if n['out'][0] not in names:   # a Relu not merged into its conv
@@ -174,12 +188,12 @@ def convert(onnx_path):
                 if v is None: continue
                 need.update(v if isinstance(v, list) else [v])
     keep.reverse()
-    meta = {'name': 'U2-Net-P', 'license': 'Apache-2.0', 'size': SIZE, 'mean': MEAN, 'std': STD, 'channels': chans, 'output': final, 'program': keep}
+    meta = {'name': name, 'license': 'Apache-2.0', 'size': SIZE, 'mean': MEAN, 'std': STD, 'wbits': bits, 'channels': chans, 'output': final, 'program': keep}
     return meta, np.concatenate(floats).astype('<f4'), np.concatenate(wq)
 
 def write(meta, fl, wq, path):
     js = json.dumps(meta, separators=(',', ':')).encode()
-    head = b'GWNN' + struct.pack('<II', 1, len(js)) + js
+    head = b'GWNN' + struct.pack('<II', 2, len(js)) + js
     head += b'\0' * (-len(head) % 4)
     meta['_float_offset'] = len(head)
     open(path, 'wb').write(head + fl.tobytes() + wq.tobytes())
@@ -188,8 +202,8 @@ def read(path):
     b = open(path, 'rb').read(); assert b[:4] == b'GWNN'
     ver, n = struct.unpack('<II', b[4:12]); meta = json.loads(b[12:12 + n])
     off = 12 + n; off += -off % 4
-    nf = sum(2 * p['cout'] for p in meta['program'] if p['op'] == 'conv')
-    fl = np.frombuffer(b, '<f4', nf, off); wq = np.frombuffer(b, '<i2', -1, off + nf * 4)
+    nf = sum(2 * p['cout'] + (p['cout'] * p['cin'] * p['k'] ** 2 if 'fw' in p else 0) for p in meta['program'] if p['op'] == 'conv')
+    fl = np.frombuffer(b, '<f4', nf, off); wq = np.frombuffer(b, '<i2' if meta.get('wbits', 16) == 16 else 'i1', -1, off + nf * 4)
     return meta, fl, wq
 
 # ---------------- NumPy reference of the converted model ----------------
@@ -229,7 +243,8 @@ def run_reference(meta, fl, wq, x):
         if op == 'conv':
             co, ci, k = p['cout'], p['cin'], p['k']
             scale, bias = fl[p['f']:p['f'] + co], fl[p['f'] + co:p['f'] + 2 * co]
-            w = wq[p['q']:p['q'] + co * ci * k * k].astype(np.float32).reshape(co, ci, k, k) * scale[:, None, None, None]
+            if 'fw' in p: w = fl[p['fw']:p['fw'] + co * ci * k * k].reshape(co, ci, k, k)
+            else: w = wq[p['q']:p['q'] + co * ci * k * k].astype(np.float32).reshape(co, ci, k, k) * scale[:, None, None, None]
             inp = np.concatenate([env[i] for i in p['in']], 0)
             y = _conv(inp, w, bias, p['dil']); env[p['out']] = np.maximum(y, 0) if p['relu'] else y
         elif op == 'pool': env[p['out']] = _pool(env[p['in']])
@@ -240,9 +255,14 @@ def run_reference(meta, fl, wq, x):
     return (y - y.min()) / max(float(y.max() - y.min()), 1e-8)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2: sys.exit(__doc__)
-    meta, fl, wq = convert(sys.argv[1])
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'app', 'models', 'u2netp.bin')
+    import argparse
+    ap = argparse.ArgumentParser(usage=__doc__)
+    ap.add_argument('onnx'); ap.add_argument('--bits', type=int, choices=(8, 16), default=16)
+    ap.add_argument('--name', default='U2-Net-P'); ap.add_argument('--out', default=None)
+    a = ap.parse_args()
+    meta, fl, wq = convert(a.onnx, a.bits, a.name)
+    here = os.path.dirname(os.path.abspath(__file__))
+    out = os.path.join(here, a.out) if a.out and not os.path.isabs(a.out) else a.out or os.path.join(here, '..', 'app', 'models', 'u2netp.bin')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     write(meta, fl, wq, out)
     ops = {}

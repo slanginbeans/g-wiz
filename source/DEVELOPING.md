@@ -12,7 +12,8 @@ web app that GitHub Pages serves at https://slanginbeans.github.io/g-wiz/.
 | `app/scripts/` | The program (see the file map below). |
 | `app/icons.txt` | Toolbar and menu icons as 16×16 pixel art, one letter per pixel. |
 | `app/images/` | The app icon in every size (made by `tools/appicon.py`). |
-| `app/models/` | The AI subject model (`u2netp.bin`), its license and where it comes from. |
+| `app/models/` | The built-in AI subject model (`u2netp.bin`), its license and where it comes from. |
+| `../models/u2net.bin` | The optional high-quality AI model (44 MB), in the repository root so GitHub Pages serves it; see `app/models/README.md`. |
 | `app/sw.js` | Service worker for the offline web app. |
 | `build.py` | Puts the page together. Holds `VERSION` and the order of the scripts. |
 | `launcher/` | The Windows program (Go). It embeds the page and opens it in an Edge app window. |
@@ -103,9 +104,11 @@ starts the app and is last.
 | `features/animation.js` | Animation mode: frames, onion skin, tweens. |
 | `features/ai-model.js` | The AI subject model's runtime: WebGL2 shaders, a JavaScript fallback, caching per frame. |
 | `features/smart-cutout.js` | Smart and AI background removal (`smartAmt`; with the AI's subject map as a prior), hint brushes. |
+| `features/cutout-tools.js` | Checking a cut-out (backdrops, Q, edge check) and the refine edge brush. |
 | `features/mini-bar.js` | Tool strip in canvas view. |
 | `features/session.js` | "Picture bigger than the canvas" dialog, autosave, recovery, storage protection. |
 | `features/pixel-art.js` | Pixel art mode. |
+| `features/pixel-tools.js` | Pixel art tools: palette recolor, outline, ramps, shading pencil, tiles, sprite sheets. |
 
 Common patterns:
 

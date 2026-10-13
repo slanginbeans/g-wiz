@@ -199,7 +199,7 @@ function closeModal(id){ $('#' + id).hidden = true; }
 $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
 function openSaveOpts(){ if (!W) return; stopPlay(); updateFmtUI(); $('#soTitle').textContent = 'Save As — ' + S.name; openModal('saveOpts'); }
 function anyModal(){ return $$('.modal').some(m => !m.hidden); }
-function runCmd(c){ if (touchCmd(c) || animCmd(c) || miniCmd(c) || sessionCmd(c) || pixelCmd(c)) return;
+function runCmd(c){ if (touchCmd(c) || animCmd(c) || miniCmd(c) || sessionCmd(c) || pixelCmd(c) || cutoutToolsCmd(c) || pixelToolsCmd(c)) return;
   if (c === 'clearHints'){ clearHints(); return; }
   const ci = c.indexOf(':'), k = ci < 0 ? c : c.slice(0, ci), v = ci < 0 ? undefined : c.slice(ci + 1);
   switch (k){

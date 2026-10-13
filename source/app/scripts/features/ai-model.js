@@ -1,41 +1,58 @@
-// ===================== AI subject detection: U²-Net-P running on this device =====================
-// A small neural network (U²-Net-P, Apache License 2.0, see app/models/README.md) looks at the picture at
-// 320 × 320 and says, for every point, how likely it is to be part of the main subject. Background removal
-// uses that map to know what to keep; its own color and edge work then cuts along the real edges.
-// The network runs on the graphics chip with WebGL2 when it can (well under a second), otherwise in plain
-// JavaScript (much slower). Nothing is sent anywhere: the model is part of the app.
-var AIM = { model: null, backend: '', ms: 0, gpuFailed: false, cache: new WeakMap() };
+// ===================== AI subject detection: U²-Net running on this device =====================
+// A neural network looks at the picture at 320 × 320 and says, for every point, how likely it is to be part of
+// the main subject. Background removal uses that map to know what to keep; its own color and edge work then cuts
+// along the real edges. Two models (Apache License 2.0, see app/models/README.md):
+//   - Standard: U²-Net-P, built into the app (2.3 MB), fast; runs on the graphics chip with WebGL2 or, more
+//     slowly, in plain JavaScript;
+//   - High quality: U²-Net, a 44 MB download kept on the device afterwards (or loaded from a file), about three
+//     times the work; graphics chip only.
+// Nothing is sent anywhere: the models run here.
+var AIM = { models: {}, backend: '', ms: 0, gpuFailed: false, cache: new WeakMap(), dl: { state: 'none', got: 0, total: 0, err: '' } };
+const AI_LARGE = { file: 'models/u2net.bin', site: 'https://slanginbeans.github.io/g-wiz/', size: 44158636, label: 'High quality' };
+const AI_CACHE = 'gwiz-models-v1';
 
-// ---------- the model file ----------
-function aiModel(){
-  if (AIM.model) return AIM.model;
-  const s = atob(AI_MODEL_B64), b = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
-  const dv = new DataView(b.buffer);
-  if (String.fromCharCode(b[0], b[1], b[2], b[3]) !== 'GWNN') throw new Error('bad model file');
+// ---------- model files ----------
+function aiParse(b, id){
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (b.length < 16 || String.fromCharCode(b[0], b[1], b[2], b[3]) !== 'GWNN') throw new Error('this is not a G-WIZ model file');
   const n = dv.getUint32(8, true), meta = JSON.parse(new TextDecoder().decode(b.subarray(12, 12 + n)));
   let off = 12 + n; off += (4 - off % 4) % 4;
-  const nf = meta.program.reduce((a, p) => a + (p.op === 'conv' ? 2 * p.cout : 0), 0);
-  const fl = new Float32Array(b.buffer, off, nf), wq = new Int16Array(b.buffer, off + nf * 4, (b.length - off - nf * 4) >> 1);
+  const bits = meta.wbits || 16;
+  const nf = meta.program.reduce((a, p) => a + (p.op === 'conv' ? 2 * p.cout + (p.fw !== undefined ? p.cout * p.cin * p.k * p.k : 0) : 0), 0);
+  const buf = b.byteOffset ? b.slice().buffer : b.buffer, rest = b.length - off - nf * 4;
+  const fl = new Float32Array(buf, off, nf);
+  const wq = bits === 8 ? new Int8Array(buf, off + nf * 4, rest) : new Int16Array(buf, off + nf * 4, rest >> 1);
   // how many later steps read each tensor, so it can be freed after its last use
   const uses = new Int32Array(meta.channels.length);
   for (const p of meta.program) for (const t of [].concat(p.in)) uses[t]++;
   uses[meta.output]++;
-  return AIM.model = { meta, fl, wq, uses, S: meta.size };
+  return { id, meta, fl, wq, uses, S: meta.size, macs: 0 };
+}
+// the model for id ('small' is always there; 'large' once downloaded or loaded)
+function aiModel(id){
+  id = id || 'small';
+  if (AIM.models[id]) return AIM.models[id];
+  if (id !== 'small') return null;
+  const s = atob(AI_MODEL_B64), b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return AIM.models.small = aiParse(b, 'small');
 }
 // weight w[o][c][ky][kx] of conv step p, already scaled
-const aiW = (M, p, o, c, ky, kx) => M.wq[p.q + ((o * p.cin + c) * p.k + ky) * p.k + kx] * M.fl[p.f + o];
+const aiW = (M, p, o, c, ky, kx) => { const i = ((o * p.cin + c) * p.k + ky) * p.k + kx; return p.fw !== undefined ? M.fl[p.fw + i] : M.wq[p.q + i] * M.fl[p.f + o]; };
 // all weights of conv step p as floats (for the JavaScript path; kept after the first use)
 function aiWeights(M, p){
   if (p._w) return p._w;
   const n = p.cout * p.cin * p.k * p.k, per = n / p.cout, w = new Float32Array(n);
-  for (let i = 0; i < n; i++) w[i] = M.wq[p.q + i] * M.fl[p.f + Math.floor(i / per)];
+  if (p.fw !== undefined) w.set(M.fl.subarray(p.fw, p.fw + n));
+  else for (let i = 0; i < n; i++) w[i] = M.wq[p.q + i] * M.fl[p.f + Math.floor(i / per)];
   return p._w = w;
 }
 
-// ---------- input: the picture at 320 × 320, normalized the way the network was trained ----------
-function aiInput(rgba, w, h){
-  const S = aiModel().S, c = document.createElement('canvas'); c.width = S; c.height = S;
+// ---------- input: the picture at 320 × 320, normalized the way the networks were trained ----------
+// returns the network input and the small RGB copy (used to smooth maps between animation frames)
+function aiInput(rgba, w, h, M){
+  M = M || aiModel();
+  const S = M.S, c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d', { willReadFrequently: true });
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   // a large picture is halved in steps first, so the small copy averages every pixel instead of sampling some
@@ -45,10 +62,10 @@ function aiInput(rgba, w, h){
     const tg = t.getContext('2d'); tg.imageSmoothingQuality = 'high'; tg.drawImage(src, 0, 0, nw, nh); src = t; sw = nw; sh = nh;
   }
   g.drawImage(src, 0, 0, S, S);
-  const d = g.getImageData(0, 0, S, S).data, N = S * S, x = new Float32Array(3 * N), mean = aiModel().meta.mean, std = aiModel().meta.std;
+  const d = g.getImageData(0, 0, S, S).data, N = S * S, x = new Float32Array(3 * N), rgb = new Uint8Array(3 * N), mean = M.meta.mean, std = M.meta.std;
   let mx = 1; for (let i = 0; i < N; i++){ const o = i * 4; if (d[o] > mx) mx = d[o]; if (d[o + 1] > mx) mx = d[o + 1]; if (d[o + 2] > mx) mx = d[o + 2]; }
-  for (let i = 0; i < N; i++) for (let k = 0; k < 3; k++) x[k * N + i] = (d[i * 4 + k] / mx - mean[k]) / std[k];
-  return x;
+  for (let i = 0; i < N; i++) for (let k = 0; k < 3; k++){ x[k * N + i] = (d[i * 4 + k] / mx - mean[k]) / std[k]; rgb[i * 3 + k] = d[i * 4 + k]; }
+  return { x, rgb };
 }
 function aiFinish(logits){
   // sigmoid, then stretched to 0..1 like the reference implementation
@@ -60,14 +77,15 @@ function aiFinish(logits){
 
 // ---------- on the graphics chip (WebGL2) ----------
 // A tensor of C channels is a 2D texture array with C/4 layers (RGBA = 4 channels). Every step is a draw call
-// per output layer. The weights are one RGBA float texture, four texels (a 4 × 4 block) per input layer and tap.
-const AIG = { gl: null, tried: false, fmt: null, progs: {}, wtex: null, wbase: null, pool: new Map(), fb: null, vao: null };
+// per output layer. A model's weights are one RGBA texture, four texels (a 4 × 4 block) per input layer and tap:
+// float32 for the standard model, half float for the large one (half the graphics memory).
+const AIG = { gl: null, tried: false, fmt: null, progs: {}, w: {}, pool: new Map(), fb: null, vao: null, maxTex: 2048 };
 const AI_VS = '#version 300 es\nvoid main(){ vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }';
 const AI_HEAD = '#version 300 es\nprecision highp float; precision highp int; precision highp sampler2DArray; precision highp sampler2D;\nout vec4 o;\n';
 function aiConvFS(K, nseg){
   return AI_HEAD + '#define KS ' + K + '\n' +
-    'uniform sampler2DArray uX0, uX1; uniform sampler2D uW; uniform int uL0, uL1, uDil, uWBase, uRelu; uniform ivec2 uSize; uniform vec4 uBias;\n' +
-    'vec4 wt(int i){ return texelFetch(uW, ivec2(i & 2047, i >> 11), 0); }\n' +
+    'uniform sampler2DArray uX0, uX1; uniform sampler2D uW; uniform int uL0, uL1, uDil, uWBase, uRelu, uWMask, uWShift; uniform ivec2 uSize; uniform vec4 uBias;\n' +
+    'vec4 wt(int i){ return texelFetch(uW, ivec2(i & uWMask, i >> uWShift), 0); }\n' +
     'void main(){ ivec2 p = ivec2(gl_FragCoord.xy); vec4 acc = uBias; int wi = uWBase;\n' +
     ' for (int ky = 0; ky < KS; ky++) for (int kx = 0; kx < KS; kx++){\n' +
     '  ivec2 q = p + (ivec2(kx, ky) - ivec2(KS / 2)) * uDil;\n' +
@@ -111,38 +129,54 @@ function aiGL(){
     if (gl.getExtension('EXT_color_buffer_float')) AIG.fmt = { internal: gl.RGBA32F, half: false };
     else if (gl.getExtension('EXT_color_buffer_half_float')) AIG.fmt = { internal: gl.RGBA16F, half: true };
     else return null;
-    const M = aiModel();
+    AIG.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
     AIG.progs.conv31 = aiCompile(gl, aiConvFS(3, 1)); AIG.progs.conv32 = aiCompile(gl, aiConvFS(3, 2));
     AIG.progs.conv11 = aiCompile(gl, aiConvFS(1, 1)); AIG.progs.conv12 = aiCompile(gl, aiConvFS(1, 2));
     for (const k of ['pool', 'resize', 'add', 'pack']) AIG.progs[k] = aiCompile(gl, AI_FS[k]);
-    // weights, laid out in the order the conv shader reads them
-    const ch = M.meta.channels, base = new Map(); let total = 0;
-    for (const p of M.meta.program){ if (p.op !== 'conv') continue; const L = p.in.reduce((a, t) => a + Math.ceil(ch[t] / 4), 0); base.set(p, total); total += Math.ceil(p.cout / 4) * p.k * p.k * L * 4; }
-    const rows = Math.ceil(total / 2048), data = new Float32Array(rows * 2048 * 4);
-    for (const p of M.meta.program){
-      if (p.op !== 'conv') continue;
-      let t = base.get(p);
-      for (let g = 0; g < Math.ceil(p.cout / 4); g++) for (let ky = 0; ky < p.k; ky++) for (let kx = 0; kx < p.k; kx++){
-        let cOff = 0;
-        for (const tin of p.in){
-          const cs = ch[tin];
-          for (let l = 0; l < Math.ceil(cs / 4); l++) for (let j = 0; j < 4; j++, t++){
-            const ci = l * 4 + j; if (ci >= cs) continue;
-            for (let r = 0; r < 4; r++){ const o = g * 4 + r; if (o < p.cout) data[t * 4 + r] = aiW(M, p, o, cOff + ci, ky, kx); }
-          }
-          cOff += cs;
-        }
-      }
-    }
-    AIG.wbase = base;
-    AIG.wtex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, AIG.wtex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 2048, rows, 0, gl.RGBA, gl.FLOAT, data);
-    for (const pn of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, pn, gl.NEAREST);
     AIG.fb = gl.createFramebuffer(); AIG.vao = gl.createVertexArray();
     gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
     AIG.gl = gl;
   } catch (err){ AIG.gl = null; AIM.gpuError = String(err && err.message || err); console.warn('[ai] GPU not available:', AIM.gpuError); }
   return AIG.gl;
+}
+// float -> IEEE half (for the large model's weight texture)
+const aiF32 = new Float32Array(1), aiU32 = new Uint32Array(aiF32.buffer);
+function aiHalf(v){
+  aiF32[0] = v; const x = aiU32[0], s = (x >>> 16) & 0x8000, m = x & 0x7fffff; let e = ((x >>> 23) & 0xff) - 112;
+  if (e <= 0){ if (e < -10) return s; return s | (((m | 0x800000) >> (1 - e)) + 0x1000 >> 13); }
+  if (e >= 31) return s | 0x7c00;
+  return s | ((e << 10) + ((m + 0x1000) >> 13));
+}
+// the model's weights on the graphics chip, laid out in the order the conv shader reads them
+function aiGLWeights(M){
+  if (AIG.w[M.id]) return AIG.w[M.id];
+  const gl = AIG.gl, ch = M.meta.channels, base = new Map(); let total = 0;
+  for (const p of M.meta.program){ if (p.op !== 'conv') continue; const L = p.in.reduce((a, t) => a + Math.ceil(ch[t] / 4), 0); base.set(p, total); total += Math.ceil(p.cout / 4) * p.k * p.k * L * 4; }
+  const half = M.id !== 'small';
+  let width = 2048; while (Math.ceil(total / width) > AIG.maxTex && width * 2 <= AIG.maxTex) width *= 2;
+  const rows = Math.ceil(total / width);
+  if (rows > AIG.maxTex) throw new Error('the model is too large for this graphics chip');
+  const data = half ? new Uint16Array(rows * width * 4) : new Float32Array(rows * width * 4);
+  for (const p of M.meta.program){
+    if (p.op !== 'conv') continue;
+    let t = base.get(p); const ws = aiWeights(M, p), KK = p.k * p.k;
+    for (let g = 0; g < Math.ceil(p.cout / 4); g++) for (let ky = 0; ky < p.k; ky++) for (let kx = 0; kx < p.k; kx++){
+      let cOff = 0;
+      for (const tin of p.in){
+        const cs = ch[tin];
+        for (let l = 0; l < Math.ceil(cs / 4); l++) for (let j = 0; j < 4; j++, t++){
+          const ci = l * 4 + j; if (ci >= cs) continue;
+          for (let r = 0; r < 4; r++){ const o = g * 4 + r; if (o < p.cout){ const v = ws[(o * p.cin + cOff + ci) * KK + ky * p.k + kx]; data[t * 4 + r] = half ? aiHalf(v) : v; } }
+        }
+        cOff += cs;
+      }
+    }
+    if (half) p._w = null;   // the float copy is not needed any more
+  }
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, half ? gl.RGBA16F : gl.RGBA32F, width, rows, 0, gl.RGBA, half ? gl.HALF_FLOAT : gl.FLOAT, data);
+  for (const pn of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, pn, gl.NEAREST);
+  return AIG.w[M.id] = { tex, base, mask: width - 1, shift: Math.log2(width) };
 }
 function aiTex(w, h, L){
   const gl = AIG.gl, key = w + 'x' + h + 'x' + L, free = AIG.pool.get(key);
@@ -152,8 +186,8 @@ function aiTex(w, h, L){
 }
 function aiFree(T){ if (!T) return; const a = AIG.pool.get(T.key) || []; a.push(T.tex); AIG.pool.set(T.key, a); }
 function aiDrop(){ const gl = AIG.gl; if (!gl) return; for (const a of AIG.pool.values()) for (const t of a) gl.deleteTexture(t); AIG.pool.clear(); }
-function aiRunGPU(x){
-  const gl = AIG.gl, M = aiModel(), S = M.S, ch = M.meta.channels, uses = M.uses.slice(), env = new Map(), dims = new Map();
+function aiRunGPU(M, x){
+  const gl = AIG.gl, MW = aiGLWeights(M), S = M.S, ch = M.meta.channels, uses = M.uses.slice(), env = new Map(), dims = new Map();
   const bindIn = (unit, T) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D_ARRAY, T.tex); };
   const target = (T, l) => { gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, T.tex, 0, l); };
   const use = P => { gl.useProgram(P.pr); return P.u; };
@@ -170,9 +204,9 @@ function aiRunGPU(x){
       const u = use(AIG.progs['conv' + p.k + (B ? 2 : 1)]);
       bindIn(0, A); gl.uniform1i(u.uX0, 0); gl.uniform1i(u.uL0, A.L);
       if (B){ bindIn(1, B); gl.uniform1i(u.uX1, 1); gl.uniform1i(u.uL1, B.L); } else if (u.uL1) gl.uniform1i(u.uL1, 0);
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, AIG.wtex); gl.uniform1i(u.uW, 2);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, MW.tex); gl.uniform1i(u.uW, 2); gl.uniform1i(u.uWMask, MW.mask); gl.uniform1i(u.uWShift, MW.shift);
       gl.uniform1i(u.uDil, p.dil); gl.uniform1i(u.uRelu, p.relu ? 1 : 0); gl.uniform2i(u.uSize, w, h); gl.viewport(0, 0, w, h);
-      const stride = p.k * p.k * (A.L + (B ? B.L : 0)) * 4, b0 = AIG.wbase.get(p);
+      const stride = p.k * p.k * (A.L + (B ? B.L : 0)) * 4, b0 = MW.base.get(p);
       for (let g = 0; g < T.L; g++){
         const bias = [0, 1, 2, 3].map(r => g * 4 + r < p.cout ? M.fl[p.f + p.cout + g * 4 + r] : 0);
         gl.uniform4f(u.uBias, bias[0], bias[1], bias[2], bias[3]); gl.uniform1i(u.uWBase, b0 + g * stride);
@@ -221,8 +255,8 @@ function aiRunGPU(x){
 }
 
 // ---------- in plain JavaScript (when there is no WebGL2) ----------
-async function aiRunCPU(x, progress){
-  const M = aiModel(), S = M.S, ch = M.meta.channels, env = new Map(), dims = new Map(), uses = M.uses.slice();
+async function aiRunCPU(M, x, progress){
+  const S = M.S, ch = M.meta.channels, env = new Map(), dims = new Map(), uses = M.uses.slice();
   env.set(0, x); dims.set(0, [S, S]);
   const release = t => { if (--uses[t] === 0) env.delete(t); };
   const total = M.meta.program.length; let k = 0, t0 = performance.now();
@@ -296,60 +330,184 @@ function aiConvCPU(planes, out, w, h, wt, bias, CO, CI, K, d, relu){
   }
 }
 
-// ---------- running it ----------
-// the subject map (S × S, 0..1) for a picture; progress(f) is called with 0..1 on the slow path
-async function aiSubject(rgba, w, h, progress){
-  const x = aiInput(rgba, w, h), t0 = performance.now();
+// ---------- running a model ----------
+// the subject map (S × S, 0..1) of a picture, and its small RGB copy; progress(f) is called on the slow path
+async function aiSubject(rgba, w, h, progress, M){
+  M = M || aiModel();
+  const inp = aiInput(rgba, w, h, M), t0 = performance.now();
   let lg = null;
   if (!AIM.gpuFailed && aiGL()){
     try {
-      lg = aiRunGPU(x);
+      lg = aiRunGPU(M, inp.x);
       if (!lg.every(Number.isFinite)) throw new Error('the graphics chip returned invalid numbers');
       AIM.backend = 'gpu';
-    } catch (err){ AIM.gpuFailed = true; AIM.gpuError = String(err && err.message || err); console.warn('[ai] GPU run failed, using the CPU:', AIM.gpuError); lg = null; }
+    } catch (err){
+      const msg = String(err && err.message || err); lg = null;
+      if (M.id !== 'small') throw new Error('the high-quality model could not run on this graphics chip (' + msg + '); choose the standard model');
+      AIM.gpuFailed = true; AIM.gpuError = msg; console.warn('[ai] GPU run failed, using the CPU:', msg);
+    }
   }
-  if (!lg){ lg = await aiRunCPU(x, progress); AIM.backend = 'cpu'; }
+  if (!lg){
+    if (M.id !== 'small') throw new Error('the high-quality model needs the graphics chip (WebGL2), which is not available here; choose the standard model');
+    lg = await aiRunCPU(M, inp.x, progress); AIM.backend = 'cpu';
+  }
   AIM.ms = performance.now() - t0;
-  return aiFinish(lg);
+  return { map: aiFinish(lg), rgb: inp.rgb };
 }
+
+// ---------- the high-quality model: download once, keep on this device ----------
+const aiCurrent = () => (typeof CUT !== 'undefined' && CUT.aiModel === 'large') ? 'large' : 'small';
+const aiLargeKey = () => AI_LARGE.site + AI_LARGE.file;
+// on the installed web app it comes from the same site; elsewhere from G-WIZ's GitHub Pages site
+function aiLargeURL(){ const onSite = window.__GWIZ_PWA__ && location.protocol === 'https:'; return new URL(AI_LARGE.file, onSite ? location.href : AI_LARGE.site).href; }
+async function aiLargeFromCache(){
+  if (AIM.models.large) return true;
+  try {
+    if (!window.caches) return false;
+    const r = await (await caches.open(AI_CACHE)).match(aiLargeKey()); if (!r) return false;
+    AIM.models.large = aiParse(new Uint8Array(await r.arrayBuffer()), 'large'); AIM.dl.state = 'ready'; return true;
+  } catch (e){ return false; }
+}
+async function aiLargeStore(b){
+  try { if (window.caches) await (await caches.open(AI_CACHE)).put(aiLargeKey(), new Response(b, { headers: { 'Content-Type': 'application/octet-stream' } })); }
+  catch (e){ console.warn('[ai] could not keep the model on this device:', e); }
+}
+async function aiLargeForget(){
+  delete AIM.models.large; const w = AIG.w.large; if (w && AIG.gl) AIG.gl.deleteTexture(w.tex); delete AIG.w.large;
+  AIM.dl = { state: 'none', got: 0, total: 0, err: '' };
+  try { if (window.caches) await (await caches.open(AI_CACHE)).delete(aiLargeKey()); } catch (e){}
+}
+let aiUIT = 0;
+async function aiLargeDownload(){
+  if (AIM.dl.state === 'loading') return;
+  AIM.dl = { state: 'loading', got: 0, total: AI_LARGE.size, err: '' }; aiModelUI();
+  try {
+    // the app's own site first; if the file is not there, G-WIZ's GitHub Pages site
+    const urls = [...new Set([aiLargeURL(), AI_LARGE.site + AI_LARGE.file])];
+    let r = null, last = '';
+    for (const u of urls){ try { r = await fetch(u, { cache: 'no-store' }); if (r.ok) break; last = 'the server answered ' + r.status; r = null; } catch (e){ last = String(e && e.message || e); r = null; } }
+    if (!r) throw new Error(last || 'no connection');
+    const total = +r.headers.get('Content-Length') || AI_LARGE.size, parts = []; let got = 0;
+    if (r.body && r.body.getReader){
+      const rd = r.body.getReader();
+      for (;;){ const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; AIM.dl.got = got; AIM.dl.total = total;
+        if (!aiUIT) aiUIT = setTimeout(() => { aiUIT = 0; aiModelUI(); }, 200); }
+    } else { const v = new Uint8Array(await r.arrayBuffer()); parts.push(v); got = v.length; }
+    const b = new Uint8Array(got); let o = 0; for (const p of parts){ b.set(p, o); o += p.length; }
+    AIM.models.large = aiParse(b, 'large'); AIM.dl.state = 'ready';
+    await aiLargeStore(b);
+    sbFlash('The high-quality AI model is ready and kept on this device.');
+  } catch (err){ AIM.dl.state = 'error'; AIM.dl.err = String(err && err.message || err); }
+  aiModelUI(); scheduleAutoPreview();
+}
+async function aiLargeFile(file){
+  try {
+    const b = new Uint8Array(await file.arrayBuffer());
+    AIM.models.large = aiParse(b, 'large'); AIM.dl.state = 'ready'; await aiLargeStore(b);
+    sbFlash('Loaded the high-quality AI model from "' + file.name + '".');
+  } catch (err){ AIM.dl.state = 'error'; AIM.dl.err = String(err && err.message || err); }
+  aiModelUI(); scheduleAutoPreview();
+}
+const aiMB = n => (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + " MB";
+// the "AI model" row on the Remove background page
+function aiModelUI(){
+  const sel = $('#aModel'); if (!sel) return;
+  const large = aiCurrent() === 'large', st = AIM.dl.state, have = !!AIM.models.large;
+  sel.value = aiCurrent();
+  $('#aModelGet').hidden = !large || have || st === 'loading';
+  $('#aModelFile').hidden = !large || have || st === 'loading';
+  $('#aModelForget').hidden = !large || !have;
+  const link = $('#aModelLink'); link.href = aiLargeURL(); link.hidden = !(large && st === 'error');
+  $('#aModelStat').textContent = !large ? 'Built in. Fast, and works everywhere.'
+    : have ? 'Ready on this device. About three times the work of the standard model, for cleaner subjects and edges.'
+    : st === 'loading' ? 'Downloading… ' + aiMB(AIM.dl.got) + ' of ' + aiMB(AIM.dl.total || AI_LARGE.size)
+    : st === 'error' ? 'The download did not work (' + AIM.dl.err + '). Download the file with the link below and load it with "Load file…", or try again later.'
+    : 'Not on this device yet. Download it once (' + aiMB(AI_LARGE.size) + '); after that it works offline.';
+}
+
+// ---------- subject maps, cached per frame and model ----------
 // a cheap fingerprint, so a cached map is not used after the frame was painted on
 function aiPrint(fr){ let h = fr.length; const st = Math.max(1, Math.floor(fr.length / 8192)) * 4 + 1; for (let i = 0; i < fr.length; i += st) h = (h * 31 + fr[i]) | 0; return h; }
+function aiEntry(f, id){
+  const fr = frames[f]; if (!fr) return null;
+  const c = AIM.cache.get(fr), e = c && c[id || aiCurrent()];
+  return e && e.w === W && e.h === H && e.fp === aiPrint(fr) ? e : null;
+}
+// with smoothing on, the maps of neighboring frames are needed too
+function aiFramesFor(fs){
+  if (!(CUT.aiSmooth > 0) || frames.length < 2) return fs;
+  const set = new Set(); for (const f of fs) for (let d = -2; d <= 2; d++){ const g = f + d; if (g >= 0 && g < frames.length) set.add(g); }
+  return [...set].sort((a, b) => a - b);
+}
 // makes sure the subject maps of these frames of the selected layer are ready
 async function aiEnsure(fs, status){
-  for (let k = 0; k < fs.length; k++){
-    const fr = frames[fs[k]], c = AIM.cache.get(fr), fp = aiPrint(fr);
-    if (c && c.fp === fp && c.w === W && c.h === H) continue;
-    if (status) status(fs.length > 1 ? 'Finding the subject: frame ' + (k + 1) + ' of ' + fs.length + '…' : 'Finding the subject…', 0);
+  const id = aiCurrent();
+  let M = aiModel(id);
+  if (!M && id === 'large' && await aiLargeFromCache()) M = aiModel('large');
+  if (!M) throw Object.assign(new Error('the high-quality model is not on this device yet'), { noModel: true });
+  const todo = aiFramesFor(fs).filter(f => !aiEntry(f, id));
+  for (let k = 0; k < todo.length; k++){
+    const f = todo[k], fr = frames[f];
+    if (status) status((todo.length > 1 ? 'Finding the subject: frame ' + (k + 1) + ' of ' + todo.length : 'Finding the subject') + (id === 'large' ? ' (high quality)…' : '…'), 0);
     await new Promise(r => setTimeout(r, 16));
-    const map = await aiSubject(fr, W, H, p => { if (status) status('Finding the subject without the graphics chip (slow): ' + Math.round(p * 100) + '%…', p); });
-    AIM.cache.set(fr, { fp, w: W, h: H, map });
+    const res = await aiSubject(fr, W, H, p => { if (status) status('Finding the subject without the graphics chip (slow): ' + Math.round(p * 100) + '%…', p); }, M);
+    const c = AIM.cache.get(fr) || {}; c[id] = { fp: aiPrint(fr), w: W, h: H, S: M.S, map: res.map, rgb: res.rgb }; AIM.cache.set(fr, c);
   }
+  return todo.length;
 }
 // aiEnsure with messages: on the Remove background page, in the status bar, and on failure. false if it failed.
 async function aiReady(fs, status){
   const line = $('#aAiStat'), say = t => { if (line) line.textContent = t; if (status) status(t); else sbFlash(t); };
-  const fresh = fs.some(f => { const c = AIM.cache.get(frames[f]); return !c || c.fp !== aiPrint(frames[f]); });
-  try { await aiEnsure(fs, say); }
-  catch (err){ say(''); toast('The AI could not run here: ' + (err && err.message || err) + '. Choose the Smart method instead.', 6000); console.warn('[ai]', err); return false; }
-  if (fresh) say('Subject found in ' + (AIM.ms < 1000 ? (AIM.ms / 1000).toFixed(2) : (AIM.ms / 1000).toFixed(1)) + ' s ' + (AIM.backend === 'gpu' ? 'on the graphics chip' : 'without the graphics chip') + (fs.length > 1 ? ' (last of ' + fs.length + ' frames).' : '.'));
+  let n;
+  try { n = await aiEnsure(fs, say); }
+  catch (err){
+    say('');
+    if (err && err.noModel){ toast('Download the high-quality AI model first (AI model, on the Remove background page), or choose Standard.', 6000); aiModelUI(); }
+    else { toast('The AI could not run here: ' + (err && err.message || err) + '. Choose the Smart method instead.', 6000); console.warn('[ai]', err); }
+    return false;
+  }
+  if (n) say('Subject found in ' + (AIM.ms < 1000 ? (AIM.ms / 1000).toFixed(2) : (AIM.ms / 1000).toFixed(1)) + ' s ' + (AIM.backend === 'gpu' ? 'on the graphics chip' : 'without the graphics chip') +
+    (aiCurrent() === 'large' ? ', high-quality model' : '') + (n > 1 ? ' (' + n + ' frames).' : '.'));
   return true;
 }
-// the subject map of frame f resized to w × h (0..1); null if it has not been worked out
+// the subject map of frame f resized to w × h (0..1); null if it has not been worked out.
+// In animations the neighboring frames' maps are blended in where the picture has not changed there, which
+// steadies the outline from frame to frame without dragging it behind a moving subject.
 function aiPrior(f, w, h){
-  const c = AIM.cache.get(frames[f]); if (!c) return null;
-  const S = aiModel().S, m = c.map, out = new Float32Array(w * h);
+  const id = aiCurrent(), c = aiEntry(f, id); if (!c) return null;
+  const S = c.S; let m = c.map;
+  const k = (CUT.aiSmooth || 0) / 100;
+  if (k > 0 && frames.length > 1){
+    const out = new Float32Array(S * S), ws = new Float32Array(S * S), N = S * S;
+    for (let d = -2; d <= 2; d++){
+      const e = d === 0 ? c : aiEntry(f + d, id); if (!e || e.S !== S) continue;
+      const base = d === 0 ? 1 : Math.pow(k, Math.abs(d));
+      for (let i = 0; i < N; i++){
+        let wt = base;
+        if (d){ const o = i * 3, dr = c.rgb[o] - e.rgb[o], dg = c.rgb[o + 1] - e.rgb[o + 1], db = c.rgb[o + 2] - e.rgb[o + 2]; wt *= Math.exp(-(dr * dr + dg * dg + db * db) / (2 * 20 * 20)); }
+        out[i] += wt * e.map[i]; ws[i] += wt;
+      }
+    }
+    for (let i = 0; i < N; i++) out[i] /= ws[i];
+    m = out;
+  }
+  const res = new Float32Array(w * h);
   for (let y = 0; y < h; y++){
     const sy = Math.min(S - 1, Math.max(0, (y + 0.5) * S / h - 0.5)), y0 = Math.floor(sy), y1 = Math.min(S - 1, y0 + 1), fy = sy - y0;
     for (let x = 0; x < w; x++){
       const sx = Math.min(S - 1, Math.max(0, (x + 0.5) * S / w - 0.5)), x0 = Math.floor(sx), x1 = Math.min(S - 1, x0 + 1), fx = sx - x0;
-      out[y * w + x] = (m[y0 * S + x0] * (1 - fx) + m[y0 * S + x1] * fx) * (1 - fy) + (m[y1 * S + x0] * (1 - fx) + m[y1 * S + x1] * fx) * fy;
+      res[y * w + x] = (m[y0 * S + x0] * (1 - fx) + m[y0 * S + x1] * fx) * (1 - fy) + (m[y1 * S + x0] * (1 - fx) + m[y1 * S + x1] * fx) * fy;
     }
   }
-  return out;
+  return res;
 }
-// for the automatic tests: run the network on a given S × S × 4 picture
+// for the automatic tests: run a model on a given S × S × 4 picture
 if (window.__GWIZ_TEST__) window.__gwizAI = {
-  run: async (rgba, cpu) => { const S = aiModel().S; if (cpu){ const x = aiInput(rgba, S, S); return Array.from(aiFinish(await aiRunCPU(x))); } AIM.gpuFailed = false; return Array.from(await aiSubject(rgba, S, S)); },
-  input: rgba => { const S = aiModel().S; return Array.from(aiInput(rgba, S, S)); },
-  info: () => ({ backend: AIM.backend, ms: AIM.ms, half: AIG.fmt && AIG.fmt.half, gpuError: AIM.gpuError || null })
+  run: async (rgba, cpu, id) => {
+    const M = aiModel(id || 'small'), S = M.S;
+    if (cpu){ const inp = aiInput(rgba, S, S, M); return Array.from(aiFinish(await aiRunCPU(M, inp.x))); }
+    AIM.gpuFailed = false; return Array.from((await aiSubject(rgba, S, S, null, M)).map);
+  },
+  input: rgba => { const M = aiModel(); return Array.from(aiInput(rgba, M.S, M.S, M).x); },
+  info: () => ({ backend: AIM.backend, ms: AIM.ms, half: AIG.fmt && AIG.fmt.half, gpuError: AIM.gpuError || null, large: !!AIM.models.large, dl: AIM.dl.state })
 };

@@ -12,7 +12,7 @@ styles and scripts put in, in the order listed here. All scripts share one scope
 import base64, hashlib, io, json, os, re
 from PIL import Image
 
-VERSION = '1.7.0'
+VERSION = '1.8.0'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, 'app')
@@ -40,8 +40,8 @@ SCRIPTS = [
     # later features
     'features/touch.js', 'features/animation.js',
     '<model>',   # AI_MODEL_B64: app/models/u2netp.bin (the AI subject model, see app/models/README.md)
-    'features/ai-model.js', 'features/smart-cutout.js', 'features/mini-bar.js',
-    'features/session.js', 'features/pixel-art.js',
+    'features/ai-model.js', 'features/smart-cutout.js', 'features/cutout-tools.js', 'features/mini-bar.js',
+    'features/session.js', 'features/pixel-art.js', 'features/pixel-tools.js',
     'boot.js',
 ]
 

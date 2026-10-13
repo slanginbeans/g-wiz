@@ -43,17 +43,41 @@ function autoAmt(f, out){
   for (let i = 0; i < N; i++) if (out[i]) count++;
   return count;
 }
+// Blends each frame's removal amounts with the same pixels of up to two frames before and after it, where the
+// picture is the same there (so a still background or subject stops flickering, and a moving one is not smeared).
+function steadyAmounts(fs, amts){
+  const N = W * H, k = CUT.aiSmooth / 100, out = amts.map(() => new Uint8Array(N)), s2 = 2 * 20 * 20;
+  for (let a = 0; a < fs.length; a++){
+    const fa = frames[fs[a]], o = out[a];
+    for (let i = 0; i < N; i++){
+      const p = i * 4; let sum = amts[a][i], wsum = 1;
+      for (let d = -2; d <= 2; d++){
+        const b = a + d; if (!d || b < 0 || b >= fs.length) continue;
+        const fb = frames[fs[b]], dr = fa[p] - fb[p], dg = fa[p + 1] - fb[p + 1], db = fa[p + 2] - fb[p + 2];
+        const w = Math.pow(k, Math.abs(d)) * Math.exp(-(dr * dr + dg * dg + db * db) / s2);
+        sum += w * amts[b][i]; wsum += w;
+      }
+      o[i] = Math.round(sum / wsum);
+    }
+  }
+  for (let a = 0; a < fs.length; a++) amts[a].set(out[a]);
+}
 async function autoRemove(){
   if (!W) return; stopPlay(); busy(true); await new Promise(r => setTimeout(r, 16));
   try {
     if (CUT.method === 'ai' && !(await aiReady(targetFrames()))) return;
-    const N = W * H, amt8 = new Uint8Array(N);
+    const N = W * H;
     let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
     beginOp();
-    for (const f of op.fs){
-      autoAmt(f, amt8);
-      const m = masks[f];
-      for (let gi = 0; gi < N; gi++){ const v = amt8[gi]; if (!v) continue; const t = 255 - v; if (m[gi] > t){ m[gi] = t; const x = gi % W, y = (gi / W) | 0; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; } }
+    // with the AI and "Steady across frames", every frame is worked out first and then steadied against its neighbors
+    const steady = CUT.method === 'ai' && CUT.aiSmooth > 0 && op.fs.length > 2 && N * op.fs.length <= 256e6;
+    const amts = steady ? op.fs.map(f => { const a = new Uint8Array(N); autoAmt(f, a); return a; }) : null;
+    if (steady) steadyAmounts(op.fs, amts);
+    const amt8 = steady ? null : new Uint8Array(N);
+    for (let k = 0; k < op.fs.length; k++){
+      const f = op.fs[k], amt = steady ? amts[k] : (autoAmt(f, amt8), amt8);
+      const m = masks[f], amt8_ = amt;
+      for (let gi = 0; gi < N; gi++){ const v = amt8_[gi]; if (!v) continue; const t = 255 - v; if (m[gi] > t){ m[gi] = t; const x = gi % W, y = (gi / W) | 0; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; } }
     }
     if (bx1 < 0){ op = null; toast('No background found along the border. Raise the tolerance or use the wand.', 4000); return; }
     const nf = op.fs.length;

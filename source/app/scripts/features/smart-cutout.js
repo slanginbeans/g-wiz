@@ -8,7 +8,7 @@
 //      guided filter so the decision follows the picture's real edges;
 //   4. background must connect to the border (edges block leaks into the subject), enclosed gaps up to a chosen
 //      size are cleared, and the soft map is refined once more at full resolution so hair and fur keep soft edges.
-const CUT = Object.assign({ method: 'ai', trust: 85, k: 3, border: 4, detail: 3, soft: 25, holes: 3, contig: true, iters: 2, edge: 55, contrast: 50, showHints: true, hintSize: 40 }, store.get('cut', {}));
+const CUT = Object.assign({ method: 'ai', trust: 85, aiModel: 'small', aiSmooth: 50, k: 3, border: 4, detail: 3, soft: 25, holes: 3, contig: true, iters: 2, edge: 55, contrast: 50, showHints: true, hintSize: 40 }, store.get('cut', {}));
 const saveCut = () => store.set('cut', CUT);
 // 1.7: the AI method is new and better on photos, so it becomes the choice once, also for earlier users
 if ((CUT.v || 0) < 2){ CUT.method = 'ai'; CUT.trust = 85; CUT.v = 2; saveCut(); }
@@ -421,6 +421,19 @@ cutBind('aDetail', 'detail', v => v + ' px'); cutBind('aSoft', 'soft', v => v + 
 cutBind('aIters', 'iters', v => v === 0 ? 'Quick' : v + (v === 1 ? ' pass' : ' passes')); cutBind('aContrast', 'contrast', v => v + '%');
 cutBind('aHintSize', 'hintSize', v => v + ' px', () => requestDraw());
 cutBind('aTrust', 'trust', v => v + '%');
+cutBind('aSmooth', 'aiSmooth', v => v === 0 ? 'Off' : v + '%');
+// the AI model choice
+$('#aModel').addEventListener('change', async e => {
+  CUT.aiModel = e.target.value === 'large' ? 'large' : 'small'; saveCut();
+  if (CUT.aiModel === 'large') await aiLargeFromCache();
+  aiModelUI(); scheduleAutoPreview();
+});
+$('#aModelGet').addEventListener('click', aiLargeDownload);
+$('#aModelFile').addEventListener('click', () => $('#aModelIn').click());
+$('#aModelIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) aiLargeFile(f); });
+$('#aModelForget').addEventListener('click', async () => { await aiLargeForget(); aiModelUI(); sbFlash('The high-quality AI model was removed from this device.'); });
+aiModelUI();
+if (CUT.aiModel === 'large') aiLargeFromCache().then(aiModelUI);
 $('#aContig').checked = CUT.contig; $('#aContig').addEventListener('change', e => { CUT.contig = e.target.checked; saveCut(); scheduleAutoPreview(); });
 $('#aShowHints').checked = CUT.showHints; $('#aShowHints').addEventListener('change', e => { CUT.showHints = e.target.checked; saveCut(); requestOverlay(); });
 segSet('#aMethod', 'v', CUT.method);

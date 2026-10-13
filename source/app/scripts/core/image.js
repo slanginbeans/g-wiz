@@ -49,6 +49,7 @@ function renderRect(x0, y0, x1, y1){
   }
   if (adjActive()) adjustRect(d, x0, y0, x1, y1);
   imgCtx.putImageData(disp, 0, 0, x0, y0, x1 - x0, y1 - y0);
+  if (S.edgeCheck) requestOverlay();
   requestDraw();
 }
 function hexToRgb(h){ h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }

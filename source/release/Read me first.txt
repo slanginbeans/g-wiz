@@ -1,4 +1,4 @@
-G-WIZ for iPad  (version 1.7.0)
+G-WIZ for iPad  (version 1.8.0)
 ===============================
 
 G-WIZ installs on an iPad from a web address. After one visit with internet,
@@ -160,6 +160,22 @@ New in 1.5
     see-through ink).
   - Fixed: the calligraphy pen drew nothing if G-WIZ had been used before.
   - Long menus no longer run off the screen; they switch to two columns.
+
+New in 1.8
+----------
+  - AI model > High quality: a larger AI model for cleaner subjects and
+    outlines. Tap Download once (44 MB, use Wi-Fi); after that it works
+    offline. It needs the graphics chip, which every recent iPad has.
+  - Refine edge brush (Remove background > Check and refine, or the toolbox):
+    after removing the background, paint along hair or fur, across the edge.
+    When you lift the Pencil the pixels under the stroke are re-cut.
+  - Backdrop buttons and "Edge check" (magenta = partly see-through) on the
+    Remove background page; Q on a keyboard switches the backdrop.
+  - "Steady across frames" stops the outline flickering in animations.
+  - Pixel art page: recolor one color everywhere, add an outline, shades of
+    the primary color with hue shift, a shading pencil (darken or lighten),
+    a tiled 3 × 3 preview, Shift by half for seamless tiles, and Save sprite
+    sheet (also in the Image menu).
 
 AI background removal (version 1.7)
 -----------------------------------

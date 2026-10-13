@@ -25,7 +25,9 @@ function scheduleAutoPreview(){
 function requestOverlay(){ if (!ovRaf) ovRaf = requestAnimationFrame(() => { ovRaf = 0; renderOverlay(); }); }
 function renderOverlay(){
   const sel = S.mShow && motionSel, heat = S.mHeat && motion, ap = S.autoPrev && autoPrevData, hn = CUT.showHints && AL && AL.hints && AL.hints.length === W * H ? AL.hints : null;
-  if (!W || !(sel || heat || ap || hn)){ ovOn = false; requestDraw(); return; }
+  // edge check: partly see-through pixels (where halos and soft fringes are) in magenta; the refine brush's strip in cyan
+  const ec = S.edgeCheck && W ? { fr: frames[S.cur], m: masks[S.cur] } : null, rs = typeof refineStroke !== 'undefined' && refineStroke ? refineStroke.mask : null;
+  if (!W || !(sel || heat || ap || hn || ec || rs)){ ovOn = false; requestDraw(); return; }
   if (ovCanvas.width !== W || ovCanvas.height !== H){ ovCanvas.width = W; ovCanvas.height = H; }
   const g = ovCanvas.getContext('2d'), id = g.createImageData(W, H), d = id.data, N = W * H;
   const ac = hexToRgb(themeCols ? themeCols.accent : '#d23a26');
@@ -35,6 +37,8 @@ function renderOverlay(){
     if (sel && motionSel[i]){ const t = 0.7; r = r * (1 - t) + 25 * t; gg = gg * (1 - t) + 205 * t; b = b * (1 - t) + 230 * t; a = Math.max(a, 120); }
     if (hn && hn[i]){ const t = 0.55; const hc = hn[i] === 1 ? [54, 213, 90] : [235, 40, 190]; r = r * (1 - t) + hc[0] * t; gg = gg * (1 - t) + hc[1] * t; b = b * (1 - t) + hc[2] * t; a = Math.max(a, 150); }
     if (ap && ap[i]){ const t = ap[i] / 255; r = r * (1 - t) + ac[0] * t; gg = gg * (1 - t) + ac[1] * t; b = b * (1 - t) + ac[2] * t; a = Math.max(a, 60 + 120 * t); }
+    if (ec){ const v = ec.fr[p + 3] * ec.m[i] / 255; if (v > 8 && v < 247){ const t = 1 - Math.abs(v - 127) / 160; r = 255; gg = 0; b = 230; a = Math.max(a, 90 + 150 * t); } }
+    if (rs && rs[i]){ const t = 0.5; r = r * (1 - t) + 30 * t; gg = gg * (1 - t) + 220 * t; b = b * (1 - t) + 255 * t; a = Math.max(a, 130); }
     d[p] = r; d[p + 1] = gg; d[p + 2] = b; d[p + 3] = a;
   }
   g.putImageData(id, 0, 0); ovOn = true; requestDraw();
